@@ -33,7 +33,8 @@ SEC_TO_DAY = u.second.to(u.day)
 CM_TO_ANGSTROM = u.centimeter.to(u.angstrom)
 ANGSTROM_TO_MICRON = u.angstrom.to(u.micron)
 MPC_TO_CM = u.megaparsec.to(u.centimeter)
-DISTANCE = [50, 100, 150, 200]
+DISTANCE = [40, 50, 100, 150, 200]
+TMAX = 35
 
 class Kilonova(object):
     def __init__(self):
@@ -160,8 +161,14 @@ def main():
             ax.set_ylabel('{} (AB mag)'.format(bp), fontsize='xx-large')
             ax.set_xlabel('Phase (Days)', fontsize='xx-large')
             ax.legend(loc='upper right', frameon=False)
-            ymin, ymax = ax.get_ylim()
+            xmin, xmax = ax.get_xlim()
+            ax.set_xlim(xmin, TMAX)
+
+            ymin = np.nanmin(out[bp]) - 0.5
+            ind = (out['phase'] <= TMAX)
+            ymax = np.nanmax(out[bp][ind]) + 0.5
             ax.set_ylim((ymax, ymin))
+
         fig.suptitle('Kilonova Synthetic Photometry {} Mpc'.format(dmpc), fontsize='xx-large')
         fig.tight_layout(rect=[0,0,1,0.93])
         plt.savefig('{}/kilonova_phot_{}Mpc.pdf'.format(figdir, dmpc))
