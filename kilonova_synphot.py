@@ -9,6 +9,7 @@ import os
 import numpy as np
 import astropy
 import astropy.constants
+import astropy.coordinates as c
 import astropy.units as u
 import astropy.table as at
 import h5py
@@ -96,7 +97,7 @@ def main():
         bandpasses[bp] = bpmodel
 
     # we just need a couple of bandpasses for testing
-    use_bandpasses = ['F115W','F150W','F200W']
+    use_bandpasses = ['F115W','F150W','F200W','F560W']
 
     # init the kilonova model and create some arrays to store output
     kn = Kilonova()
@@ -105,18 +106,22 @@ def main():
         time = []
         flux = {}
 
+        dist = c.Distance(dmpc*u.megaparsec)
+        z = dist.z
+
         if j == 0:
             fig = plt.figure(figsize=(8,15))
             ax = fig.add_subplot(1,1,1)
         for i, phase in enumerate(kn._times):
             lam, flam = kn.get_model(phase)
+            lamz = lam*(1.+z)
             fnorm = flam/(4*np.pi*(dmpc*MPC_TO_CM)**2.)
 
             for bp in use_bandpasses:
                 passband = bandpasses[bp]
                 name = 'kilonova_{:+.1f}'.format(phase)
-                spec = S.ArraySpectrum(wave=lam, flux=fnorm, waveunits='angstrom', fluxunits='flam', name=name)
-                obs  = S.Observation(spec, passband)
+                spec = S.ArraySpectrum(wave=lamz, flux=fnorm, waveunits='angstrom', fluxunits='flam', name=name)
+                obs  = S.Observation(spec, passband, force='taper')
                 try:
                     mag = obs.effstim('abmag')
                 except ValueError as e:
@@ -135,7 +140,7 @@ def main():
                     ax.plot(lam*ANGSTROM_TO_MICRON, fnorm+180 - i, 'k-')
         if j==0:
             ax.tick_params(axis='both', which='major', labelsize='large')
-            ax.set_xlabel(r'Wavelength ($\mu$m)', fontsize='xx-large')
+            ax.set_xlabel(r'Rest Wavelength ($\mu$m)', fontsize='xx-large')
             ax.set_ylabel(r'Relative F$_{\lambda}$ + constant', fontsize='xx-large')
             ax.set_xlim(0.5, 9.5)
             fig.tight_layout(rect=[0,0,1,0.96])
@@ -147,9 +152,9 @@ def main():
         out = at.Table(arrays, names=names)
         out.write('Tables/kilonova_phottable_{}Mpc.txt'.format(dmpc), delimiter=' ', format='ascii.fixed_width', overwrite=True)
 
-        fig = plt.figure(figsize=(15, 5))
+        fig = plt.figure(figsize=(10, 10))
         for i, bp in enumerate(use_bandpasses):
-            ax = fig.add_subplot(1,3,i+1)
+            ax = fig.add_subplot(2,2,i+1)
             ax.plot(out['phase'], out[bp], marker='o', linestyle='-', lw=0.5, label=bp, color='C{}'.format(i))
             ax.tick_params(axis='both', which='major', labelsize='large')
             ax.set_ylabel('{} (AB mag)'.format(bp), fontsize='xx-large')
