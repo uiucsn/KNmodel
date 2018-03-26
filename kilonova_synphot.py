@@ -17,7 +17,6 @@ import bisect
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 cdbs = os.getenv('PYSYN_CDBS')
-print(cdbs)
 if cdbs is None:
     cdbs = '~/work/synphot/'
     cdbs = os.path.expanduser(cdbs)
@@ -159,7 +158,7 @@ def main():
             if i % 5 == 0:
                 # convert flam -> fnu -> mJy (YUCK)
                 lam_micron = lamz *ANGSTROM_TO_MICRON
-                f_nu = fnorm * ((lamz * ANGSTROM_TO_CM)**2.) / SPEED_OF_LIGHT
+                f_nu = (((lamz * ANGSTROM_TO_CM)**2.) / SPEED_OF_LIGHT) * fnorm * (CM_TO_ANGSTROM / ANGSTROM_TO_MICRON)
                 f_mjy = f_nu * FNU_TO_MJY
                 table_name = 'Tables/kilnova_orig_{}Mpc_p{:+.2f}.txt'.format(dmpc, phase)
                 this_spec = at.Table([lam_micron, f_mjy], names=['wave_micron','flux_mjy'])
