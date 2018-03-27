@@ -20,7 +20,7 @@ cdbs = os.getenv('PYSYN_CDBS')
 if cdbs is None:
     cdbs = '~/work/synphot/'
     cdbs = os.path.expanduser(cdbs)
-    os.putenv('PYSYN_CDBS', cdbs)
+    os.environ['PYSYN_CDBS'] = cdbs
 import pysynphot as S
 import webbpsf as W
 
@@ -160,7 +160,7 @@ def main():
                 lam_micron = lamz *ANGSTROM_TO_MICRON
                 f_nu = (((lamz * ANGSTROM_TO_CM)**2.) / SPEED_OF_LIGHT) * fnorm / ANGSTROM_TO_MICRON
                 f_mjy = f_nu * FNU_TO_MJY
-                table_name = 'Tables/kilnova_orig_{}Mpc_p{:+.2f}.txt'.format(dmpc, phase)
+                table_name = 'Tables/kilonova_orig_{}Mpc_p{:+.2f}.txt'.format(dmpc, phase)
                 this_spec = at.Table([lam_micron, f_mjy], names=['wave_micron','flux_mjy'])
                 this_spec.sort('wave_micron')
                 this_spec.write(table_name, format='ascii.fixed_width', delimiter=' ',overwrite='True')
