@@ -45,9 +45,9 @@ def get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty):
     l_on = duty_cycles[1,:]
     v_on = duty_cycles[2,:]
 
-    h_on[h_series >= h_duty] = 1
-    l_on[l_series >= l_duty] = 1
-    v_on[v_series >= v_duty] = 1
+    h_on[h_series <= h_duty] = 1
+    l_on[l_series <= l_duty] = 1
+    v_on[v_series <= v_duty] = 1
 
     h_on = h_on.astype(bool)
     l_on = l_on.astype(bool)
@@ -71,10 +71,14 @@ def get_options(argv=None):
     parser.add_argument('--mass_distrib', choices=['mw','flat'], default='mw', help='Picky BNS mass distribution')
     parser.add_argument('--masskey1', type=float, action=MinZeroAction, default=1.4, help='Specify  Mass Keyword 1 (mw = mean, flat=lower bound)')
     parser.add_argument('--masskey2', type=float, action=MinZeroAction, default=0.09, help='Specify  Mass Keyword 2 (mw = sigma, flat=upper bound)')
-    parser.add_argument('--ligo_horizon', default=105., action=MinZeroAction, type=float,\
+    parser.add_argument('--ligo_horizon_min', default=160., action=MinZeroAction, type=float,\
             help='Specify the minimum horizon distance for BNS events from LIGO')
-    parser.add_argument('--virgo_horizon', default=60., action=MinZeroAction, type=float,\
+    parser.add_argument('--ligo_horizon_max', default=190., action=MinZeroAction, type=float,\
+            help='Specify the maximum horizon distance for BNS events from LIGO')
+    parser.add_argument('--virgo_horizon_min', default=90., action=MinZeroAction, type=float,\
             help='Specify the minimum horizon distance for Virgo events from LIGO')
+    parser.add_argument('--virgo_horizon_max', default=120., action=MinZeroAction, type=float,\
+            help='Specify the maximum horizon distance for Virgo events from LIGO')
     # Ryan's original value was -5.95 - the update comes from Alexandra Corsi's conservative estimate
     # 4.7d-6*4./3.*!pi*(170.)^3.*0.75*0.7 --> ~50
     # 3.2d-7*4./3.*!pi*(120.)^3.*0.75*0.7 --> 1
@@ -82,8 +86,8 @@ def get_options(argv=None):
     parser.add_argument('--ntry', default=10000, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--box_size', default=500., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
-    parser.add_argument('--mean_lograte', default=-5.95, help='specify the lograthim of the mean BNS rate')
-    parser.add_argument('--sig_lograte',  default=0.55, help='specify the std of the mean BNS rate')
+    parser.add_argument('--mean_lograte', default=-5.95, help='specify the lograthim of the mean BNS rate', type=float)
+    parser.add_argument('--sig_lograte',  default=0.55, type=float, help='specify the std of the mean BNS rate')
     parser.add_argument('--chirp_scale',  default=2.66, action=MinZeroAction, type=float, help='Set the chirp scale')
     parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
     parser.add_argument('--ldutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
@@ -98,10 +102,10 @@ def main(argv=None):
     np.random.seed(seed=42)
 
     # setup time-ranges
-    ligo_run_start = Time('2019-04-01T00:00:00.0')
-    ligo_run_end   = Time('2020-04-01T00:00:00.0')
-    hst_cyc_start  = Time('2019-10-01T00:00:00.0')
-    hst_cyc_end    = Time('2020-09-30T00:00:00.0')
+    ligo_run_start = Time('2022-01-01T00:00:00.0')
+    ligo_run_end   = Time('2023-01-01T00:00:00.0')
+    hst_cyc_start  = Time('2021-10-01T00:00:00.0')
+    hst_cyc_end    = Time('2022-10-01T00:00:00.0')
     eng_time       = 2.*u.week
     Range = namedtuple('Range', ['start', 'end'])
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
@@ -112,8 +116,10 @@ def main(argv=None):
     fractional_duration = (td/(1.*u.year)).decompose().value
 
     # setup horizons
-    bns_ligo_horizon  =  args.ligo_horizon*u.megaparsec
-    bns_virgo_horizon =  args.virgo_horizon*u.megaparsec
+    bns_ligo_horizon_min  =  args.ligo_horizon_min
+    bns_ligo_horizon_max  =  args.ligo_horizon_max
+    bns_virgo_horizon_min =  args.virgo_horizon_min
+    bns_virgo_horizon_max =  args.virgo_horizon_max
     box_size = args.box_size
     volume = box_size**3
 
@@ -184,8 +190,6 @@ def main(argv=None):
         if n_events == 0:
             return default_value, default_value, default_value, default_value, default_value, default_value, 0, 0
 
-
-
         absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a + hmag[magindex] + ah
         absm = np.array(absm)
 
@@ -197,7 +201,10 @@ def main(argv=None):
 
         h_on, l_on, v_on = get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty)
 
-        dist_ligo_bool  = dist < bns_ligo_horizon*tot_mass/chirp_scale
+        bns_ligo_horizon = np.random.uniform(bns_ligo_horizon_min, bns_ligo_horizon_max) * u.Mpc
+        bns_virgo_horizon = np.random.uniform(bns_virgo_horizon_min, bns_virgo_horizon_max) * u.Mpc
+
+        dist_ligo_bool  = dist < bns_ligo_horizon*(tot_mass/chirp_scale)
         dist_virgo_bool = dist < bns_virgo_horizon*tot_mass/chirp_scale
         distmod = Distance(dist)
         obsmag = absm + distmod.distmod.value
@@ -206,10 +213,18 @@ def main(argv=None):
         two_det_bool = (h_on & l_on) | (v_on & (h_on | l_on))
         three_det_bool = (h_on & l_on & v_on)
 
+        n2_gw_only = np.where(dist_ligo_bool & two_det_bool)[0]
+        n2_gw = len(n2_gw_only)
         n2_good = np.where(dist_ligo_bool & two_det_bool & em_bool)[0]
         n2 = len(n2_good)
+        # sanity check
+        assert n2_gw >= n2, "GW events ({}) less than EM follow events ({})".format(n2_gw, n2)
+        n3_gw_only = np.where(dist_ligo_bool & three_det_bool)[0]
+        n3_gw = len(n3_gw_only)
         n3_good = np.where(dist_virgo_bool & three_det_bool & em_bool)[0]
         n3 = len(n3_good)
+        # sanity check
+        assert n3_gw >= n3, "GW events ({}) less than EM follow events ({})".format(n3_gw, n3)
 
         return dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
                 dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
@@ -247,8 +262,7 @@ def main(argv=None):
     fig_kw = {'figsize':(9.5/0.7, 3.5)}
     fig, axes = plt.subplots(nrows=1, ncols=3, **fig_kw)
 
-
-    ebins = np.arange(-0.5,20.5, 1)
+    ebins = np.arange(-0.5,30.5, 1)
     norm = np.sum(n_detect3)/np.sum(n_detect2)
     vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', \
             bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
@@ -267,7 +281,7 @@ def main(argv=None):
     axes[0].axvline(np.around(mean_nevents), color='C1', linestyle='--', lw=1.5, label=r'$\langle N \rangle = {:n}$'.format(np.around(mean_nevents)))
     axes[0].legend(frameon=False, fontsize='small')
 
-    dist_range = np.arange(0, 150., 0.1)
+    dist_range = np.arange(0, 400., 0.1)
     kde = spstat.gaussian_kde(dist_detect2, bw_method='scott')
     pdist = kde(dist_range)
     axes[1].plot(dist_range, pdist, color='C0', linestyle='-', lw=3, zorder=4)
@@ -305,17 +319,14 @@ def main(argv=None):
     axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.0f}$ mag'.format(mean_h))
     axes[2].legend(frameon=False, fontsize='small')
 
-
     mean_dist = scinteg.trapz(pdist*dist_range, dist_range)
     axes[1].axvline(mean_dist, ymax=0.75, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle D \rangle = {:.0f}$ Mpc'.format(mean_dist))
     axes[1].legend(frameon=False, fontsize='small')
 
-
-
-
     axes[1].set_xlabel('Distance ($D$, Mpc)', fontsize='large')
     axes[1].set_ylabel('$P(D)$', fontsize='large')
 
+    axes[0].set_title(f"Masses {args.mass_distrib}; {args.masskey1} -- {args.masskey2}")
     axes[0].set_xlabel('Number of Events ($N$)', fontsize='large')
     axes[0].set_ylabel('$P(N)$', fontsize='large')
 
