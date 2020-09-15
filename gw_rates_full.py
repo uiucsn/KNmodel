@@ -1,6 +1,10 @@
 #!/usr/bin/env python
+import io
 import sys
 import os
+from functools import partial
+from urllib import request
+
 import numpy as np
 import scipy.stats as spstat
 from collections import namedtuple
@@ -17,16 +21,31 @@ from scipy.linalg import cholesky
 import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
 
+import inspiral_range
+
+
+detector_asd_links = dict(
+    ligo='https://dcc.ligo.org/public/0165/T2000012/001/aligo_O4high.txt',
+    virgo='https://dcc.ligo.org/public/0165/T2000012/001/avirgo_O4high_NEW.txt',
+    kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
+)
+
+def get_range(detector):
+    asd_fp = io.BytesIO(
+        request.urlopen(detector_asd_links[detector]).read())
+    freq, asd = np.loadtxt(asd_fp, unpack=True)
+    psd = asd**2
+    return partial(inspiral_range.range, freq, psd)
 
 def get_correlated_series(n_events, upper_chol):
     """
     Get some correlated uniformly distributed random series between 0 and 1
     """
-    rnd = np.random.uniform(0., 1., size=(n_events, 3))
+    rnd = np.random.uniform(0., 1., size=(n_events, 4))
     series = rnd @ upper_chol
     return series
 
-def get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty):
+def get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty, k_duty):
     """
     Get some correlated duty cycle series
     """
@@ -40,20 +59,24 @@ def get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty):
     h_series = series[0,:]
     l_series = series[1,:]
     v_series = series[2,:]
+    k_series = series[3,:]
 
     h_on = duty_cycles[0,:]
     l_on = duty_cycles[1,:]
     v_on = duty_cycles[2,:]
+    k_on = duty_cycles[3,:]
 
     h_on[h_series <= h_duty] = 1
     l_on[l_series <= l_duty] = 1
     v_on[v_series <= v_duty] = 1
+    k_on[k_series <= k_duty] = 1
 
     h_on = h_on.astype(bool)
     l_on = l_on.astype(bool)
     v_on = v_on.astype(bool)
+    k_on = k_on.astype(bool)
 
-    return h_on, l_on, v_on
+    return h_on, l_on, v_on, k_on
 
 
 class MinZeroAction(argparse.Action):
@@ -71,14 +94,6 @@ def get_options(argv=None):
     parser.add_argument('--mass_distrib', choices=['mw','flat'], default='mw', help='Picky BNS mass distribution')
     parser.add_argument('--masskey1', type=float, action=MinZeroAction, default=1.4, help='Specify  Mass Keyword 1 (mw = mean, flat=lower bound)')
     parser.add_argument('--masskey2', type=float, action=MinZeroAction, default=0.09, help='Specify  Mass Keyword 2 (mw = sigma, flat=upper bound)')
-    parser.add_argument('--ligo_horizon_min', default=160., action=MinZeroAction, type=float,\
-            help='Specify the minimum horizon distance for BNS events from LIGO')
-    parser.add_argument('--ligo_horizon_max', default=190., action=MinZeroAction, type=float,\
-            help='Specify the maximum horizon distance for BNS events from LIGO')
-    parser.add_argument('--virgo_horizon_min', default=90., action=MinZeroAction, type=float,\
-            help='Specify the minimum horizon distance for Virgo events from LIGO')
-    parser.add_argument('--virgo_horizon_max', default=120., action=MinZeroAction, type=float,\
-            help='Specify the maximum horizon distance for Virgo events from LIGO')
     # Ryan's original value was -5.95 - the update comes from Alexandra Corsi's conservative estimate
     # 4.7d-6*4./3.*!pi*(170.)^3.*0.75*0.7 --> ~50
     # 3.2d-7*4./3.*!pi*(120.)^3.*0.75*0.7 --> 1
@@ -88,10 +103,10 @@ def get_options(argv=None):
             help='Specify the side of the box in which to simulate events')
     parser.add_argument('--mean_lograte', default=-5.95, help='specify the lograthim of the mean BNS rate', type=float)
     parser.add_argument('--sig_lograte',  default=0.55, type=float, help='specify the std of the mean BNS rate')
-    parser.add_argument('--chirp_scale',  default=2.66, action=MinZeroAction, type=float, help='Set the chirp scale')
     parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
     parser.add_argument('--ldutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
     parser.add_argument('--vdutycycle', default=0.6, action=MinZeroAction, type=float, help='Set the Virgo duty cycle')
+    parser.add_argument('--kdutycycle', default=0.4, action=MinZeroAction, type=float, help='Set the Kagra duty cycle')
     args = parser.parse_args(args=argv)
     return args
 
@@ -115,15 +130,8 @@ def main(argv=None):
     td = (earliest_end - latest_start) + eng_time
     fractional_duration = (td/(1.*u.year)).decompose().value
 
-    # setup horizons
-    bns_ligo_horizon_min  =  args.ligo_horizon_min
-    bns_ligo_horizon_max  =  args.ligo_horizon_max
-    bns_virgo_horizon_min =  args.virgo_horizon_min
-    bns_virgo_horizon_max =  args.virgo_horizon_max
     box_size = args.box_size
     volume = box_size**3
-
-
     # create the mass distribution of the merging neutron star
     mass_distrib = args.mass_distrib
     if mass_distrib == 'mw':
@@ -137,15 +145,17 @@ def main(argv=None):
 
     # the two ligo detectors ahve strongly correlated duty cycles
     # they are both not very correlated with Virgo
-    lvc_cor_matrix = np.array([[1., 0.8, 0.2],
-                        [0.8, 1., 0.2],
-                        [0.2, 0.2, 1.]])
+    lvc_cor_matrix = np.array([[1., 0.8, 0.2, 0.2],
+                               [0.8, 1., 0.2, 0.2],
+                               [0.2, 0.2, 1., 0.2],
+                               [0.2, 0.2, 0.2, 1.]])
     upper_chol = cholesky(lvc_cor_matrix)
 
     # setup duty cycles
     h_duty = args.hdutycycle
     l_duty = args.ldutycycle
     v_duty = args.vdutycycle
+    k_duty = args.kdutycycle
 
     # setup event rates
     mean_lograte = args.mean_lograte
@@ -157,8 +167,13 @@ def main(argv=None):
     phase = temp['ofphase']
     temphmag  = temp['f160w']
     temprmag  = temp['f625w']
-    def dotry(n):
 
+    # define ranges
+    ligo_range = get_range('ligo')
+    virgo_range = get_range('virgo')
+    kagra_range = get_range('kagra')
+
+    def dotry(n):
         rate = 10.**(np.random.normal(mean_lograte, sig_lograte))
         n_events = np.around(rate*volume*fractional_duration).astype('int_')
 
@@ -168,6 +183,15 @@ def main(argv=None):
         else:
             mass1 = np.random.uniform(min_mass, max_mass, n_events)
             mass2 = np.random.uniform(min_mass, max_mass, n_events)
+        bns_range_ligo = np.array(
+            [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+        ) * u.Mpc
+        bns_range_virgo = np.array(
+            [virgo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+        ) * u.Mpc
+        bns_range_kagra = np.array(
+            [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+        ) * u.Mpc
         tot_mass = mass1 + mass2
 
         delay = np.random.uniform(0, 365.25, n_events)
@@ -199,19 +223,21 @@ def main(argv=None):
         z = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
         dist = (x**2. + y**2. + z**2. + (0.05*u.megaparsec)**2.)**0.5
 
-        h_on, l_on, v_on = get_sim_dutycycles(n_events, upper_chol, h_duty, l_duty, v_duty)
-
-        bns_ligo_horizon = np.random.uniform(bns_ligo_horizon_min, bns_ligo_horizon_max) * u.Mpc
-        bns_virgo_horizon = np.random.uniform(bns_virgo_horizon_min, bns_virgo_horizon_max) * u.Mpc
-
-        dist_ligo_bool  = dist < bns_ligo_horizon*(tot_mass/chirp_scale)
-        dist_virgo_bool = dist < bns_virgo_horizon*tot_mass/chirp_scale
+        h_on, l_on, v_on, k_on = get_sim_dutycycles(n_events, upper_chol,
+                                                    h_duty, l_duty, v_duty, k_duty)
+        n_detectors_on = np.array(
+            [sum(_) for _ in np.vstack((h_on, l_on, v_on, k_on)).T]
+        )
+        dist_ligo_bool  = dist < bns_range_ligo
+        dist_virgo_bool = dist < bns_range_virgo
+        dist_kagra_bool = dist < bns_range_kagra
         distmod = Distance(dist)
         obsmag = absm + distmod.distmod.value
         em_bool = obsmag < 22.
 
-        two_det_bool = (h_on & l_on) | (v_on & (h_on | l_on))
-        three_det_bool = (h_on & l_on & v_on)
+        two_det_bool = n_detectors_on == 2
+        three_det_bool = n_detectors_on == 3
+        four_det_bool = n_detectors_on == 4
 
         n2_gw_only = np.where(dist_ligo_bool & two_det_bool)[0]
         n2_gw = len(n2_gw_only)
@@ -233,7 +259,7 @@ def main(argv=None):
 
     with schwimmbad.SerialPool() as pool:
         values = list(pool.map(dotry, range(n_try)))
-
+    print("Finshed computation, plotting...")
     n_detect2 = []
     n_detect3 = []
     dist_detect2 = []
