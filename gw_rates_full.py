@@ -200,7 +200,7 @@ def main(argv=None):
         tot_mass = mass1 + mass2
 
         delay = np.random.uniform(0, 365.25, n_events)
-        delay[delay > 80] = 0
+        delay[delay > 90] = 0
 
         av = np.random.exponential(1, n_events)*0.4
         ah = av/6.1
@@ -415,14 +415,14 @@ def main(argv=None):
     axes[2].plot(h_range, ph, color='C0', linestyle='-', lw=3, zorder=4)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C0', alpha=0.3, zorder=0)
     mean_h = np.mean(hmag_detect2)
-    axes[2].axvline(mean_h, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.0f}$ mag'.format(mean_h))
+    axes[2].axvline(mean_h, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
 
     kde = spstat.gaussian_kde(hmag_detect3, bw_method='scott')
     ph = kde(h_range)
     axes[2].plot(h_range, ph, color='C1', linestyle='-', lw=3, zorder=2)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C1', alpha=0.5, zorder=1)
     mean_h = np.mean(hmag_detect3)
-    axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.0f}$ mag'.format(mean_h))
+    axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
     axes[2].legend(frameon=False, fontsize='small')
 
     try:
@@ -431,7 +431,7 @@ def main(argv=None):
         axes[2].plot(h_range, ph, color='C2', linestyle='-', lw=3, zorder=2)
         axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C1', alpha=0.5, zorder=1)
         mean_h = np.mean(hmag_detect4)
-        axes[2].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.0f}$ mag'.format(mean_h))
+        axes[2].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
         axes[2].legend(frameon=False, fontsize='small')
     except ValueError:
         print("Could not create KDE for h-mag since no 4 detector events found")
