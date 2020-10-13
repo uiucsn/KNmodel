@@ -11,10 +11,9 @@ from collections import namedtuple
 from astropy.time import Time
 from astropy.coordinates import Distance
 import astropy.table as at
-import astropy.units as u
+import astropy.units as u, astropy.constants as c
 import argparse
 import matplotlib.pyplot as plt
-import seaborn as sns
 from astropy.visualization import hist
 import schwimmbad
 from scipy.linalg import cholesky
@@ -22,13 +21,34 @@ import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
 
 import inspiral_range
+from ligo.computeDiskMass import computeCompactness, computeDiskMass
+import lalsimulation as lalsim
+from gwemlightcurves.EjectaFits import DiUj2017
 
+EOSNAME = "AP4"
+MAX_MASS = 2.21  # specific to EoS model
 
 detector_asd_links = dict(
     ligo='https://dcc.ligo.org/public/0165/T2000012/001/aligo_O4high.txt',
     virgo='https://dcc.ligo.org/public/0165/T2000012/001/avirgo_O4high_NEW.txt',
     kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
 )
+
+def has_ejecta_mass(m1, m2):
+    """Calculate whether the binary has any remnant matter based on
+    Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
+    equation of state.
+    """
+    c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
+    c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
+    if m_b_2 == 0.0 or m_b_1 == 0.0:
+        # treat as NSBH
+        m_rem = computeDiskMass(m1, m2, 0., 0., eosname=EOSNAME)
+    else:
+        # treat as BNS
+        m_rem = DiUj2017.calc_meje(m1, m_b_1, c_ns_1, m2, m_b_2, c_ns_2)
+    return m_rem > 0.0
+
 
 def get_range(detector):
     psd_url = detector_asd_links[detector]
@@ -181,7 +201,7 @@ def main(argv=None):
     def dotry(n):
         rate = 10.**(np.random.normal(mean_lograte, sig_lograte))
         n_events = np.around(rate*volume*fractional_duration).astype('int_')
-
+        print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
             mass1 = spstat.truncnorm.rvs(0, np.inf, mean_mass, sig_mass, n_events)
             mass2 = spstat.truncnorm.rvs(0, np.inf, mean_mass, sig_mass, n_events)
@@ -253,6 +273,10 @@ def main(argv=None):
         three_det_obs = n_detectors_on_and_obs == 3
         four_det_obs = n_detectors_on_and_obs == 4
 
+        # decide whether there is a kilnova based on remnant matter
+        has_ejecta_bool = [
+            has_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
+        ]
         # whether this event was not affected by then sun
         sun_bool = np.random.random(n_events) >= args.sun_loss
 
@@ -262,19 +286,19 @@ def main(argv=None):
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
-        n2_good = np.where(two_det_obs & sun_bool & em_bool)[0]
+        n2_good = np.where(two_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
         n2 = len(n2_good)
         # sanity check
         assert n2_gw >= n2, "GW events ({}) less than EM follow events ({})".format(n2_gw, n2)
         n3_gw_only = np.where(three_det_obs)[0]
         n3_gw = len(n3_gw_only)
-        n3_good = np.where(three_det_obs & sun_bool & em_bool)[0]
+        n3_good = np.where(three_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
         n3 = len(n3_good)
         # sanity check
         assert n3_gw >= n3, "GW events ({}) less than EM follow events ({})".format(n3_gw, n3)
         n4_gw_only = np.where(four_det_obs)[0]
         n4_gw = len(n4_gw_only)
-        n4_good = np.where(four_det_obs & sun_bool & em_bool)[0]
+        n4_good = np.where(four_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
         n4 = len(n4_good)
         # sanity check
         assert n4_gw >= n4, "GW events ({}) less than EM follow events ({})".format(n4_gw, n4)
