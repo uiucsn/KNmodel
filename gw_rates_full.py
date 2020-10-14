@@ -25,7 +25,7 @@ from ligo.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
 from gwemlightcurves.EjectaFits import DiUj2017
 
-EOSNAME = "AP4"
+EOSNAME = "APR4_EPP"
 MAX_MASS = 2.21  # specific to EoS model
 
 detector_asd_links = dict(
@@ -123,7 +123,7 @@ def get_options(argv=None):
     # 4.7d-6*4./3.*!pi*(170.)^3.*0.75*0.7 --> ~50
     # 3.2d-7*4./3.*!pi*(120.)^3.*0.75*0.7 --> 1
     # BTW: conservative and reasonable choice is 1.54d-6*4./3.*!pi*(120.)^3.*0.75*0.7 --> 5-6 events (median)
-    parser.add_argument('--ntry', default=10000, type=int, action=MinZeroAction, help='Set the number of MC samples')
+    parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--box_size', default=500., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
     parser.add_argument('--sun_loss', default=0.5, help='The fraction not observed due to sun', type=float)
@@ -277,28 +277,31 @@ def main(argv=None):
         has_ejecta_bool = [
             has_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
         ]
-        # whether this event was not affected by then sun
-        sun_bool = np.random.random(n_events) >= args.sun_loss
 
         distmod = Distance(dist)
         obsmag = absm + distmod.distmod.value
         em_bool = obsmag < 22.
 
+        # whether this event was not affected by then sun
+        detected_events = np.where(em_bool)
+        sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
+        em_bool[detected_events] = sun_bool
+
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
-        n2_good = np.where(two_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
+        n2_good = np.where(two_det_obs & em_bool & has_ejecta_bool)[0]
         n2 = len(n2_good)
         # sanity check
         assert n2_gw >= n2, "GW events ({}) less than EM follow events ({})".format(n2_gw, n2)
         n3_gw_only = np.where(three_det_obs)[0]
         n3_gw = len(n3_gw_only)
-        n3_good = np.where(three_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
+        n3_good = np.where(three_det_obs & em_bool & has_ejecta_bool)[0]
         n3 = len(n3_good)
         # sanity check
         assert n3_gw >= n3, "GW events ({}) less than EM follow events ({})".format(n3_gw, n3)
         n4_gw_only = np.where(four_det_obs)[0]
         n4_gw = len(n4_gw_only)
-        n4_good = np.where(four_det_obs & sun_bool & em_bool & has_ejecta_bool)[0]
+        n4_good = np.where(four_det_obs & em_bool & has_ejecta_bool)[0]
         n4 = len(n4_good)
         # sanity check
         assert n4_gw >= n4, "GW events ({}) less than EM follow events ({})".format(n4_gw, n4)
