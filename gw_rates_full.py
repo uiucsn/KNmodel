@@ -126,13 +126,14 @@ def get_options(argv=None):
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--box_size', default=500., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
-    parser.add_argument('--sun_loss', default=0.5, help='The fraction not observed due to sun', type=float)
-    parser.add_argument('--mean_lograte', default=-5.95, help='specify the lograthim of the mean BNS rate', type=float)
-    parser.add_argument('--sig_lograte',  default=0.55, type=float, help='specify the std of the mean BNS rate')
-    parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
-    parser.add_argument('--ldutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
-    parser.add_argument('--vdutycycle', default=0.6, action=MinZeroAction, type=float, help='Set the Virgo duty cycle')
+    parser.add_argument('--sun_loss', default=0.37, help='The fraction not observed due to sun', type=float)
+    parser.add_argument('--mean_lograte', default=-6.49, help='specify the lograthim of the mean BNS rate', type=float)
+    parser.add_argument('--sig_lograte',  default=0.5, type=float, help='specify the std of the mean BNS rate')
+    parser.add_argument('--hdutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
+    parser.add_argument('--ldutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
+    parser.add_argument('--vdutycycle', default=0.75, action=MinZeroAction, type=float, help='Set the Virgo duty cycle')
     parser.add_argument('--kdutycycle', default=0.4, action=MinZeroAction, type=float, help='Set the Kagra duty cycle')
+    # duty factor motivation: https://dcc.ligo.org/public/0167/G2000497/002/G2000497_OpenLVEM_02Apr2020_kk_v2.pdf
     args = parser.parse_args(args=argv)
     return args
 
@@ -171,9 +172,9 @@ def main(argv=None):
 
     # the two ligo detectors ahve strongly correlated duty cycles
     # they are both not very correlated with Virgo
-    lvc_cor_matrix = np.array([[1., 0.8, 0.2, 0.2],
-                               [0.8, 1., 0.2, 0.2],
-                               [0.2, 0.2, 1., 0.2],
+    lvc_cor_matrix = np.array([[1., 0.8, 0.5, 0.2],
+                               [0.8, 1., 0.5, 0.2],
+                               [0.5, 0.5, 1., 0.2],
                                [0.2, 0.2, 0.2, 1.]])
     upper_chol = cholesky(lvc_cor_matrix)
 
@@ -200,6 +201,7 @@ def main(argv=None):
 
     def dotry(n):
         rate = 10.**(np.random.normal(mean_lograte, sig_lograte))
+
         n_events = np.around(rate*volume*fractional_duration).astype('int_')
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
