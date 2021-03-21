@@ -36,7 +36,7 @@ MAX_MASS = 2.21  # specific to EoS model
 detector_asd_links = dict(
     ligo='https://dcc.ligo.org/public/0165/T2000012/001/aligo_O4high.txt',
     virgo='https://dcc.ligo.org/public/0165/T2000012/001/avirgo_O4high_NEW.txt',
-    kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
+    kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_25Mpc.txt'
 )
 
 def has_ejecta_mass(m1, m2):
@@ -154,7 +154,7 @@ def main(argv=None):
     ligo_run_start = Time('2022-06-01T00:00:00.0')
     ligo_run_end   = Time('2023-06-01T00:00:00.0')
     hst_cyc_start  = Time('2021-10-01T00:00:00.0')
-    hst_cyc_end    = Time('2023-06-01T00:00:00.0')
+    hst_cyc_end    = Time('2022-09-30T00:00:00.0')
     eng_time       = 2.*u.week
     Range = namedtuple('Range', ['start', 'end'])
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
@@ -213,8 +213,8 @@ def main(argv=None):
                 return tuple(0 for _ in range(15))  # FIXME: fix to prevent unpacking error
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
-            mass1 = spstat.truncnorm.rvs(0, np.inf, args.masskey1, args.masskey2, n_events)  # FIXME: Unbound local error
-            mass2 = spstat.truncnorm.rvs(0, np.inf, args.masskey1, args.masskey2, n_events)
+            mass1 = spstat.truncnorm.rvs(0, np.inf, 1.4, 0.09, n_events)  # FIXME: Unbound local error
+            mass2 = spstat.truncnorm.rvs(0, np.inf, 1.4, 0.09, n_events)
         elif mass_distrib == 'msp':
             print("MSP population chosen, overriding mean_mass and sig_mass if supplied.")
             # numbers from https://arxiv.org/pdf/1605.01665.pdf
@@ -245,14 +245,11 @@ def main(argv=None):
 
         sss17a = -16.9 #H-band
         sss17a_r = -15.8 #Rband
-        sss17a_f200 = -15.4591
         minmag = -14.7
         maxmag = sss17a - 2.
 
         hmag = temphmag - min(temphmag)
         hmag[phase < 2.5] = 0
-        f200mag = tempf200w - min(tempf200w)
-        f200mag[phase < 2.5] = 0
 
         magindex = [(phase - x).argmin() for x in delay]
         magindex = np.array(magindex)
@@ -263,9 +260,6 @@ def main(argv=None):
 
         absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a + hmag[magindex] + ah
         absm = np.array(absm)
-
-        absm_f200w = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a_f200 + f200mag[magindex]
-        absm_f200w = np.array(absm_f200w)
 
         # simulate coordinates
         x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
@@ -305,7 +299,6 @@ def main(argv=None):
 
         distmod = Distance(dist)
         obsmag = absm + distmod.distmod.value
-        obsmagf200w = absm_f200w + distmod.distmod.value
         em_bool = obsmag < 22.
 
         # whether this event was not affected by then sun
@@ -335,9 +328,7 @@ def main(argv=None):
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
             dist[n4_good].value.tolist(), tot_mass[n4_good].tolist(),\
             obsmag[n2_good].tolist(), obsmag[n3_good].tolist(),\
-            obsmag[n3_good].tolist(), obsmagf200w[n2_good].tolist(),\
-            obsmagf200w[n3_good].tolist(), obsmagf200w[n4_good].tolist(),\
-            n2, n3, n4
+            obsmag[n3_good].tolist(), n2, n3, n4
 
     with schwimmbad.SerialPool() as pool:
         values = list(pool.map(dotry, range(n_try)))
@@ -355,31 +346,31 @@ def main(argv=None):
     hmag_detect2 = []
     hmag_detect3 = []
     hmag_detect4 = []
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, f2, f3, f4, n2, n3, n4) in enumerate(values):
+    for idx, val in enumerate(values):
+        d2, m2, d3, m3, d4, m4, h2, h3, h4, n2, n3, n4, *_ = val
         if n2 >= 0:
             n_detect2.append(n2)
             if n3>0:
                 dist_detect2 += d2
                 mass_detect2 += m2
-                hmag_detect2 += f2
+                hmag_detect2 += h2
         if n3>=0:
             n_detect3.append(n3)
             if n3 > 0:
                 dist_detect3 += d3
                 mass_detect3 += m3
-                hmag_detect3 += f3
+                hmag_detect3 += h3
         if n4>=0:
             n_detect4.append(n4)
             if n4 > 0:
                 dist_detect4 += d4
                 mass_detect4 += m4
-                hmag_detect4 += f4
+                hmag_detect4 += h4
         data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
-                               "f2": f2, "f3": f3, "f4": f4,
                                "n2": n2, "n3": n3, "n4": n4}
-    with open(f"data-dump-{args.mass_distrib}.pickle", "wb") as f:
+    with open(f"data-dump-hst-29-{args.mass_distrib}.pickle", "wb") as f:
         pickle.dump(data_dump, f)
 
     n_detect2 = np.array(n_detect2)
@@ -448,7 +439,7 @@ def main(argv=None):
     print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
     print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
     # save number of detections
-    with open(f'n-events-{args.mass_distrib}.pickle', 'wb') as f:
+    with open(f'n-events-hst-29-{args.mass_distrib}.pickle', 'wb') as f:
         res = dict(n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
                    dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
                    mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
@@ -531,10 +522,6 @@ def main(argv=None):
 
     axes[1].set_xlabel('Distance ($D$, Mpc)', fontsize='large')
     axes[1].set_ylabel('$P(D)$', fontsize='large')
-    #if args.mass_distrib != 'msp':
-    #    axes[0].set_title(f"Masses {args.mass_distrib}; {args.masskey1} -- {args.masskey2}")
-    #else:
-    #    axes[0].set_title("MSP bimodal mass @ 1.393 / 1.807 $M_{\odot}$")
     axes[0].set_xlabel('Number of Events ($N$)', fontsize='large')
     axes[0].set_ylabel('$P(N)$', fontsize='large')
 
@@ -550,7 +537,7 @@ def main(argv=None):
     fig.legend(patches, legend_text,
                'upper center', frameon=False, ncol=3, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'gw_detect_{args.mass_distrib}.pdf')
+    fig.savefig(f'gw_detect_hst_29_{args.mass_distrib}.pdf')
     plt.show()
 
 
