@@ -131,9 +131,9 @@ def get_options(argv=None):
     # 3.2d-7*4./3.*!pi*(120.)^3.*0.75*0.7 --> 1
     # BTW: conservative and reasonable choice is 1.54d-6*4./3.*!pi*(120.)^3.*0.75*0.7 --> 5-6 events (median)
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
-    parser.add_argument('--box_size', default=400., action=MinZeroAction, type=float,\
+    parser.add_argument('--box_size', default=500., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
-    parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
+    parser.add_argument('--sun_loss', default=0.5, help='The fraction not observed due to sun', type=float)
     parser.add_argument('--mean_lograte', default=-6.49, help='specify the lograthim of the mean BNS rate', type=float)
     parser.add_argument('--sig_lograte',  default=0.5, type=float, help='specify the std of the mean BNS rate')
     parser.add_argument('--hdutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
@@ -155,6 +155,7 @@ def main(argv=None):
     ligo_run_end   = Time('2023-06-01T00:00:00.0')
     hst_cyc_start  = Time('2021-10-01T00:00:00.0')
     hst_cyc_end    = Time('2022-09-30T00:00:00.0')
+    #hst_cyc_end    = Time('2023-09-30T00:00:00.0')
     eng_time       = 2.*u.week
     Range = namedtuple('Range', ['start', 'end'])
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
@@ -242,14 +243,15 @@ def main(argv=None):
 
         av = np.random.exponential(1, n_events)*0.4
         ah = av/6.1
+        ar = av/1.33  # ref: table 2 of https://arxiv.org/abs/astro-ph/9809387
 
         sss17a = -16.9 #H-band
         sss17a_r = -15.8 #Rband
         minmag = -14.7
         maxmag = sss17a - 2.
 
-        hmag = temphmag - min(temphmag)
-        hmag[phase < 2.5] = 0
+        rmag = temprmag - min(temprmag)
+        rmag[phase < 2.5] = 0
 
         magindex = [(phase - x).argmin() for x in delay]
         magindex = np.array(magindex)
@@ -258,7 +260,7 @@ def main(argv=None):
         if n_events == 0:
             return default_value, default_value, default_value, default_value, default_value, default_value, 0, 0
 
-        absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a + hmag[magindex] + ah
+        absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a + rmag[magindex] + ah
         absm = np.array(absm)
 
         # simulate coordinates
@@ -343,9 +345,9 @@ def main(argv=None):
     mass_detect3 = []
     dist_detect4 = []
     mass_detect4 = []
-    hmag_detect2 = []
-    hmag_detect3 = []
-    hmag_detect4 = []
+    rmah_detect2 = []
+    rmah_detect3 = []
+    rmah_detect4 = []
     for idx, val in enumerate(values):
         d2, m2, d3, m3, d4, m4, h2, h3, h4, n2, n3, n4, *_ = val
         if n2 >= 0:
@@ -353,19 +355,19 @@ def main(argv=None):
             if n3>0:
                 dist_detect2 += d2
                 mass_detect2 += m2
-                hmag_detect2 += h2
+                rmah_detect2 += h2
         if n3>=0:
             n_detect3.append(n3)
             if n3 > 0:
                 dist_detect3 += d3
                 mass_detect3 += m3
-                hmag_detect3 += h3
+                rmah_detect3 += h3
         if n4>=0:
             n_detect4.append(n4)
             if n4 > 0:
                 dist_detect4 += d4
                 mass_detect4 += m4
-                hmag_detect4 += h4
+                rmah_detect4 += h4
         data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
@@ -443,7 +445,7 @@ def main(argv=None):
         res = dict(n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
                    dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
                    mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
-                   hmag_detect2=hmag_detect2, hmag_detect3=hmag_detect3, hmag_detect4=hmag_detect4)
+                   rmah_detect2=rmah_detect2, rmah_detect3=rmah_detect3, rmah_detect4=rmah_detect4)
         pickle.dump(res, f)
     dist_range = np.arange(0, 400., 0.1)
     patches = list()
@@ -494,27 +496,27 @@ def main(argv=None):
         print("Could not create KDE since no 4-det detection")
 
     h_range = np.arange(15, 23, 0.1)
-    kde = spstat.gaussian_kde(hmag_detect2, bw_method='scott')
+    kde = spstat.gaussian_kde(rmah_detect2, bw_method='scott')
     ph = kde(h_range)
     axes[2].plot(h_range, ph, color='C0', linestyle='-', lw=3, zorder=4)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C0', alpha=0.3, zorder=0)
-    mean_h = np.mean(hmag_detect2)
+    mean_h = np.mean(rmah_detect2)
     axes[2].axvline(mean_h, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
 
-    kde = spstat.gaussian_kde(hmag_detect3, bw_method='scott')
+    kde = spstat.gaussian_kde(rmah_detect3, bw_method='scott')
     ph = kde(h_range)
     axes[2].plot(h_range, ph, color='C1', linestyle='-', lw=3, zorder=2)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C1', alpha=0.5, zorder=1)
-    mean_h = np.mean(hmag_detect3)
+    mean_h = np.mean(rmah_detect3)
     axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
     axes[2].legend(frameon=False, fontsize='small')
 
     try:
-        kde = spstat.gaussian_kde(hmag_detect4, bw_method='scott')
+        kde = spstat.gaussian_kde(rmah_detect4, bw_method='scott')
         ph = kde(h_range)
         axes[2].plot(h_range, ph, color='C2', linestyle='-', lw=3, zorder=2)
         axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C1', alpha=0.5, zorder=1)
-        mean_h = np.mean(hmag_detect4)
+        mean_h = np.mean(rmah_detect4)
         axes[2].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
         axes[2].legend(frameon=False, fontsize='small')
     except ValueError:
