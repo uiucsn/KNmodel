@@ -6,38 +6,43 @@ import scipy.stats as spstat
 
 pops = ('flat', 'mw')
 
-weights = (1., 1.)  # relative weighting between populations
 
 #res = {pop: pickle.load(open(f'n-events-{pop}.pickle', 'rb')) for pop in pops}
 #res = {pop: pickle.load(open(f'n-events-hst-29-{pop}.pickle', 'rb')) for pop in pops}
+# res = {pop: pickle.load(open(f'hst_h_band/n-events-hst-29-30-31-{pop}.pickle', 'rb')) for pop in pops}
 res = {pop: pickle.load(open(f'hst_r_band/n-events-hst-29-30-31-{pop}.pickle', 'rb')) for pop in pops}
 
 n_kn = 2
-print(f"Values of P(NUM KNE >= {n_kn})")
 
-all_2_det_events = np.hstack([wt*res[pop]['n_detect2'] for pop, wt in zip(pops, weights)])
-all_3_det_events = np.hstack([wt*res[pop]['n_detect3'] for pop, wt in zip(pops, weights)])
-all_4_det_events = np.hstack([wt*res[pop]['n_detect4'] for pop, wt in zip(pops, weights)])
+all_2_det_events = np.hstack([res[pop]['n_detect2'] for pop in pops])
+all_3_det_events = np.hstack([res[pop]['n_detect3'] for pop in pops])
+all_4_det_events = np.hstack([res[pop]['n_detect4'] for pop in pops])
 
-all_2_det_dist = np.hstack([res[pop]['dist_detect2'] for pop, wt in zip(pops, weights)])
-all_3_det_dist = np.hstack([res[pop]['dist_detect3'] for pop, wt in zip(pops, weights)])
-all_4_det_dist = np.hstack([res[pop]['dist_detect4'] for pop, wt in zip(pops, weights)])
+all_2_det_dist = np.hstack([res[pop]['dist_detect2'] for pop in pops])
+all_3_det_dist = np.hstack([res[pop]['dist_detect3'] for pop in pops])
+all_4_det_dist = np.hstack([res[pop]['dist_detect4'] for pop in pops])
 
-all_2_det_mags = np.hstack([res[pop]['rmah_detect2'] for pop, wt in zip(pops, weights)])
-all_3_det_mags = np.hstack([res[pop]['rmah_detect3'] for pop, wt in zip(pops, weights)])
-all_4_det_mags = np.hstack([res[pop]['rmah_detect4'] for pop, wt in zip(pops, weights)])
+all_2_det_mags = np.hstack([res[pop]['rmah_detect2'] for pop in pops])
+all_3_det_mags = np.hstack([res[pop]['rmah_detect3'] for pop in pops])
+all_4_det_mags = np.hstack([res[pop]['rmah_detect4'] for pop in pops])
+# all_2_det_mags = np.hstack([res[pop]['hmag_detect2'] for pop in pops])
+# all_3_det_mags = np.hstack([res[pop]['hmag_detect3'] for pop in pops])
+# all_4_det_mags = np.hstack([res[pop]['hmag_detect4'] for pop in pops])
 
 fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(9.5/0.7, 3.5))
 
 ebins = np.arange(32)
 patches = []
 legend_text = []
-for events, distances, mags, color in zip(
+for events, distances, mags, color, nn in zip(
             (all_2_det_events, all_3_det_events, all_4_det_events),
             (all_2_det_dist, all_3_det_dist, all_4_det_dist),
             (all_2_det_mags, all_3_det_mags, all_4_det_mags),
-            ('C0', 'C1', 'C2')
+            ('C0', 'C1', 'C2'),
+            (2, 3, 4)
         ):
+    # P(N > 1)
+    print(f"P(N >= 1 event detected) for {nn}-detector events: {np.sum(events >= 1)/len(events):.3f}")
     # event count distribution
     vals, _, _ = axes[0].hist(events, histtype='stepfilled',
                             bins=ebins, color=color, alpha=0.3,
@@ -73,11 +78,14 @@ for events, distances, mags, color in zip(
     axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color=color,
                          alpha=0.3, zorder=0)
     mean_h = np.mean(mags)
+    # axes[2].axvline(mean_h, color=color, linestyle='--', lw=1.5,
+    #                 zorder=6, label=r'$\langle R \rangle = {:.1f}$ mag'.format(mean_h))
     axes[2].axvline(mean_h, color=color, linestyle='--', lw=1.5,
-                    zorder=6, label=r'$\langle R \rangle = {:.1f}$ mag'.format(mean_h))
+                    zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
 
 axes[0].set_yscale('log')
 axes[0].legend(frameon=False, fontsize='small', loc='upper right')
 axes[1].legend(frameon=False, fontsize='small')
 axes[2].legend(frameon=False, fontsize='small')
-plt.savefig('hst_r_band/hst_gw_detect_hst_29_30_31.pdf')
+plt.show()
+#plt.savefig('hst_r_band/hst_gw_detect_hst_29_30_31.pdf')
