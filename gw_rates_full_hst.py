@@ -154,7 +154,7 @@ def main(argv=None):
     ligo_run_start = Time('2022-06-01T00:00:00.0')
     ligo_run_end   = Time('2023-06-01T00:00:00.0')
     hst_cyc_start  = Time('2021-10-01T00:00:00.0')
-    hst_cyc_end    = Time('2022-09-30T00:00:00.0')
+    hst_cyc_end    = Time('2023-09-30T00:00:00.0')
     #hst_cyc_end    = Time('2023-09-30T00:00:00.0')
     eng_time       = 2.*u.week
     Range = namedtuple('Range', ['start', 'end'])
@@ -260,7 +260,7 @@ def main(argv=None):
         if n_events == 0:
             return default_value, default_value, default_value, default_value, default_value, default_value, 0, 0
 
-        absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a + rmag[magindex] + ah
+        absm = np.random.uniform(0, 1, n_events)*abs(maxmag-minmag) + sss17a_r + rmag[magindex] + ar
         absm = np.array(absm)
 
         # simulate coordinates
@@ -372,7 +372,7 @@ def main(argv=None):
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
                                "n2": n2, "n3": n3, "n4": n4}
-    with open(f"data-dump-hst-29-{args.mass_distrib}.pickle", "wb") as f:
+    with open(f"hst/data-dump-hst-29-30-31-{args.mass_distrib}.pickle", "wb") as f:
         pickle.dump(data_dump, f)
 
     n_detect2 = np.array(n_detect2)
@@ -441,7 +441,7 @@ def main(argv=None):
     print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
     print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
     # save number of detections
-    with open(f'n-events-hst-29-{args.mass_distrib}.pickle', 'wb') as f:
+    with open(f'hst/n-events-hst-29-30-31-{args.mass_distrib}.pickle', 'wb') as f:
         res = dict(n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
                    dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
                    mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
@@ -539,7 +539,7 @@ def main(argv=None):
     fig.legend(patches, legend_text,
                'upper center', frameon=False, ncol=3, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'gw_detect_hst_29_{args.mass_distrib}.pdf')
+    fig.savefig(f'hst/hst_gw_detect_hst_29_30_31_{args.mass_distrib}.pdf')
     plt.show()
 
 
