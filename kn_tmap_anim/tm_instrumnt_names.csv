@@ -1,0 +1,46 @@
+id,instrument_name,nickname,instrument_type,datecreated,submitterid
+10,DLT40,,photometric,2019-06-18T10:16:18.673412,2
+38,DECam,,photometric,2019-07-26T16:56:10.926008,2
+9,Sinistro,Las Cumbres 1m,photometric,2019-06-18T10:02:44.038241,2
+22,MMTCam,MMT,photometric,2019-07-23T14:22:58.147453,7
+23,MMIRS,MMT,photometric,2019-07-23T14:26:14.855389,7
+24,MMIRS_1024,MMT,photometric,2019-07-23T15:02:18.332336,7
+25,Binospec,MMT,photometric,2019-07-23T15:02:35.248257,7
+26,Binospec_1024,MMT,photometric,2019-07-23T15:04:01.860374,7
+11,MLS10KCCD-CSS,CSS,photometric,2019-06-18T10:16:18.673444,2
+39,Mont4k,Kuiper,photometric,2019-08-05T00:38:52.578866,17
+43,Wunstorf Luthe private observatory 200mm F/5 Newton,WTORF200.am.ehea,photometric,2019-10-24T15:34:58.996036,55
+44,Gattini,,photometric,2019-10-25T17:01:46.302787,52
+45,KPED,None,photometric,2019-10-25T17:03:22.769712,52
+46,GROWTH-India,None,photometric,2019-10-25T17:05:19.011110,52
+48,iTelescope NMS T11,ITEL.NMS.T11,photometric,2019-10-26T20:55:13.028784,55
+50,iTelescope SSO T17,ITEL.SSO.T17,photometric,2019-10-31T23:24:47.192911,55
+74,Keck MOSFIRE,MOSFIRE,photometric,2021-06-16T16:23:47.428318,96
+75,Katzman Automatic Imaging Telescope,KAIT,photometric,2021-06-16T16:29:20.515647,96
+76,ZTF_approx,,photometric,2021-09-20T18:46:58.544700,2
+77,DECam_approx,,photometric,2021-09-20T20:36:19.136256,2
+53,IMACS_f2,IMACS_f2,photometric,2019-11-18T15:11:53.165320,73
+54,IMACS_f2_square,IMACS,photometric,2019-11-18T15:14:08.948129,73
+55,High Energy Stereoscopic System,H.E.S.S.,photometric,2019-12-05T04:30:04.219284,64
+56,Spectral,Las Cumbres 2m,photometric,2019-12-16T22:19:42.154147,6
+57,Wise observatory C28 Jay Baum Rich telescope,WiseC28,photometric,2019-12-18T11:38:13.133472,79
+58,Wise observatory C18 telescope,WiseC18,photometric,2020-01-15T15:33:24.502010,79
+60,Transiting Exoplanet Survey Satellite,TESS,photometric,2020-01-16T23:33:05.829455,5
+61,J-GEM/Kanata-HONIR,Kanata-HONIR,photometric,2020-01-17T02:02:31.796618,90
+62,J-GEM/OAOWFC,OAOWFC,photometric,2020-01-17T02:03:44.245690,90
+63,J-GEM/Nayuta-NIC,Nayuta-NIC,photometric,2020-01-17T02:04:06.440008,90
+64,J-GEM/MITSuME-Okayama,MITSuME-Okayama,photometric,2020-01-17T02:23:53.594625,90
+65,Australian Square Kilometre Array Pathfinder,ASKAP,photometric,2020-01-21T20:07:58.012424,92
+66,Murchison Widefield Array,MWA,photometric,2020-01-22T14:52:48.172690,92
+67,Canadian Hydrogen Intensity Mapping Experiment,CHIME,photometric,2020-01-22T19:09:15.040275,5
+13,Swift X-ray Telescope,Swift/XRT,photometric,2019-06-18T10:16:18.673483,2
+12,Swift Ultraviolet/Optical Telescope,Swift/UVOT,photometric,2019-06-18T10:16:18.673464,2
+49,Swift Burst Alert Telescope,Swift/BAT,photometric,2019-10-28T01:35:54.740746,5
+52,Canada France Hawaii Telescope MegaPrime,CFHT MegaPrime,photometric,2019-11-04T20:49:22.707197,57
+47,ZTF,ZTF,photometric,2019-10-25T18:06:44.012811,52
+68,Swope,Swope,photometric,2020-02-06T20:48:14.233300,96
+69,Subar/Hyper Suprime-Cam,HSC,photometric,2020-02-25T15:18:15.958940,90
+70,J-GEM/Subaru/Hyper Suprime-Cam,J-GEM/HSC,photometric,2020-02-25T15:19:07.276957,90
+71,Gravitational-wave Optical Transient Observer (GOTO-4 prototype),GOTO-4,photometric,2020-04-16T12:04:32.810205,106
+72,Thacher ACP Camera,Thacher,photometric,2021-06-16T16:16:44.840107,96
+73,Nickel Direct Camera,Nickel,photometric,2021-06-16T16:19:02.939973,96
