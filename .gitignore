@@ -1,3 +1,7 @@
+kn_tmap_anim/outfiles/*png
+kn_tmap_anim/*gif
+kn_tmap_anim/*fits
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -5,6 +9,7 @@ __pycache__/
 
 # C extensions
 *.so
+
 
 # Distribution / packaging
 .Python
