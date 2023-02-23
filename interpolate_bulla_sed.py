@@ -31,6 +31,7 @@ class BullaSEDInterpolator():
 
         Args:
             from_source (bool, optional): Set to True if you want to build the interpolator from scratch. Defaults to False.
+                                          Set to True for the first time since the object is > 200 MB and too big for github.
 
         Returns:
             None:
@@ -64,6 +65,10 @@ class BullaSEDInterpolator():
         # cos theta, meh, phi, phase, wavelength ordering followed
         arr = np.zeros((11, 10, 5, 100, 500))
 
+        mejs = []
+        phis = []
+        costhetas = []
+
         for i in range(len(data)):
 
             print(f'{i}/{len(data)}\r')
@@ -87,14 +92,35 @@ class BullaSEDInterpolator():
             # Adding the mesh the correct part 
             arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
 
+            mejs.append(sed.mej)
+            phis.append(sed.phi)
+            costhetas.append(sed.cos_theta)
+
         interpolator = RegularGridInterpolator((uniq_cos_theta, uniq_mej, uniq_phi, uniq_phase, uniq_wavelength), arr)
 
         # Sanity check: Checking correct interpolation at values 0.3, 0.09, 45, 0.1, 5500 with SED file
-        assert arr[3,8,2,0,27] == interpolator((0.3, 0.09, 45, 0.1, 5500))
+        assert arr[3,8,2,0,27] == interpolator((0.3, 0.09, 45, 0.1, 5500)), 'Estimator fails sanity check'
 
         # Pickle the file 
         with open('Bulla_SED_Interpolator.pkl', 'wb') as f:
             pickle.dump(interpolator, f)
+
+        if to_plot:
+
+            plt.hist(mejs)
+            plt.xlabel('Ejecta Mass')
+            plt.ylabel('Count')
+            plt.show()
+
+            plt.hist(phis)
+            plt.xlabel('Phi')
+            plt.ylabel('Count')
+            plt.show()
+
+            plt.hist(costhetas)
+            plt.xlabel('Cos theta')
+            plt.ylabel('Count')
+            plt.show()
 
         return interpolator
     
