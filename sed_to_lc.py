@@ -13,6 +13,7 @@ class SEDDerviedLC():
 
     def __init__(self, mej, phi, cos_theta):
 
+        # Setting paramters for interpolating SED
         self.mej = mej
         self.phi = phi
         self.cos_theta = cos_theta
@@ -30,6 +31,8 @@ class SEDDerviedLC():
 
             # Interpolate spectral luminosity at all integer wavelengths in the filter
             spectral_lum = self.sed_interpolator.interpolator(points)
+
+            # @TODO: Make sure the math checks out
         
             # Integrating the spectral luminosity times transmision over all wavelengths in the filter
             v1 = simps(x = lmbd, y= spectral_lum * t * lmbd)
@@ -56,17 +59,28 @@ class SEDDerviedLC():
                 lmbd, t = np.genfromtxt(fh, unpack=True)
                 mag, phase = self.getAbsMagsInPB(lmbd, t)
                 lc[band] = mag
+
         return lc, self.phases
+    
+    # @TODO: Add functions for HST, JWST, etc
 
 
-temp = SEDDerviedLC(mej = 0.08, phi = 15, cos_theta = 0.5)
-lcs, phase = temp.buildLsstLC()
 
-for band in lcs:
-    plt.plot(phase, lcs[band], label = band)
+if __name__ == '__main__':
 
-plt.xlabel('Phase')
-plt.ylabel('Absolute Mag')
-plt.gca().invert_yaxis()
-plt.legend()
-plt.show()
+    mej = 0.03
+    phi = 45
+    cos_theta = 0.1
+
+    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta)
+    lcs, phase = temp.buildLsstLC()
+
+    for band in lcs:
+        plt.plot(phase, lcs[band], label = band)
+
+    plt.xlabel('Phase')
+    plt.ylabel('Absolute Mag')
+    plt.gca().invert_yaxis()
+    plt.legend()
+    plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
+    plt.show()
