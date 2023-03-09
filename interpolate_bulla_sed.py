@@ -25,21 +25,22 @@ class BullaSEDInterpolator():
         def __str__(self):
             return f'Index: {self.index}\nCOS_THETA: {self.cos_theta}\nEJECTA_MASS: {self.mej}\nPHI: {self.phi}\nFILE_NAME: {self.sed_file}'
 
-    def __init__(self, from_source = False):
+    def __init__(self, from_source = False,  bounds_error = False):
         """
-        Wrapper the SED interpolator built using Bulla SED data.  
+        Wrapper the SED interpolator built using Bulla SED data. 
 
         Args:
             from_source (bool, optional): Set to True if you want to build the interpolator from scratch. Defaults to False.
                                           Set to True for the first time since the object is > 200 MB and too big for github.
-
+            bounds_error (bool, optional): Set to True if you want to let the interpolator extrapolate beyond the grid. 
+                                           Default is True to allow for extrapolation to small values of ejecta mass.
         Returns:
             None:
         """
 
         if from_source:
             # Build from scratch
-            self.interpolator = self.buildFromSourceData()
+            self.interpolator = self.buildFromSourceData(bounds_error=bounds_error)
         else:
             # Load the pickled object
             with open('Bulla_SED_Interpolator.pkl', 'rb') as f:
@@ -50,7 +51,7 @@ class BullaSEDInterpolator():
         # return the interpolated result.
         return self.interpolator((cos_theta, mej, phi, phase, wavelength))
 
-    def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO', to_plot = False):
+    def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot = False):
 
         # Info file
         data = ascii.read(sed_dir + sed_info_file, data_start=7, names = ('TEMP','FILE', 'KN_INDEX', 'COSTHETA', 'MEJ', 'PHI'), guess=False)
@@ -89,14 +90,21 @@ class BullaSEDInterpolator():
             mej_idx = np.where(uniq_mej == sed.mej)[0]
             phi_idx = np.where(uniq_phi == sed.phi)[0]
 
+            # Replacing zero flux with a really small number
+            # This is to avoid negative flux values after extrapolating.
+            flux_mesh[flux_mesh == 0] = 10e-18
+
+            # Converting to log flux to ensure +ve flux value after extrapolation.
+            log_flux_mesh = np.log10(flux_mesh)
+
             # Adding the mesh the correct part 
-            arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
+            arr[cos_idx, mej_idx, phi_idx, :, :] = log_flux_mesh
 
             mejs.append(sed.mej)
             phis.append(sed.phi)
             costhetas.append(sed.cos_theta)
 
-        interpolator = RegularGridInterpolator((uniq_cos_theta, uniq_mej, uniq_phi, uniq_phase, uniq_wavelength), arr)
+        interpolator = RegularGridInterpolator((uniq_cos_theta, uniq_mej, uniq_phi, uniq_phase, uniq_wavelength), arr, bounds_error=bounds_error, fill_value=None)
 
         # Sanity check: Checking correct interpolation at values 0.3, 0.09, 45, 0.1, 5500 with SED file
         assert arr[3,8,2,0,27] == interpolator((0.3, 0.09, 45, 0.1, 5500)), 'Estimator fails sanity check'
@@ -123,9 +131,10 @@ class BullaSEDInterpolator():
             plt.show()
 
         return interpolator
-    
-# temp1 = BullaSEDInterpolator(from_source=True)
-# temp2 = BullaSEDInterpolator(from_source=False)
-# vals = (1.0, 0.09, 45, 0.1, 5500)
-# print(temp1.interpolate(1.0, 0.09, 45, 0.1, 5500))
-# print(temp2.interpolate(1.0, 0.09, 45, 0.1, 5500))
+if __name__ == '__main__':
+    temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
+    temp2 = BullaSEDInterpolator(from_source=False)
+    vals = (1.0, 0.09, 45, 0.1, 5500
+    )
+    print(temp1.interpolate(1.0, 0.09, 45, 0.1, 5500))
+    print(temp2.interpolate(1.0, 0.09, 45, 0.1, 5500))

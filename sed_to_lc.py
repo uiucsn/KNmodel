@@ -1,15 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from scipy.integrate import simps
+from scipy.integrate import simps, simpson
 from astropy import units as u
+from astropy import constants as const
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
 
-    phases = np.arange(start=0.1, stop=19.9, step=0.1) # phase in the LC. Proxy for time
+    phases = np.arange(start=0.1, stop=7.6, step=0.1) # phase in the LC. Proxy for time
 
     def __init__(self, mej, phi, cos_theta):
 
@@ -17,39 +18,55 @@ class SEDDerviedLC():
         self.mej = mej
         self.phi = phi
         self.cos_theta = cos_theta
-        self.sed_interpolator = BullaSEDInterpolator()
+        self.sed_interpolator = BullaSEDInterpolator(from_source=False)
     
-    def getAbsMagsInPB(self, lmbd, t):
+    def getAbsMagsInPB(self, lmbd, t, phases):
         
         abs_mags = []
 
-        for phase in self.phases:
+        for phase in phases:
                 
             # Create mesh of points for interpolator
             mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
             points = np.array(mesh_grid).T.reshape(-1, 5)
 
             # Interpolate spectral luminosity at all integer wavelengths in the filter
-            spectral_lum = self.sed_interpolator.interpolator(points)
+            log_spectral_lum = self.sed_interpolator.interpolator(points)
 
-            # @TODO: Make sure the math checks out
+            # Converting log spectral luminosity (from extrapolation) to spectral luminosity
+            spectral_lum = 10**log_spectral_lum * (u.erg/(u.s * u.cm**2 * u.AA))
+
+            wave_lengths = lmbd * u.AA
+            nu = const.c / wave_lengths
+
+            Fnu = spectral_lum * const.c/ nu**2
+            Fnu = Fnu.to(u.erg/(u.s * u.cm**2 * u.Hz))
+
+            sed_integral = simpson(x=nu, y=Fnu * t / nu, axis=-1)
+            transmission_integral = simpson(x=nu, y=t / nu)
         
-            # Integrating the spectral luminosity times transmision over all wavelengths in the filter
-            v1 = simps(x = lmbd, y= spectral_lum * t * lmbd)
+            # # Integrating the spectral luminosity times transmision over all wavelengths in the filter
+            # v1 = simps(x = lmbd, y= spectral_lum * t * lmbd)
             
-            # Integrating the transmision over all wavelengths in the filter
-            v2 = simps(x=lmbd, y=t * lmbd)
+            # # Integrating the transmision over all wavelengths in the filter
+            # v2 = simps(x=lmbd, y=t * lmbd)
 
             # Find the flux and mag at current phase
-            flux = (v1/v2) * (u.erg/(u.s * u.cm**2))
-            lum = flux * 4 * np.pi * (10 * u.pc)**2
-            abs_mag = lum.to(u.M_bol)
+            flux = (sed_integral/transmission_integral) * (u.erg/(u.s * u.cm**2 * u.Hz))
+            abs_mag = flux.to(u.ABmag)
 
             abs_mags.append(abs_mag.value)
 
-        return abs_mags, self.phases
+        return abs_mags, phases
 
-    def buildLsstLC(self, bands = ['g','i','r','u','y','z']):
+    def buildLsstLC(self, bands = None, phases = None):
+        
+        # Set band and phase values to all possible values if None are explicity provided
+        if bands == None:
+            bands = ['g','i','r','u','y','z']
+
+        if phases == None:
+            phases = self.phases
 
         lc = {}
         for band in bands:
@@ -57,10 +74,10 @@ class SEDDerviedLC():
                 
                 # Transmission at different wavelenghts
                 lmbd, t = np.genfromtxt(fh, unpack=True)
-                mag, phase = self.getAbsMagsInPB(lmbd, t)
+                mag, phase = self.getAbsMagsInPB(lmbd, t, phases)
                 lc[band] = mag
 
-        return lc, self.phases
+        return lc, phase
     
     # @TODO: Add functions for HST, JWST, etc
 
@@ -68,7 +85,7 @@ class SEDDerviedLC():
 
 if __name__ == '__main__':
 
-    mej = 0.03
+    mej = 0.001
     phi = 45
     cos_theta = 0.1
 
@@ -76,7 +93,7 @@ if __name__ == '__main__':
     lcs, phase = temp.buildLsstLC()
 
     for band in lcs:
-        plt.plot(phase, lcs[band], label = band)
+        plt.plot(phase, lcs[band], label = band, marker='.')
 
     plt.xlabel('Phase')
     plt.ylabel('Absolute Mag')
