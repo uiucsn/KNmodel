@@ -5,10 +5,6 @@ from scipy.integrate import simps, simpson
 from astropy import units as u
 from astropy import constants as const
 
-# Enable ploting of quanitity objects
-from astropy.visualization import quantity_support
-quantity_support()  
-
 from interpolate_bulla_sed import BullaSEDInterpolator
 
 # Code to convert the SED's to lightcurves in different filters
