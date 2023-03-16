@@ -4,20 +4,23 @@ import matplotlib.pyplot as plt
 from scipy.integrate import simps, simpson
 from astropy import units as u
 from astropy import constants as const
+from astropy.coordinates import Distance
 
 from interpolate_bulla_sed import BullaSEDInterpolator
+
+lsst_bands = ['g','i','r','u','y','z']
+phases = np.arange(start=0.1, stop=7.6, step=0.1)
 
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
 
-    phases = np.arange(start=0.1, stop=7.6, step=0.1) # phase in the LC. Proxy for time
-
-    def __init__(self, mej, phi, cos_theta):
+    def __init__(self, mej, phi, cos_theta, dist):
 
         # Setting paramters for interpolating SED
         self.mej = mej
         self.phi = phi
         self.cos_theta = cos_theta
+        self.distance = Distance(dist)
         self.sed_interpolator = BullaSEDInterpolator(from_source=False)
     
     def getAbsMagsInPB(self, lmbd, t, phases):
@@ -72,7 +75,7 @@ class SEDDerviedLC():
 
         return abs_mags, phases
 
-    def buildLsstLC(self, bands = None, phases = None):
+    def buildLsstLC(self, bands = lsst_bands, phases = phases):
         """
         Build absolute (AB mag) vs Phase LC's for the interpolated SED model in LSST passband.
 
@@ -86,13 +89,6 @@ class SEDDerviedLC():
             lc, phase: lc contains LC for the phases and passbands mentioned in args. phase just returns the input
                         phases arg. 
         """
-        
-        # Set band and phase values to all possible values if None are explicity provided
-        if bands == None:
-            bands = ['g','i','r','u','y','z']
-
-        if phases == None:
-            phases = self.phases
 
         lc = {}
         for band in bands:
@@ -100,13 +96,53 @@ class SEDDerviedLC():
                 
                 # Transmission at different wavelenghts
                 lmbd, t = np.genfromtxt(fh, unpack=True)
-                print(type(lmbd), type(t))
                 mag, phase = self.getAbsMagsInPB(lmbd, t, phases)
                 lc[band] = mag
 
         return lc, phase
     
-    #def detectionPhasesLSST()
+    def detectionPhasesLSST(self, bands = lsst_bands, phases = phases):
+
+        threshold = {
+            'u': 22,
+            'g': 22,
+            'r': 22,
+            'i': 22,
+            'z': 22,
+            'y': 22,
+        }
+
+        lc, p = self.buildLsstLC(bands, phases)
+
+        # Convert from absolute mag to apparent mag based on the distance value
+        for band in lc:
+            lc[band] += self.distance.distmod.value
+
+        phases_below_cutoff = {}
+
+        # Find the phases in each passband where magnitude are below (ie exceed the brightness) the thresholds
+        for band in lc:
+            
+            idx = (lc[band] <= threshold[band])
+            phases_below_cutoff[band] = phases[idx]
+
+        return phases_below_cutoff
+
+    def detectionBoolLSST(self, bands = lsst_bands, phases = phases):
+
+        # Find the phases where the mags exceed the threshold values.
+        phases_below_cutoff = self.detectionPhasesLSST(bands=bands, phases=phases)
+
+        detection_bool = {}
+
+        # If a passband has 1 or more detection below threshold mag, then mark as true
+        for band in phases_below_cutoff:
+            
+            detection_bool[band] = (len(phases_below_cutoff[band]) >= 1)
+        
+        return detection_bool
+
+
     
     # @TODO: Add functions for HST, JWST, etc
 
