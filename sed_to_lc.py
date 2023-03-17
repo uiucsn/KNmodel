@@ -8,7 +8,12 @@ from astropy.coordinates import Distance
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 
+# Passbands for different surveys
 lsst_bands = ['g','i','r','u','y','z']
+
+jwst_NIRcam_bands = ['F200W']
+
+
 phases = np.arange(start=0.1, stop=7.6, step=0.1)
 
 # Code to convert the SED's to lightcurves in different filters
@@ -33,8 +38,8 @@ class SEDDerviedLC():
             phases (numpy array): Times to interpolate SED at.
 
         Returns:
-            abs_mag, phases: The absolute magnitudes computed from the SED's for the given
-                            survey filter. Phases is just the input arg.
+            abs_mag: The absolute magnitudes computed from the SED's for the given
+                            survey filter. 
         """
         
         abs_mags = []
@@ -73,11 +78,11 @@ class SEDDerviedLC():
             abs_mag = flux.to(u.ABmag)
             abs_mags.append(abs_mag.value)
 
-        return abs_mags, phases
+        return abs_mags
 
     def buildLsstLC(self, bands = lsst_bands, phases = phases):
         """
-        Build absolute (AB mag) vs Phase LC's for the interpolated SED model in LSST passband.
+        Build apparent (AB mag) vs Phase LC's for the interpolated SED model in LSST passband.
 
         Args:
             bands (list, optional): List of LSST passband in which the LC must be computed. Defaults to None.
@@ -86,22 +91,23 @@ class SEDDerviedLC():
                                     to None. If value is None, mags for the first 7.5 days will be computed.
 
         Returns:
-            lc, phase: lc contains LC for the phases and passbands mentioned in args. phase just returns the input
-                        phases arg. 
+            lc: lc contains LC for the phases and passbands mentioned in args. 
         """
 
         lc = {}
         for band in bands:
-            with open(f'filters/LSST_LSST.{band}.dat') as fh:
+            with open(f'filters/LSST/LSST_LSST.{band}.dat') as fh:
                 
                 # Transmission at different wavelenghts
                 lmbd, t = np.genfromtxt(fh, unpack=True)
-                mag, phase = self.getAbsMagsInPB(lmbd, t, phases)
-                lc[band] = mag
+                mag = self.getAbsMagsInPB(lmbd, t, phases)
 
-        return lc, phase
+                # Convert from absolute mag to apparent mag based on the distance value
+                lc[band] = mag + self.distance.distmod.value
+
+        return lc
     
-    def detectionPhasesLSST(self, bands = lsst_bands, phases = phases):
+    def detectionPhasesLsst(self, bands = lsst_bands, phases = phases):
 
         threshold = {
             'u': 22,
@@ -112,11 +118,7 @@ class SEDDerviedLC():
             'y': 22,
         }
 
-        lc, p = self.buildLsstLC(bands, phases)
-
-        # Convert from absolute mag to apparent mag based on the distance value
-        for band in lc:
-            lc[band] += self.distance.distmod.value
+        lc = self.buildLsstLC(bands, phases)
 
         phases_below_cutoff = {}
 
@@ -131,7 +133,7 @@ class SEDDerviedLC():
     def detectionBoolLSST(self, bands = lsst_bands, phases = phases):
 
         # Find the phases where the mags exceed the threshold values.
-        phases_below_cutoff = self.detectionPhasesLSST(bands=bands, phases=phases)
+        phases_below_cutoff = self.detectionPhasesLsst(bands=bands, phases=phases)
 
         detection_bool = {}
 
@@ -142,7 +144,65 @@ class SEDDerviedLC():
         
         return detection_bool
 
+    
+    def buildJwstNircamLC(self, bands = jwst_NIRcam_bands, phases = phases):
+        """
+        Build apparent (AB mag) vs Phase LC's for the interpolated SED model in LSST passband.
 
+        Args:
+            bands (list, optional): List of LSST passband in which the LC must be computed. Defaults to None.
+                                    If value is None, LC will be created in all 6 passbands.
+            phases (_type_, optional): List of phase values where the absolute mag must be interpolated. Defaults 
+                                    to None. If value is None, mags for the first 7.5 days will be computed.
+
+        Returns:
+            lc: lc contains LC for the phases and passbands mentioned in args. 
+        """
+
+        lc = {}
+        for band in bands:
+            with open(f'filters/JWST/JWST_NIRCam.{band}.dat') as fh:
+                
+                # Transmission at different wavelenghts
+                lmbd, t = np.genfromtxt(fh, unpack=True)
+                mag = self.getAbsMagsInPB(lmbd, t, phases)
+
+                # Convert from absolute mag to apparent mag based on the distance value
+                lc[band] = mag + self.distance.distmod.value
+
+        return lc
+    
+    def detectionPhasesJwstNircam(self, bands = jwst_NIRcam_bands, phases = phases):
+
+        threshold = {
+            'F200W': 22,
+        }
+
+        lc = self.buildJwstNircamLC(bands, phases)
+
+        phases_below_cutoff = {}
+
+        # Find the phases in each passband where magnitude are below (ie exceed the brightness) the thresholds
+        for band in lc:
+            
+            idx = (lc[band] <= threshold[band])
+            phases_below_cutoff[band] = phases[idx]
+
+        return phases_below_cutoff
+
+    def detectionBoolJwstNircam(self, bands = jwst_NIRcam_bands, phases = phases):
+
+        # Find the phases where the mags exceed the threshold values.
+        phases_below_cutoff = self.detectionBoolJwstNircam(bands=bands, phases=phases)
+
+        detection_bool = {}
+
+        # If a passband has 1 or more detection below threshold mag, then mark as true
+        for band in phases_below_cutoff:
+            
+            detection_bool[band] = (len(phases_below_cutoff[band]) >= 1)
+        
+        return detection_bool
     
     # @TODO: Add functions for HST, JWST, etc
 
