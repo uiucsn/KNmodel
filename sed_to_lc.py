@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sncosmo
 
 from scipy.integrate import simps, simpson
 from astropy import units as u
@@ -9,12 +10,12 @@ from astropy.coordinates import Distance
 from interpolate_bulla_sed import BullaSEDInterpolator
 
 # Passbands for different surveys
-lsst_bands = ['g','i','r','u','y','z']
-
-jwst_NIRcam_bands = ['F200W']
+lsst_bands = ['lsstg','lssti','lsstr','lsstu','lssty','lsstz']
+jwst_NIRcam_bands = ['f200w']
 
 
 phases = np.arange(start=0.1, stop=7.6, step=0.1)
+lmbd = np.arange(start=100, stop = 99900, step=200)
 
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
@@ -28,7 +29,7 @@ class SEDDerviedLC():
         self.distance = Distance(dist)
         self.sed_interpolator = BullaSEDInterpolator(from_source=False)
     
-    def getAbsMagsInPB(self, lmbd, t, phases):
+    def getAbsMagsInPB(self, passband, phases):
         """
         Find the absolute mag (AB) vs phase time series. 
 
@@ -50,33 +51,17 @@ class SEDDerviedLC():
             mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
             points = np.array(mesh_grid).T.reshape(-1, 5)
 
-            # Interpolate spectral luminosity at all integer wavelengths in the filter
-            log_spectral_lum = self.sed_interpolator.interpolator(points)
+            # Interpolate spectral luminosity at all wavelengths
+            log_spectral_flux_density = self.sed_interpolator.interpolator(points)
 
-            # Converting log spectral luminosity (from extrapolation) to spectral luminosity
-            spectral_lum = 10**log_spectral_lum * (u.erg/(u.s * u.cm**2 * u.AA))
+            # Converting log spectral flux density (from extrapolation) to  spectral flux density
+            spectral_flux_density  = 10**log_spectral_flux_density 
 
-            wave_lengths = lmbd * u.AA
-            nu = const.c / wave_lengths
-
-            # This is done to integrate over frequency rather than the wavelength
-            Fnu = spectral_lum * const.c/ nu**2
-            Fnu = Fnu.to(u.erg/(u.s * u.cm**2 * u.Hz))
+            # Generate magnitude from synthetic SED
+            spectrum = sncosmo.Spectrum(flux = spectral_flux_density, wave=lmbd)
+            ab_mag = spectrum.bandmag(band=passband, magsys="ab")
+            abs_mags.append(ab_mag)
             
-            # Integrating over the passband
-            sed_integral = simpson(x=nu, y=Fnu * t / nu, axis=-1)
-            transmission_integral = simpson(x=nu, y=t / nu)
-        
-            # # Integrating the spectral luminosity times transmision over all wavelengths in the filter
-            # v1 = simps(x = lmbd, y= spectral_lum * t * lmbd)
-            
-            # # Integrating the transmision over all wavelengths in the filter
-            # v2 = simps(x=lmbd, y=t * lmbd)
-
-            # Find the flux and mag at current phase
-            flux = (sed_integral/transmission_integral) * (u.erg/(u.s * u.cm**2 * u.Hz))
-            abs_mag = flux.to(u.ABmag)
-            abs_mags.append(abs_mag.value)
 
         return abs_mags
 
@@ -96,11 +81,8 @@ class SEDDerviedLC():
 
         lc = {}
         for band in bands:
-            with open(f'filters/LSST/LSST_LSST.{band}.dat') as fh:
                 
-                # Transmission at different wavelenghts
-                lmbd, t = np.genfromtxt(fh, unpack=True)
-                mag = self.getAbsMagsInPB(lmbd, t, phases)
+                mag = self.getAbsMagsInPB(passband=band, phases=phases)
 
                 # Convert from absolute mag to apparent mag based on the distance value
                 lc[band] = mag + self.distance.distmod.value
@@ -161,11 +143,8 @@ class SEDDerviedLC():
 
         lc = {}
         for band in bands:
-            with open(f'filters/JWST/JWST_NIRCam.{band}.dat') as fh:
                 
-                # Transmission at different wavelenghts
-                lmbd, t = np.genfromtxt(fh, unpack=True)
-                mag = self.getAbsMagsInPB(lmbd, t, phases)
+                mag = self.getAbsMagsInPB(passband=band, phases=phases)
 
                 # Convert from absolute mag to apparent mag based on the distance value
                 lc[band] = mag + self.distance.distmod.value
@@ -216,11 +195,13 @@ if __name__ == '__main__':
 
     
 
-    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta)
-    lcs, phase = temp.buildLsstLC()
+    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=10*u.pc)
+    lcs = temp.buildLsstLC(phases=phases)
+
+    print(lcs)
 
     for band in lcs:
-        plt.plot(phase, lcs[band], label = band, marker='.')
+        plt.plot(phases, lcs[band], label = band)
 
     plt.xlabel('Phase')
     plt.ylabel('Absolute Mag')

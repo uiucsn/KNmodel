@@ -643,7 +643,7 @@ import ligo.em_bright
 import ligo.em_bright.computeDiskMass
 from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
-from gwemlightcurves.EjectaFits import DiUj2017
+from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019
 
 np.random.RandomState(int(time.time()))
 
@@ -676,6 +676,7 @@ def get_ejecta_mass(m1, m2):
     Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
     equation of state.
     """
+    m1, m2 = max(m1, m2), min(m1, m2)
     c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
     c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
     if m_b_2 == 0.0 or m_b_1 == 0.0:
@@ -761,7 +762,7 @@ def get_options(argv=None):
     # 4.7d-6*4./3.*!pi*(170.)^3.*0.75*0.7 --> ~50
     # 3.2d-7*4./3.*!pi*(120.)^3.*0.75*0.7 --> 1
     # BTW: conservative and reasonable choice is 1.54d-6*4./3.*!pi*(120.)^3.*0.75*0.7 --> 5-6 events (median)
-    parser.add_argument('--ntry', default=5, type=int, action=MinZeroAction, help='Set the number of MC samples')
+    parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--box_size', default=400., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
     parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
@@ -927,31 +928,38 @@ def main(argv=None):
 
         for cos_theta, phi, mej, d in zip(cos_thetas, phis, ejecta_masses, dist):
 
+            print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
+
             obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d)
-            
-
             lcs = obj.buildJwstNircamLC()
-            min_mag = np.min(lcs['F200W'])
 
+            min_mag = min(lcs['f200w'])
+            
+            idx = lcs['f200w'] < 23
+            
             if min_mag < 23:
                 em_bool.append(True)
+                obsmag.append((lcs['f200w'][idx])[0])
             else:
                 em_bool.append(False)
+                obsmag.append(min_mag)
             
-            obsmag.append(min_mag)
+
 
         em_bool = np.array(em_bool)
-        obsmag = np.array(obsmag)
+        obsmag = np.array(obsmag) + ar
 
         
 
-        print(obsmag, em_bool)
+        print("Obs mag: ", obsmag)
 
 
         # whether this event was not affected by then sun
         detected_events = np.where(em_bool)
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
         em_bool[detected_events] = sun_bool
+
+        print("EM bool: ", em_bool)
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
