@@ -610,6 +610,9 @@
 #     argv = sys.argv[1:]
 #     sys.exit(main(argv=argv))
 
+# MW : Double neutron stars - Ozel
+# LIGO Mass distribution - Deep
+
 
 #!/usr/bin/env python
 import io
@@ -644,6 +647,7 @@ import ligo.em_bright.computeDiskMass
 from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
 from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019
+from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
 
 np.random.RandomState(int(time.time()))
 
@@ -832,11 +836,13 @@ def main(argv=None):
         rate = 10.**(np.random.normal(mean_lograte, sig_lograte))
         n_events = np.around(rate*volume*fractional_duration).astype('int')
         if n_events == 0:
-                return tuple(0 for _ in range(15))  # FIXME: fix to prevent unpacking error
+                return [], [], [], [], [], [], [], [], [], 0, 0, 0  # FIXME: fix to prevent unpacking error
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
-            mass1 = spstat.truncnorm.rvs(0, np.inf, args.masskey1, args.masskey2, n_events)  # FIXME: Unbound local error
-            mass2 = spstat.truncnorm.rvs(0, np.inf, args.masskey1, args.masskey2, n_events)
+            stars = s22p(population_size=n_events)
+            mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
+            mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
+            ejecta_masses = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['total_ejecta_mass'] for i in range(n_events)])
         elif mass_distrib == 'msp':
             print("MSP population chosen, overriding mean_mass and sig_mass if supplied.")
             # numbers from https://arxiv.org/pdf/1605.01665.pdf
@@ -848,6 +854,7 @@ def main(argv=None):
             print("Flat population chosen.")
             mass1 = np.random.uniform(min_mass, max_mass, n_events)
             mass2 = np.random.uniform(min_mass, max_mass, n_events)
+
         bns_range_ligo = np.array(
             [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
@@ -868,8 +875,6 @@ def main(argv=None):
         ar = av*0.748
 
         default_value= [0,]
-        if n_events == 0:
-            return default_value, default_value, default_value, default_value, default_value, default_value, 0, 0
 
         # simulate coordinates
         x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
@@ -909,10 +914,10 @@ def main(argv=None):
             has_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
         ]
 
-        # Get the actual values of the ejecta mass
-        ejecta_masses = [
-            get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
-        ]
+        # # Get the actual values of the ejecta mass
+        # ejecta_masses = [
+        #     get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
+        # ]
 
         count = len(ejecta_masses)
 
@@ -988,6 +993,10 @@ def main(argv=None):
 
     with schwimmbad.SerialPool() as pool:
         values = list(pool.map(dotry, range(n_try)))
+        print(len(values))
+
+    with open(f'ntry-{n_try}-values.pkl', 'wb') as f:
+        pickle.dump(values, f)
     print("Finshed computation, plotting...")
     data_dump = dict()
     n_detect2 = []

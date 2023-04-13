@@ -189,9 +189,9 @@ class SEDDerviedLC():
 
 if __name__ == '__main__':
 
-    mej = 0.001
-    phi = 45
-    cos_theta = 0.1
+    mej = 0.05
+    phi = 30
+    cos_theta = 0.9
 
     
 
@@ -209,3 +209,5 @@ if __name__ == '__main__':
     plt.legend()
     plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
     plt.show()
+
+
