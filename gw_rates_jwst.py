@@ -640,6 +640,7 @@ import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
 
 from sed_to_lc import SEDDerviedLC
+from dns_mass_distribution import extra_galactic_masses, galactic_masses
 
 import inspiral_range
 import ligo.em_bright
@@ -759,7 +760,7 @@ def get_options(argv=None):
     Get commandline options
     '''
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mass_distrib', choices=['mw','flat', 'msp'], default='mw', help='Picky BNS mass distribution')
+    parser.add_argument('--mass_distrib', choices=['mw','flat', 'msp', 'exg'], default='mw', help='Picky BNS mass distribution')
     parser.add_argument('--masskey1', type=float, action=MinZeroAction, default=1.4, help='Specify  Mass Keyword 1 (mw = mean, flat=lower bound)')
     parser.add_argument('--masskey2', type=float, action=MinZeroAction, default=0.09, help='Specify  Mass Keyword 2 (mw = sigma, flat=upper bound)')
     # Ryan's original value was -5.95 - the update comes from Alexandra Corsi's conservative estimate
@@ -839,10 +840,11 @@ def main(argv=None):
                 return [], [], [], [], [], [], [], [], [], 0, 0, 0  # FIXME: fix to prevent unpacking error
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
-            stars = s22p(population_size=n_events)
-            mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
-            mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
-            ejecta_masses = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['total_ejecta_mass'] for i in range(n_events)])
+            mass1, mass2 = galactic_masses(n_events)
+            ejecta_masses = [ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)]
+        elif mass_distrib == 'exg':
+            mass1, mass2 = extra_galactic_masses(n_events)
+            ejecta_masses = [ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)]
         elif mass_distrib == 'msp':
             print("MSP population chosen, overriding mean_mass and sig_mass if supplied.")
             # numbers from https://arxiv.org/pdf/1605.01665.pdf
@@ -852,8 +854,10 @@ def main(argv=None):
             mass2 = spstat.truncnorm.rvs(0, np.inf, mean_mass, sig_mass, n_events)
         else:
             print("Flat population chosen.")
-            mass1 = np.random.uniform(min_mass, max_mass, n_events)
-            mass2 = np.random.uniform(min_mass, max_mass, n_events)
+            stars = s22p(population_size=n_events)
+            mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
+            mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
+            ejecta_masses = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['total_ejecta_mass'] for i in range(n_events)])
 
         bns_range_ligo = np.array(
             [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
