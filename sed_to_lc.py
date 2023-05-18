@@ -52,10 +52,10 @@ class SEDDerviedLC():
             points = np.array(mesh_grid).T.reshape(-1, 5)
 
             # Interpolate spectral luminosity at all wavelengths
-            log_spectral_flux_density = self.sed_interpolator.interpolator(points)
+            spectral_flux_density = self.sed_interpolator.interpolator(points)
 
             # Converting log spectral flux density (from extrapolation) to  spectral flux density
-            spectral_flux_density  = 10**log_spectral_flux_density 
+            spectral_flux_density[spectral_flux_density < 0]  = 0 
 
             # Generate magnitude from synthetic SED
             spectrum = sncosmo.Spectrum(flux = spectral_flux_density, wave=lmbd)

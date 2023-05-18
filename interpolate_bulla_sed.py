@@ -90,15 +90,15 @@ class BullaSEDInterpolator():
             mej_idx = np.where(uniq_mej == sed.mej)[0]
             phi_idx = np.where(uniq_phi == sed.phi)[0]
 
-            # Replacing zero flux with a really small number
-            # This is to avoid negative flux values after extrapolating.
-            flux_mesh[flux_mesh == 0] = 10e-18
+            # # Replacing zero flux with a really small number
+            # # This is to avoid negative flux values after extrapolating.
+            # flux_mesh[flux_mesh == 0] = 10e-18
 
-            # Converting to log flux to ensure +ve flux value after extrapolation.
-            log_flux_mesh = np.log10(flux_mesh)
+            # # Converting to log flux to ensure +ve flux value after extrapolation.
+            # log_flux_mesh = np.log10(flux_mesh)
 
             # Adding the mesh the correct part 
-            arr[cos_idx, mej_idx, phi_idx, :, :] = log_flux_mesh
+            arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
 
             mejs.append(sed.mej)
             phis.append(sed.phi)
