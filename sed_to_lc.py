@@ -188,31 +188,91 @@ class SEDDerviedLC():
         
         return detection_bool
     
+    def buildHstLC(self, bands = hst_bands, phases = phases):
+        """
+        Build apparent (AB mag) vs Phase LC's for the interpolated SED model in HST passband.
+
+        Args:
+            bands (list, optional): List of HST passband in which the LC must be computed. Defaults to None.
+                                    If value is None, LC will be created in all passbands.
+            phases (_type_, optional): List of phase values where the absolute mag must be interpolated. Defaults 
+                                    to None. If value is None, mags for the first 7.5 days will be computed.
+
+        Returns:
+            lc: lc contains LC for the phases and passbands mentioned in args. 
+        """
+
+        lc = {}
+        for band in bands:
+                
+                mag = self.getAbsMagsInPB(passband=band, phases=phases)
+
+                # Convert from absolute mag to apparent mag based on the distance value
+                lc[band] = mag + self.distance.distmod.value
+
+        return lc
+    
+    def detectionPhasesHst(self, bands = hst_bands, phases = phases):
+
+        threshold = {
+            'u': 22,
+            'g': 22,
+            'r': 22,
+            'i': 22,
+            'z': 22,
+            'y': 22,
+        }
+
+        lc = self.buildHstLC(bands, phases)
+
+        phases_below_cutoff = {}
+
+        # Find the phases in each passband where magnitude are below (ie exceed the brightness) the thresholds
+        for band in lc:
+            
+            idx = (lc[band] <= threshold[band])
+            phases_below_cutoff[band] = phases[idx]
+
+        return phases_below_cutoff
+
+    def detectionBoolHst(self, bands = hst_bands, phases = phases):
+
+        # Find the phases where the mags exceed the threshold values.
+        phases_below_cutoff = self.detectionPhasesHst(bands=bands, phases=phases)
+
+        detection_bool = {}
+
+        # If a passband has 1 or more detection below threshold mag, then mark as true
+        for band in phases_below_cutoff:
+            
+            detection_bool[band] = (len(phases_below_cutoff[band]) >= 1)
+        
+        return detection_bool
+    
     # @TODO: Add functions for HST, JWST, etc
 
 
 
 if __name__ == '__main__':
 
+    # Pass band stuff
+    bands = ['u','g','r','i','z','y']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    # Best fit parameters for GW 170817
     mej = 0.05
     phi = 30
     cos_theta = 0.9
 
-    
-
+    # LC from sed
     temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=43*u.Mpc)
     lcs = temp.buildLsstLC(phases=phases)
 
-    # TABLE from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
+    # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
     data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
-    k = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
+    data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
-
-    data['mag'] = k
-
-    bands = ['u','g','r','i','z','y']
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-
+    # Plotting the interpolated lc and scattering the plots
     for i, band in enumerate(bands):
         plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
         plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])

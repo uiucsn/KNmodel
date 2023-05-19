@@ -173,15 +173,15 @@ def main(argv=None):
 
     # setup time-ranges
     ligo_run_start = Time('2023-05-24T00:00:00.0')
-    ligo_run_end   = Time('2024-11-24T00:00:00.0')
-    jwst_cyc_start  = Time('2023-07-01T00:00:00.0')
-    jwst_cyc_end    = Time('2024-06-30T00:00:00.0')
+    ligo_run_end   = Time('2025-03-24T00:00:00.0')
+    hst_cyc_start  = Time('2023-12-01T00:00:00.0')
+    hst_cyc_end    = Time('2025-11-30T00:00:00.0')
     eng_time       = 2.*u.week
     Range = namedtuple('Range', ['start', 'end'])
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
-    jwst_cycle = Range(start=jwst_cyc_start,  end=jwst_cyc_end)
-    latest_start = max(ligo_run.start, jwst_cycle.start)
-    earliest_end = min(ligo_run.end, jwst_cycle.end)
+    hst_cycle = Range(start=hst_cyc_start,  end=hst_cyc_end)
+    latest_start = max(ligo_run.start, hst_cycle.start)
+    earliest_end = min(ligo_run.end, hst_cycle.end)
     td = (earliest_end - latest_start) + eng_time
     fractional_duration = (td/(1.*u.year)).decompose().value
 
@@ -252,9 +252,9 @@ def main(argv=None):
         bns_range_kagra = np.array(
             [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
-        bns_range_ligo = 190*u.Mpc
-        bns_range_virgo = 115*u.Mpc
-        bns_range_kagra = 10*u.Mpc
+        bns_range_ligo = 150*u.Mpc
+        bns_range_virgo = 70*u.Mpc
+        bns_range_kagra = 0*u.Mpc
 
         tot_mass = mass1 + mass2
 
@@ -324,15 +324,18 @@ def main(argv=None):
             print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
 
             obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d)
-            lcs = obj.buildJwstNircamLC()
+            lcs = obj.buildHstLC()
 
-            min_mag = min(lcs['f200w'])
+            min_mag = min(lcs['uvf625w'])
             
-            idx = lcs['f200w'] < 23
+            idx = lcs['uvf625w'] < 23
+
+            # This is to account for the 14 month / 16 months of HST Cycle 31 and 32 where LIGO will be active
+            r = np.random.randint(1, 17)
             
-            if min_mag < 23:
+            if min_mag < 23 and r > 2:
                 em_bool.append(True)
-                obsmag.append((lcs['f200w'][idx])[0])
+                obsmag.append((lcs['uvf625w'][idx])[0])
             else:
                 em_bool.append(False)
                 obsmag.append(min_mag)
