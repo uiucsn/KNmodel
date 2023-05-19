@@ -1,17 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sncosmo
+import re
+import pandas as pd
+
 
 from scipy.integrate import simps, simpson
 from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import Distance
+from astropy.io import ascii
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 
 # Passbands for different surveys
 lsst_bands = ['lsstg','lssti','lsstr','lsstu','lssty','lsstz']
 jwst_NIRcam_bands = ['f200w']
+hst_bands = ['uvf625w']
 
 
 phases = np.arange(start=0.1, stop=7.6, step=0.1)
@@ -195,16 +200,25 @@ if __name__ == '__main__':
 
     
 
-    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=10*u.pc)
+    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=43*u.Mpc)
     lcs = temp.buildLsstLC(phases=phases)
 
-    print(lcs)
+    # TABLE from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
+    data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
+    k = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
-    for band in lcs:
-        plt.plot(phases, lcs[band], label = band)
+
+    data['mag'] = k
+
+    bands = ['u','g','r','i','z','y']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    for i, band in enumerate(bands):
+        plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
+        plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])
 
     plt.xlabel('Phase')
-    plt.ylabel('Absolute Mag')
+    plt.ylabel('Apparent Mag')
     plt.gca().invert_yaxis()
     plt.legend()
     plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
