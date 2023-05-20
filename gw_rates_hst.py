@@ -154,7 +154,7 @@ def get_options(argv=None):
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--box_size', default=400., action=MinZeroAction, type=float,\
             help='Specify the side of the box in which to simulate events')
-    parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
+    parser.add_argument('--sun_loss', default=0.5, help='The fraction not observed due to sun', type=float)
     parser.add_argument('--mean_lograte', default=-6.49, help='specify the lograthim of the mean BNS rate', type=float)
     parser.add_argument('--sig_lograte',  default=0.5, type=float, help='specify the std of the mean BNS rate')
     parser.add_argument('--hdutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
@@ -449,8 +449,8 @@ def main(argv=None):
     bin_centers = (ebins[0:-1] + ebins[1:])/2.
     mean_nevents = np.mean(n_detect2)
     five_percent, ninetyfive_percent = np.percentile(n_detect2, 5), np.percentile(n_detect2, 95)
-    axes[0].axvline(round(mean_nevents), color='C0', linestyle='--', lw=2,
-                    label=r'$\langle N\rangle = %d ;~ N_{95} = %d$' % (round(mean_nevents), ninetyfive_percent))
+    axes[0].axvline(mean_nevents, color='C0', linestyle='--', lw=2,
+                    label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
     axes[0].axvline(ninetyfive_percent, color='C0',
                     linestyle='dotted', lw=1)
 
@@ -466,21 +466,21 @@ def main(argv=None):
 #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='stepfilled', color='C1', alpha=0.5, bins=ebins, zorder=1)
 #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='step', color='C1', lw=3, bins=ebins, zorder=2)
     five_percent, ninetyfive_percent = np.percentile(n_detect3, 5), np.percentile(n_detect3, 95)
-    axes[0].axvline(round(mean_nevents), color='C1', linestyle='--', lw=2,
-                label=r'$\langle N\rangle = %d ;~ N_{95} = %d$' % (round(mean_nevents), ninetyfive_percent))
+    axes[0].axvline(mean_nevents, color='C1', linestyle='--', lw=2,
+                label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
     axes[0].axvline(ninetyfive_percent, color='C1',
                 linestyle='dotted', lw=1)
 #vals, bins = np.histogram(n_detect4, bins=ebins, density=True)
-    mean_nevents = np.mean(n_detect4)
-    #vals*=norm
-    #test = dict(zip(ebins, vals))
-    axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
-    axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
-    five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
-    axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
-                    label=r'$\langle N \rangle = %d ;~ N_{95} = %d$' % (round(mean_nevents), ninetyfive_percent))
-    axes[0].axvline(ninetyfive_percent, color='C2',
-                    linestyle='dotted', lw=1)
+    # mean_nevents = np.mean(n_detect4)
+    # #vals*=norm
+    # #test = dict(zip(ebins, vals))
+    # axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
+    # axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
+    # five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
+    # axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
+    #                 label=r'$\langle N \rangle = %d ;~ N_{95} = %d$' % (round(mean_nevents), ninetyfive_percent))
+    # axes[0].axvline(ninetyfive_percent, color='C2',
+    #                 linestyle='dotted', lw=1)
     axes[0].legend(frameon=False, fontsize='small', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
@@ -584,8 +584,8 @@ def main(argv=None):
     axes[0].set_xlabel('Number of Events ($N$)', fontsize='large')
     axes[0].set_ylabel('$P(N)$', fontsize='large')
 
-    axes[2].set_xlabel('Apparent $r$, AB mag)', fontsize='large')
-    axes[2].set_ylabel('$P(r)$', fontsize='large')
+    axes[2].set_xlabel('Apparent ($uvf625w$, AB mag)', fontsize='large')
+    axes[2].set_ylabel('$P(uvf625w)$', fontsize='large')
     axes[0].set_xlim(0, ebins.max())
 
     ymin, ymax = axes[1].get_ylim()
@@ -596,7 +596,7 @@ def main(argv=None):
     fig.legend(patches, legend_text,
                'upper center', frameon=False, ncol=3, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'gw_detect_{args.mass_distrib}_JWST_Cycle2_LVKRun04.pdf')
+    fig.savefig(f'gw_detect_{args.mass_distrib}_HST_LVKRun04.pdf')
     plt.show()
 
 
