@@ -259,8 +259,9 @@ def main(argv=None):
         tot_mass = mass1 + mass2
 
         av = np.random.exponential(1, n_events)*0.4
+        print('av', len(av), len(tot_mass))
         #TODO: we need the extinction in r and h bands
-        ar = av*0.748
+        ar = av*0.86592675
 
         default_value= [0,]
 
@@ -319,12 +320,14 @@ def main(argv=None):
         em_bool = []
         obsmag = []
 
+        i = 0
         for cos_theta, phi, mej, d in zip(cos_thetas, phis, ejecta_masses, dist):
 
             print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
 
             obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d)
             lcs = obj.buildHstLC()
+            lcs['uvf625w'] += ar[i]
 
             min_mag = min(lcs['uvf625w'])
             
@@ -340,10 +343,12 @@ def main(argv=None):
                 em_bool.append(False)
                 obsmag.append(min_mag)
             
+            i += 1
+            
 
 
         em_bool = np.array(em_bool)
-        obsmag = np.array(obsmag) + ar
+        obsmag = np.array(obsmag)
 
         
 
@@ -355,7 +360,6 @@ def main(argv=None):
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
         em_bool[detected_events] = sun_bool
 
-        print("EM bool: ", em_bool)
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
@@ -472,7 +476,7 @@ def main(argv=None):
                 linestyle='dotted', lw=1)
 #vals, bins = np.histogram(n_detect4, bins=ebins, density=True)
     # mean_nevents = np.mean(n_detect4)
-    # #vals*=norm
+    # #vals*=nor
     # #test = dict(zip(ebins, vals))
     # axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
     # axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
