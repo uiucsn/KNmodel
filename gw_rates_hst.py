@@ -319,6 +319,7 @@ def main(argv=None):
 
         em_bool = []
         obsmag = []
+        peakmag = []
 
         i = 0
         for cos_theta, phi, mej, d in zip(cos_thetas, phis, ejecta_masses, dist):
@@ -330,6 +331,9 @@ def main(argv=None):
             lcs['uvf625w'] += ar[i]
 
             min_mag = min(lcs['uvf625w'])
+
+            # Minimum magnitude is the peak value
+            peakmag.append(min_mag)
             
             idx = lcs['uvf625w'] < 23
 
@@ -348,11 +352,15 @@ def main(argv=None):
 
 
         em_bool = np.array(em_bool)
+        # First detection magnitude if there is a detection, otherwise minimum magnitude
         obsmag = np.array(obsmag)
+        # Minimum magnitude. Always
+        peakmag = np.array(peakmag)
 
         
 
         print("Obs mag: ", obsmag)
+        print("Peak mag: ", peakmag)
 
 
         # whether this event was not affected by then sun
@@ -383,7 +391,9 @@ def main(argv=None):
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
             dist[n4_good].value.tolist(), tot_mass[n4_good].tolist(),\
             obsmag[n2_good].tolist(), obsmag[n3_good].tolist(),\
-            obsmag[n3_good].tolist(),\
+            obsmag[n4_good].tolist(),\
+            peakmag[n2_good].tolist(), peakmag[n3_good].tolist(),\
+            peakmag[n4_good].tolist(),\
             n2, n3, n4
 
     with schwimmbad.SerialPool() as pool:
@@ -406,29 +416,36 @@ def main(argv=None):
     mag_detect2 = []
     mag_detect3 = []
     mag_detect4 = []
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, n2, n3, n4) in enumerate(values):
+    mag_peak2 = []
+    mag_peak3 = []
+    mag_peak4 = []
+    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, n2, n3, n4) in enumerate(values):
         if n2 >= 0:
             n_detect2.append(n2)
             if n3>0:
                 dist_detect2 += d2
                 mass_detect2 += m2
                 mag_detect2  += h2
+                mag_peak2 += p2
         if n3>=0:
             n_detect3.append(n3)
             if n3 > 0:
                 dist_detect3 += d3
                 mass_detect3 += m3
                 mag_detect3  += h3
+                mag_peak3 += p3
         if n4>=0:
             n_detect4.append(n4)
             if n4 > 0:
                 dist_detect4 += d4
                 mass_detect4 += m4
                 mag_detect4  += h4
+                mag_peak4 += p4
         data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
-                               "n2": n2, "n3": n3, "n4": n4}
+                               "n2": n2, "n3": n3, "n4": n4,
+                               "p2": p2, "p3": p3, "p4": p4,}
     with open(f"data-dump-{args.mass_distrib}.pickle", "wb") as f:
         pickle.dump(data_dump, f)
 
@@ -502,7 +519,8 @@ def main(argv=None):
         res = dict(n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
                    dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
                    mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
-                   mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4)
+                   mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
+                   mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4)
         pickle.dump(res, f)
     dist_range = np.arange(0, 400., 0.1)
     patches = list()
