@@ -19,8 +19,8 @@ jwst_NIRcam_bands = ['f200w']
 hst_bands = ['uvf625w']
 
 
-phases = np.arange(start=0.1, stop=7.6, step=0.1)
-lmbd = np.arange(start=100, stop = 99900, step=200)
+phases = np.arange(start=0.1, stop=7.6, step=0.2)
+lmbd = np.arange(start=100, stop = 99901, step=200)
 
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
@@ -48,9 +48,11 @@ class SEDDerviedLC():
                             survey filter. 
         """
         
-        abs_mags = []
+        source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
-        for phase in phases:
+        interpolated_sed = np.zeros((len(phases), len(lmbd)))
+
+        for i, phase in enumerate(phases):
                 
             # Create mesh of points for interpolator
             mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
@@ -62,12 +64,24 @@ class SEDDerviedLC():
             # Converting log spectral flux density (from extrapolation) to  spectral flux density
             spectral_flux_density[spectral_flux_density < 0]  = 0 
 
-            # Generate magnitude from synthetic SED
-            spectrum = sncosmo.Spectrum(flux = spectral_flux_density, wave=lmbd)
-            ab_mag = spectrum.bandmag(band=passband, magsys="ab")
-            abs_mags.append(ab_mag)
-            
+            interpolated_sed[i, :] = spectral_flux_density
+        
 
+        source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name)
+
+        # TODO: Apply extinction to the SED
+        model = sncosmo.Model(source)
+
+        # add host galaxy extinction E(B-V)
+        model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+        model.set(hostebv=1/3.1)
+
+        # add MW extinction to observing frame
+        model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+
+
+        abs_mags = model.bandmag(band=passband, time = phases, magsys="ab")
+    
         return abs_mags
 
     def buildLsstLC(self, bands = lsst_bands, phases = phases):
@@ -256,31 +270,45 @@ class SEDDerviedLC():
 if __name__ == '__main__':
 
     # Pass band stuff
-    bands = ['u','g','r','i','z','y']
+    bands = ['g','r','i']
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
-    # Best fit parameters for GW 170817
+    # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
     mej = 0.05
     phi = 30
     cos_theta = 0.9
 
     # LC from sed
-    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=43*u.Mpc)
+    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=40*u.Mpc)
     lcs = temp.buildLsstLC(phases=phases)
 
     # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
     data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
+    data = data[data['Instrument'] == 'DECam']
     data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
     # Plotting the interpolated lc and scattering the plots
-    for i, band in enumerate(bands):
-        plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
-        plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])
+    # for i, band in enumerate(bands):
+        # plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
+        # plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])
+
+    plt.scatter(data[data['Filter'] == 'g']['MJD'], data[data['Filter'] == 'g']['mag'] + 2, label='g + 2',c=colors[0])
+    plt.scatter(data[data['Filter'] == 'r']['MJD'], data[data['Filter'] == 'r']['mag'], label='r',c=colors[1]) 
+    plt.scatter(data[data['Filter'] == 'i']['MJD'], data[data['Filter'] == 'i']['mag'] - 2, label='i - 2', c=colors[2])
+
+    plt.plot(phases, lcs[f'lsstg'] + 2, label = f'lsstg + 2', c=colors[0])
+    plt.plot(phases, lcs[f'lsstr'], label = f'lsstr', c=colors[1])
+    plt.plot(phases, lcs[f'lssti'] - 2, label = f'lssti - 2', c=colors[2])
+
+
 
     plt.xlabel('Phase')
     plt.ylabel('Apparent Mag')
+
     plt.gca().invert_yaxis()
     plt.legend()
+    plt.grid(linestyle="--")
+
     plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
     plt.show()
 
