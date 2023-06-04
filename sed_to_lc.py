@@ -3,12 +3,13 @@ import matplotlib.pyplot as plt
 import sncosmo
 import re
 import pandas as pd
+import sfdmap
 
 
 from scipy.integrate import simps, simpson
 from astropy import units as u
 from astropy import constants as const
-from astropy.coordinates import Distance
+from astropy.coordinates import Distance, SkyCoord
 from astropy.io import ascii
 
 from interpolate_bulla_sed import BullaSEDInterpolator
@@ -25,14 +26,24 @@ lmbd = np.arange(start=100, stop = 99901, step=200)
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
 
-    def __init__(self, mej, phi, cos_theta, dist):
+    def __init__(self, mej, phi, cos_theta, dist, coord, av , rv = 3.1):
 
         # Setting paramters for interpolating SED
         self.mej = mej
         self.phi = phi
         self.cos_theta = cos_theta
         self.distance = Distance(dist)
+        self.coord = coord
         self.sed_interpolator = BullaSEDInterpolator(from_source=False)
+
+        # For mw extinction
+        self.dust_map = sfdmap.SFDMap('./sfddata-master')
+        self.mw_ebv = self.dust_map.ebv(self.coord.ra, self.coord.dec)
+
+        # For host extinction
+        self.av = av
+        self.rv = rv
+        self.host_ebv = self.av/self.rv
     
     def getAbsMagsInPB(self, passband, phases):
         """
@@ -74,10 +85,11 @@ class SEDDerviedLC():
 
         # add host galaxy extinction E(B-V)
         model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
-        model.set(hostebv=1/3.1)
+        model.set(hostebv = self.host_ebv)
 
         # add MW extinction to observing frame
         model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+        model.set(mwebv=self.mw_ebv)
 
 
         abs_mags = model.bandmag(band=passband, time = phases, magsys="ab")
@@ -278,13 +290,21 @@ if __name__ == '__main__':
     phi = 30
     cos_theta = 0.9
 
+    # coordinates for GW170817
+    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    d = 40*u.Mpc
+
+
     # LC from sed
-    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=40*u.Mpc)
+    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
     lcs = temp.buildLsstLC(phases=phases)
+
+    print(temp.host_ebv, temp.mw_ebv)
+
 
     # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
     data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
-    data = data[data['Instrument'] == 'DECam']
+    #data = data[data['Instrument'] == 'DECam']
     data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
     # Plotting the interpolated lc and scattering the plots
@@ -313,3 +333,51 @@ if __name__ == '__main__':
     plt.show()
 
 
+
+    mej_vals = phases = np.arange(start=0.001, stop=0.9, step=0.001)
+    mej_mag = {}
+    discovery_mag = {}
+
+    for band in lsst_bands:
+        mej_mag[band] = []
+        discovery_mag[band] = []
+
+    for mej in mej_vals:
+        print(mej)
+        temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+        lcs = temp.buildLsstLC(phases=np.arange(start=0.1, stop=2.6, step=0.2))
+        
+        for band in lcs:
+            mej_mag[band].append(min(lcs[band]))
+
+            min_mag = min(lcs[band])
+            
+            idx = lcs[band] < 23
+            
+            if min_mag < 23:
+
+                discovery_mag[band].append((lcs[band][idx])[0])
+            else:
+                discovery_mag[band].append(np.nan)
+
+    for band in lcs:
+        plt.plot(mej_vals, mej_mag[band], label = band)
+
+    plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
+    plt.xlabel('mej')
+    plt.ylabel('min mag')
+    plt.xscale('log')
+    plt.legend()
+
+    plt.show()
+
+    for band in lcs:
+        plt.plot(mej_vals, discovery_mag[band], label = band)
+
+    plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
+    plt.xlabel('mej')
+    plt.ylabel('min mag')
+    plt.xscale('log')
+    plt.legend()
+
+    plt.show()

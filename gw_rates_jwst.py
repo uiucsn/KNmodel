@@ -12,7 +12,8 @@ import numpy as np
 import scipy.stats as spstat
 from collections import namedtuple
 from astropy.time import Time
-from astropy.coordinates import Distance
+from astropy.coordinates import Distance, SkyCoord
+import astropy.coordinates as coord
 import astropy.table as at
 import astropy.units as u, astropy.constants as c
 import argparse
@@ -31,7 +32,7 @@ import ligo.em_bright
 import ligo.em_bright.computeDiskMass
 from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
-from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019
+from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019, CoDi2019
 from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
 
 np.random.RandomState(int(time.time()))
@@ -45,27 +46,13 @@ detector_asd_links = dict(
     kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
 )
 
-def has_ejecta_mass(m1, m2):
-    """Calculate whether the binary has any remnant matter based on
-    Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
-    equation of state.
-    """
-    c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
-    c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
-    if m_b_2 == 0.0 or m_b_1 == 0.0:
-        # treat as NSBH
-        m_rem = computeDiskMass(m1, m2, 0., 0., eosname=EOSNAME)
-    else:
-        # treat as BNS
-        m_rem = DiUj2017.calc_meje(m1, m_b_1, c_ns_1, m2, m_b_2, c_ns_2)
-    return m_rem > 0.0
-
 def get_ejecta_mass(m1, m2):
     """Calculate ejecta mass of any remnant matter based on
     Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
     equation of state.
     """
     m1, m2 = max(m1, m2), min(m1, m2)
+    print(m1, m2)
     c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
     c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
     if m_b_2 == 0.0 or m_b_1 == 0.0:
@@ -73,8 +60,9 @@ def get_ejecta_mass(m1, m2):
         m_rem = computeDiskMass(m1, m2, 0., 0., eosname=EOSNAME)
     else:
         # treat as BNS
-        m_rem = DiUj2017.calc_meje(m1, m_b_1, c_ns_1, m2, m_b_2, c_ns_2)
-    return m_rem 
+        m_rem = CoDi2019.calc_meje(np.array([m1]), np.array([c_ns_1]), np.array([m2]), np.array([c_ns_2]))[0]
+        
+    return m_rem
 
 def get_range(detector):
     psd_url = detector_asd_links[detector]
@@ -225,10 +213,14 @@ def main(argv=None):
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
             mass1, mass2 = galactic_masses(n_events)
-            ejecta_masses = [ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)]
+            # max_m, min_m = np.maximum(mass1, mass2), np.minimum(mass1, mass2)
+            # print(get_ejecta_mass(max_m,min_m))
+            ejecta_masses = np.array([ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)])
         elif mass_distrib == 'exg':
             mass1, mass2 = extra_galactic_masses(n_events)
-            ejecta_masses = [ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)]
+            # max_m, min_m = np.maximum(mass1, mass2), np.minimum(mass1, mass2)
+            # print(get_ejecta_mass(max_m,min_m))
+            ejecta_masses = np.array([ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)])
         elif mass_distrib == 'msp':
             print("MSP population chosen, overriding mean_mass and sig_mass if supplied.")
             # numbers from https://arxiv.org/pdf/1605.01665.pdf
@@ -242,6 +234,13 @@ def main(argv=None):
             mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
             mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
             ejecta_masses = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['total_ejecta_mass'] for i in range(n_events)])
+
+        # plt.hist(np.log10(ejecta_masses), density=True)
+        # plt.xlabel('log10 mej')
+        # # plt.xscale('log')
+        # plt.xticks([-3, -2, -1, 0])
+        # plt.axvspan(xmin=-2, xmax=-1, color='r', alpha=0.5)
+        # plt.show()
 
         bns_range_ligo = np.array(
             [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
@@ -264,11 +263,11 @@ def main(argv=None):
 
         default_value= [0,]
 
-        # simulate coordinates
-        x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
-        y = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
-        z = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec
-        dist = (x**2. + y**2. + z**2. + (0.05*u.megaparsec)**2.)**0.5
+        # simulate coordinates. Additional term ensures minimum distance of 0.05 Mpc
+        x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
+        y = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
+        z = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
+        dist = (x**2. + y**2. + z**2.)**0.5
 
 
         h_on, l_on, v_on, k_on = get_sim_dutycycles(n_events, upper_chol,
@@ -291,16 +290,14 @@ def main(argv=None):
              k_on_and_observed)).T,
             axis=1
         )
-        print('ndet_GW', n_detectors_on_and_obs)
 
         two_det_obs = n_detectors_on_and_obs == 2
         three_det_obs = n_detectors_on_and_obs == 3
         four_det_obs = n_detectors_on_and_obs == 4
 
         # decide whether there is a kilnova based on remnant matter
-        has_ejecta_bool = [
-            has_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)
-        ]
+        has_ejecta_bool = ejecta_masses > 0
+
 
         # # Get the actual values of the ejecta mass
         # ejecta_masses = [
@@ -308,22 +305,29 @@ def main(argv=None):
         # ]
 
         count = len(ejecta_masses)
+        exp_count = (ejecta_masses < 0.01).sum() + (ejecta_masses > 0.09).sum()
+        print(f'{(exp_count/n_events) * 100} % of the SEDs were extrapolated...')
 
         # Get random values for phi and cos theta as parameters for the model
         uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
         uniq_phi = np.array([15, 30, 45, 60, 75])
 
-        cos_thetas = np.random.choice(uniq_cos_theta, size=count)
-        phis = np.random.choice(uniq_phi, size=count)
+        cos_thetas = np.random.choice(uniq_cos_theta, size=n_events)
+        phis = np.random.choice(uniq_phi, size=n_events)
 
         em_bool = []
         obsmag = []
 
-        for cos_theta, phi, mej, d in zip(cos_thetas, phis, ejecta_masses, dist):
 
-            print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
+        for i, (cos_theta, phi, mej, d) in enumerate(zip(cos_thetas, phis, ejecta_masses, dist)):
 
-            obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d)
+            #print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
+
+
+            r, dec, ra = coord.cartesian_to_spherical(x[i], y[i], z[i])
+            coordinates = coord.SkyCoord(ra=ra, dec=dec)
+
+            obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av = av[i])
             lcs = obj.buildJwstNircamLC()
 
             min_mag = min(lcs['f200w'])
@@ -336,15 +340,9 @@ def main(argv=None):
             else:
                 em_bool.append(False)
                 obsmag.append(min_mag)
-            
-
 
         em_bool = np.array(em_bool)
-        obsmag = np.array(obsmag) + ar
-
-        
-
-        print("Obs mag: ", obsmag)
+        obsmag = np.array(obsmag)
 
 
         # whether this event was not affected by then sun
@@ -352,7 +350,9 @@ def main(argv=None):
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
         em_bool[detected_events] = sun_bool
 
-        print("EM bool: ", em_bool)
+        # print('ndet_GW', n_detectors_on_and_obs)
+        # print("EM bool: ", em_bool)
+        # print("Obs mag: ", obsmag)
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
@@ -381,7 +381,6 @@ def main(argv=None):
 
     with schwimmbad.SerialPool() as pool:
         values = list(pool.map(dotry, range(n_try)))
-        print(len(values))
 
     with open(f'ntry-{n_try}-values.pkl', 'wb') as f:
         pickle.dump(values, f)
