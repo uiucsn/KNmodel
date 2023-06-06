@@ -11,6 +11,7 @@ from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import Distance, SkyCoord
 from astropy.io import ascii
+from matplotlib import cm
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 
@@ -44,6 +45,44 @@ class SEDDerviedLC():
         self.av = av
         self.rv = rv
         self.host_ebv = self.av/self.rv
+
+    def getInterpolatedSed(self, phases=phases,remove_negative = True):
+
+        interpolated_sed = np.zeros((len(phases), len(lmbd)))
+
+        for i, phase in enumerate(phases):
+                
+            # Create mesh of points for interpolator
+            mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
+            points = np.array(mesh_grid).T.reshape(-1, 5)
+
+            # Interpolate spectral luminosity at all wavelengths
+            spectral_flux_density = self.sed_interpolator.interpolator(points)
+
+            if remove_negative:
+                spectral_flux_density[spectral_flux_density < 0]  = 0 
+
+            interpolated_sed[i, :] = spectral_flux_density
+
+        return interpolated_sed
+
+    def makeSedPlot(self, phases=phases):
+
+        interpolated_sed = self.getInterpolatedSed(phases=phases)
+        source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
+
+        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+
+        X, Y = np.meshgrid(lmbd, phases)
+
+        # Plot the surface.
+        surf = ax.plot_surface(X, Y, interpolated_sed, cmap=cm.plasma)
+        ax.set_xlabel('Wavelength (A)')
+        ax.set_ylabel('Phase (days)')
+        ax.set_zlabel('Spectral flux density (erg / s / cm^2 / A)')
+        ax.set_title(source_name)
+        return ax
+
     
     def getAbsMagsInPB(self, passband, phases):
         """
@@ -61,26 +100,10 @@ class SEDDerviedLC():
         
         source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
-        interpolated_sed = np.zeros((len(phases), len(lmbd)))
-
-        for i, phase in enumerate(phases):
-                
-            # Create mesh of points for interpolator
-            mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
-            points = np.array(mesh_grid).T.reshape(-1, 5)
-
-            # Interpolate spectral luminosity at all wavelengths
-            spectral_flux_density = self.sed_interpolator.interpolator(points)
-
-            # Converting log spectral flux density (from extrapolation) to  spectral flux density
-            spectral_flux_density[spectral_flux_density < 0]  = 0 
-
-            interpolated_sed[i, :] = spectral_flux_density
-        
+        interpolated_sed = self.getInterpolatedSed(phases=phases)
 
         source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name)
 
-        # TODO: Apply extinction to the SED
         model = sncosmo.Model(source)
 
         # add host galaxy extinction E(B-V)
@@ -294,90 +317,147 @@ if __name__ == '__main__':
     c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
     d = 40*u.Mpc
 
+    def plot_GW170817_lc_and_spectra():
 
-    # LC from sed
-    temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
-    lcs = temp.buildLsstLC(phases=phases)
-
-    print(temp.host_ebv, temp.mw_ebv)
-
-
-    # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
-    data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
-    #data = data[data['Instrument'] == 'DECam']
-    data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
-
-    # Plotting the interpolated lc and scattering the plots
-    # for i, band in enumerate(bands):
-        # plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
-        # plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])
-
-    plt.scatter(data[data['Filter'] == 'g']['MJD'], data[data['Filter'] == 'g']['mag'] + 2, label='g + 2',c=colors[0])
-    plt.scatter(data[data['Filter'] == 'r']['MJD'], data[data['Filter'] == 'r']['mag'], label='r',c=colors[1]) 
-    plt.scatter(data[data['Filter'] == 'i']['MJD'], data[data['Filter'] == 'i']['mag'] - 2, label='i - 2', c=colors[2])
-
-    plt.plot(phases, lcs[f'lsstg'] + 2, label = f'lsstg + 2', c=colors[0])
-    plt.plot(phases, lcs[f'lsstr'], label = f'lsstr', c=colors[1])
-    plt.plot(phases, lcs[f'lssti'] - 2, label = f'lssti - 2', c=colors[2])
-
-
-
-    plt.xlabel('Phase')
-    plt.ylabel('Apparent Mag')
-
-    plt.gca().invert_yaxis()
-    plt.legend()
-    plt.grid(linestyle="--")
-
-    plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
-    plt.show()
-
-
-
-    mej_vals = phases = np.arange(start=0.001, stop=0.9, step=0.001)
-    mej_mag = {}
-    discovery_mag = {}
-
-    for band in lsst_bands:
-        mej_mag[band] = []
-        discovery_mag[band] = []
-
-    for mej in mej_vals:
-        print(mej)
+        # LC from sed
         temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
-        lcs = temp.buildLsstLC(phases=np.arange(start=0.1, stop=2.6, step=0.2))
-        
+        lcs = temp.buildLsstLC(phases=phases)
+        temp.makeSedPlot()
+        plt.show()
+
+
+        # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
+        data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
+        #data = data[data['Instrument'] == 'DECam']
+        data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
+
+        # Plotting the interpolated lc and scattering the plots
+        # for i, band in enumerate(bands):
+        #     plt.plot(phases, lcs[f'lsst{band}'], label = f'lsst{band}', c=colors[i])
+        #     plt.scatter(data[data['Filter'] == band]['MJD'], data[data['Filter'] == band]['mag'], label=band, c=colors[i])
+
+        plt.scatter(data[data['Filter'] == 'g']['MJD'], data[data['Filter'] == 'g']['mag'] + 2, label='g + 2',c=colors[0])
+        plt.scatter(data[data['Filter'] == 'r']['MJD'], data[data['Filter'] == 'r']['mag'], label='r',c=colors[1]) 
+        plt.scatter(data[data['Filter'] == 'i']['MJD'], data[data['Filter'] == 'i']['mag'] - 2, label='i - 2', c=colors[2])
+
+        plt.plot(phases, lcs[f'lsstg'] + 2, label = f'lsstg + 2', c=colors[0])
+        plt.plot(phases, lcs[f'lsstr'], label = f'lsstr', c=colors[1])
+        plt.plot(phases, lcs[f'lssti'] - 2, label = f'lssti - 2', c=colors[2])
+
+        plt.xlabel('Phase')
+        plt.ylabel('Apparent Mag')
+
+        plt.gca().invert_yaxis()
+        plt.legend()
+        plt.grid(linestyle="--")
+
+        plt.title(f'Interpolated Data: mej = {mej} phi = {phi} cos theta = {cos_theta}')
+        plt.show()
+    
+    def plot_mag_vs_mej():
+
+
+        k = np.array([1,2,3,4,5,6,7,8,9])
+        mej_vals = np.concatenate((k*0.001, k*0.01, k*0.1))
+        mej_mag = {}
+        discovery_mag = {}
+
+        for band in lsst_bands:
+            mej_mag[band] = []
+            discovery_mag[band] = []
+
+        for mej in mej_vals:
+            temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+            lcs = temp.buildLsstLC(phases=np.arange(start=0.1, stop=2.6, step=0.2))
+            
+            for band in lcs:
+                mej_mag[band].append(min(lcs[band]))
+
+                min_mag = min(lcs[band])
+                
+                idx = lcs[band] < 23
+                
+                if min_mag < 23:
+
+                    discovery_mag[band].append((lcs[band][idx])[0])
+                else:
+                    discovery_mag[band].append(np.nan)
+
         for band in lcs:
-            mej_mag[band].append(min(lcs[band]))
+            plt.plot(mej_vals, mej_mag[band], label = band)
 
-            min_mag = min(lcs[band])
-            
-            idx = lcs[band] < 23
-            
-            if min_mag < 23:
+        plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
+        plt.xlabel('mej')
+        plt.ylabel('min mag')
+        #plt.xscale('log')
+        plt.gca().invert_yaxis()
+        plt.legend()
 
-                discovery_mag[band].append((lcs[band][idx])[0])
-            else:
-                discovery_mag[band].append(np.nan)
+        plt.show()
 
-    for band in lcs:
-        plt.plot(mej_vals, mej_mag[band], label = band)
+        for band in lcs:
+            plt.plot(mej_vals, discovery_mag[band], label = band)
 
-    plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
-    plt.xlabel('mej')
-    plt.ylabel('min mag')
-    plt.xscale('log')
-    plt.legend()
+        plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
+        plt.xlabel('mej')
+        plt.ylabel('min mag')
+        plt.xscale('log')
+        plt.legend()
 
-    plt.show()
+        plt.show()
 
-    for band in lcs:
-        plt.plot(mej_vals, discovery_mag[band], label = band)
+    def plot_spectra_at_mej():
+        mej_vals = [0.001, 0.002, 0.005, 0.007, 0.01, 0.025, 0.05, 0.075, 0.11, 0.3, 0.7, 0.9]
 
-    plt.axvspan(xmin=0.01, xmax=0.09, color='r', alpha=0.5)
-    plt.xlabel('mej')
-    plt.ylabel('min mag')
-    plt.xscale('log')
-    plt.legend()
+        # fig, ax = plt.subplots(3, 4,subplot_kw={"projection": "3d"})
+        fig, ax = plt.subplots(3, 4)
 
-    plt.show()
+        for i, mej in enumerate(mej_vals):
+            temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+            #temp.makeSedPlot([1,1.1117677,1.2])
+            spectra = temp.getInterpolatedSed([1]).reshape((len(lmbd)))
+            ax[int(i/4)][i%4].plot(lmbd, spectra)
+            ax[int(i/4)][i%4].set_title(f'mej: {mej}')
+            # ax[int(i/4),i%4].set_xlabel('Wavelength (A)')
+            # ax[int(i/4),i%4].set_ylabel('Spectral flux density (erg / s / cm^2 / A)')
+            #plt.savefig(f'SED_mej_{mej}.png')
+        plt.show()
+    
+    def plot_plot_mej_power_fits():
+    
+        # mej_vals = np.arange(start=0.001, stop=0.9, step=0.001)
+        # mej_vals = np.concatenate((k*0.001, k*0.01, k*0.1))
+        mej_vals = np.arange(start=0.01, stop=0.1, step=0.005)
+
+        peak_flux = []
+        peak_flux_wavelength = []
+
+        for i, mej in enumerate(mej_vals):
+            temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+            spectra = temp.getInterpolatedSed([1]).reshape((len(lmbd)))
+            idx = np.argmax(spectra)
+            peak_flux.append(np.mean(spectra))
+            peak_flux_wavelength.append(lmbd[idx])
+        
+        fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+
+        deg = 1
+        p = np.polyfit(np.log10(mej_vals), np.log10(peak_flux), deg=deg)
+        n = p[0] 
+        log_a = p[1]
+        a = 10**log_a
+        fit = a * (fit_mej**n) #+ p[1] #* (fit_mej) + p[2]
+        plt.scatter(mej_vals, peak_flux, c=peak_flux_wavelength, cmap='plasma')
+        plt.plot(fit_mej, fit, label='Best power law fit')
+        plt.xlabel('mej')
+        plt.ylabel('avg flux')
+        plt.colorbar()
+        plt.legend()
+        plt.title(rf'$y = {a:2f} \cdot x^{n:2f}$')
+        plt.loglog
+        plt.show()
+
+    plot_GW170817_lc_and_spectra()
+    plot_mag_vs_mej()
+    plot_spectra_at_mej()
+    plot_plot_mej_power_fits()

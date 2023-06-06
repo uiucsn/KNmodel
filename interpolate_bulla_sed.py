@@ -132,9 +132,13 @@ class BullaSEDInterpolator():
 
         return interpolator
 if __name__ == '__main__':
+
     temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
-    temp2 = BullaSEDInterpolator(from_source=False)
-    vals = (1.0, 0.09, 45, 0.1, 5500
-    )
     print(temp1.interpolate(1.0, 0.09, 45, 0.1, 5500))
+
+    temp2 = BullaSEDInterpolator(from_source=False)
     print(temp2.interpolate(1.0, 0.09, 45, 0.1, 5500))
+
+    vals = (1.0, 0.09, 45, 0.1, 5500)
+
+

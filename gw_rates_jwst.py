@@ -52,7 +52,6 @@ def get_ejecta_mass(m1, m2):
     equation of state.
     """
     m1, m2 = max(m1, m2), min(m1, m2)
-    print(m1, m2)
     c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
     c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
     if m_b_2 == 0.0 or m_b_1 == 0.0:
@@ -305,8 +304,10 @@ def main(argv=None):
         # ]
 
         count = len(ejecta_masses)
-        exp_count = (ejecta_masses < 0.01).sum() + (ejecta_masses > 0.09).sum()
-        print(f'{(exp_count/n_events) * 100} % of the SEDs were extrapolated...')
+        exp_count_low = (ejecta_masses < 0.01).sum() 
+        exp_count_high = (ejecta_masses > 0.1).sum()
+        print(f'{(exp_count_low/n_events) * 100} % of the SEDs were extrapolated at < 0.01...')
+        print(f'{(exp_count_high/n_events) * 100} % of the SEDs were extrapolated at > 0.1...')
 
         # Get random values for phi and cos theta as parameters for the model
         uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
