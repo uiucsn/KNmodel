@@ -24,6 +24,9 @@ hst_bands = ['uvf625w']
 phases = np.arange(start=0.1, stop=7.6, step=0.2)
 lmbd = np.arange(start=100, stop = 99901, step=200)
 
+mej_grid_low = 0.01
+mej_grid_high = 0.1
+
 # Code to convert the SED's to lightcurves in different filters
 class SEDDerviedLC(): 
 
@@ -45,15 +48,33 @@ class SEDDerviedLC():
         self.av = av
         self.rv = rv
         self.host_ebv = self.av/self.rv
+    
 
-    def getInterpolatedSed(self, phases=phases,remove_negative = True):
+    def getInterpolatedSed(self, phases=phases, remove_negative = True, extrapolate = True):
 
         interpolated_sed = np.zeros((len(phases), len(lmbd)))
 
         for i, phase in enumerate(phases):
                 
             # Create mesh of points for interpolator
-            mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
+            if extrapolate:
+                # Extrapolate off the grid
+                mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
+
+            else:
+                # Find the closest sed on the grid.
+                if self.mej < mej_grid_low:
+                    # if mej is too low, get the spectra for the lowest mej on the grid.
+                    mesh_grid = np.meshgrid(self.cos_theta, mej_grid_low, self.phi, phase, lmbd)
+
+                elif self.mej > mej_grid_high:
+                    # if mej is too high, get the spectra for the highest mej on the grid.
+                    mesh_grid = np.meshgrid(self.cos_theta, mej_grid_high, self.phi, phase, lmbd)
+
+                else:
+                    # if mej is on the grid, just interpolate.                 
+                    mesh_grid = np.meshgrid(self.cos_theta, self.mej, self.phi, phase, lmbd)
+
             points = np.array(mesh_grid).T.reshape(-1, 5)
 
             # Interpolate spectral luminosity at all wavelengths
@@ -66,9 +87,113 @@ class SEDDerviedLC():
 
         return interpolated_sed
 
+  
+    def getAvgScalingFactor(self):
+        
+        df = pd.read_csv('data/scaling_laws.csv')
+
+        if self.mej > mej_grid_high:
+
+            # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
+            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+            # Find phase where average flux is maximum and use it for scaling
+            closest_df = closest_df[(closest_df['0.1_mej_avg_flux'] == np.max(closest_df['0.1_mej_avg_flux']))]
+
+            # Curve parameters
+            a_avgs = closest_df['a_avg']
+            n_avgs = closest_df['n_avg']
+
+            # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
+            scaling_values = (a_avgs * (self.mej)**n_avgs) / ((a_avgs * (mej_grid_high)**n_avgs))
+
+        elif self.mej < mej_grid_low:
+
+            # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
+            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+            # Find phase where average flux is maximum and use it for scaling
+            closest_df = closest_df[(closest_df['0.01_mej_avg_flux'] == np.max(closest_df['0.01_mej_avg_flux']))]
+
+            # Curve parameters
+            a_avgs = closest_df['a_avg']
+            n_avgs = closest_df['n_avg']
+
+            # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
+            scaling_values = (a_avgs * (self.mej)**n_avgs) / ((a_avgs * (mej_grid_low)**n_avgs))
+
+        # If multiple phases have the same average flux, returns the first one
+        return scaling_values.to_numpy()[0]
+    
+    def getMaxScalingFactor(self):
+
+        df = pd.read_csv('data/scaling_laws.csv')
+
+        if self.mej > mej_grid_high:
+
+            # Find entries with the same cos theta and phi at all phase values
+            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+            # Find phase where average flux is maximum and use it for scaling
+            closest_df = closest_df[(closest_df['0.1_mej_avg_flux'] == np.max(closest_df['0.1_mej_avg_flux']))]
+
+            # Curve parameters
+            a_maxs = closest_df['a_max']
+            n_maxs = closest_df['n_max']
+
+            # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
+            scaling_values = (a_maxs * (self.mej)**n_maxs) / ((a_maxs * (mej_grid_high)**n_maxs))
+
+        elif self.mej < mej_grid_low:
+
+            # Find entries with the same cos theta and phi at all phase values
+            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+            # Find phase where average flux is maximum and use it for scaling
+            closest_df = closest_df[(closest_df['0.01_mej_avg_flux'] == np.max(closest_df['0.01_mej_avg_flux']))]
+
+            # Curve parameters
+            a_maxs = closest_df['a_max']
+            n_maxs = closest_df['n_max']
+
+            # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
+            scaling_values = (a_maxs * (self.mej)**n_maxs) / ((a_maxs * (mej_grid_low)**n_maxs))
+
+        # If multiple phases have the same average flux, returns the first one
+        return scaling_values.to_numpy()[0]
+
+    def getSed(self, phases=phases, scaling='avg'):
+
+        scaling_options = ['avg', 'max']
+
+        if scaling not in scaling_options:
+            raise ValueError(f"Invalid scaling method. Expected one of: {scaling_options}, got {scaling}" )
+        
+        # If the sed is off the grid, pick the closes one and scale.
+        if self.mej > mej_grid_high or self.mej < mej_grid_low:
+
+            # Get the closest sed on the grid.
+            closest_grid_sed = self.getInterpolatedSed(phases=phases, remove_negative=True, extrapolate=False)
+
+            # Scale the SED
+            if scaling == 'avg':
+                self.scaling_factor = self.getAvgScalingFactor()
+            elif scaling == 'max':
+                self.scaling_factor = self.getMaxScalingFactor()
+
+            sed = self.scaling_factor * closest_grid_sed
+
+        else:
+            
+            self.scaling_factor = 1
+            # Get interpolated sed.
+            sed = self.getInterpolatedSed(phases=phases, remove_negative=True)
+
+        return sed
+
     def makeSedPlot(self, phases=phases):
 
-        interpolated_sed = self.getInterpolatedSed(phases=phases)
+        interpolated_sed = self.getSed(phases=phases)
         source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
@@ -84,7 +209,7 @@ class SEDDerviedLC():
         return ax
 
     
-    def getAbsMagsInPB(self, passband, phases):
+    def getAbsMagsInPB(self, passband, phases, apply_extinction = True):
         """
         Find the absolute mag (AB) vs phase time series. 
 
@@ -100,19 +225,21 @@ class SEDDerviedLC():
         
         source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
-        interpolated_sed = self.getInterpolatedSed(phases=phases)
+        interpolated_sed = self.getSed(phases=phases)
 
         source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name)
 
         model = sncosmo.Model(source)
 
-        # add host galaxy extinction E(B-V)
-        model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
-        model.set(hostebv = self.host_ebv)
+        if apply_extinction:
 
-        # add MW extinction to observing frame
-        model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
-        model.set(mwebv=self.mw_ebv)
+            # add host galaxy extinction E(B-V)
+            model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+            model.set(hostebv = self.host_ebv)
+
+            # add MW extinction to observing frame
+            model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+            model.set(mwebv=self.mw_ebv)
 
 
         abs_mags = model.bandmag(band=passband, time = phases, magsys="ab")
@@ -309,7 +436,7 @@ if __name__ == '__main__':
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
     # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
-    mej = 0.05
+    mej = 0.5
     phi = 30
     cos_theta = 0.9
 
@@ -368,7 +495,7 @@ if __name__ == '__main__':
 
         for mej in mej_vals:
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
-            lcs = temp.buildLsstLC(phases=np.arange(start=0.1, stop=2.6, step=0.2))
+            lcs = temp.buildLsstLC()
             
             for band in lcs:
                 mej_mag[band].append(min(lcs[band]))
@@ -413,11 +540,12 @@ if __name__ == '__main__':
         fig, ax = plt.subplots(3, 4)
 
         for i, mej in enumerate(mej_vals):
+            print(f"mej {mej}")
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
             #temp.makeSedPlot([1,1.1117677,1.2])
-            spectra = temp.getInterpolatedSed([1]).reshape((len(lmbd)))
+            spectra = temp.getSed([1]).reshape((len(lmbd)))
             ax[int(i/4)][i%4].plot(lmbd, spectra)
-            ax[int(i/4)][i%4].set_title(f'mej: {mej}')
+            ax[int(i/4)][i%4].set_title(f'mej: {mej}, flux scaling factor: {temp.scaling_factor:4f}')
             # ax[int(i/4),i%4].set_xlabel('Wavelength (A)')
             # ax[int(i/4),i%4].set_ylabel('Spectral flux density (erg / s / cm^2 / A)')
             #plt.savefig(f'SED_mej_{mej}.png')
@@ -457,7 +585,7 @@ if __name__ == '__main__':
         plt.loglog
         plt.show()
 
-    plot_GW170817_lc_and_spectra()
+    #plot_GW170817_lc_and_spectra()
     plot_mag_vs_mej()
-    plot_spectra_at_mej()
-    plot_plot_mej_power_fits()
+    #plot_spectra_at_mej()
+    #plot_plot_mej_power_fits()

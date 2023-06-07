@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
+import json
 
 from astropy.io import ascii
 from matplotlib.colors import LightSource
@@ -50,6 +51,90 @@ class BullaSEDInterpolator():
 
         # return the interpolated result.
         return self.interpolator((cos_theta, mej, phi, phase, wavelength))
+    
+    def computeFluxScalingLaws(self, plot=False):
+
+        mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
+        cos_theta_vals = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
+        phi_vals = np.array([15, 30, 45, 60, 75])
+        phases = np.arange(start=0.1, stop=7.6, step=0.2)
+        lmbd = np.arange(start=100, stop = 99901, step=200)
+
+        df = pd.DataFrame(columns=['phase','cos_theta', 'phi', 'a_max', 'n_max', 'a_avg', 'n_avg'])
+
+        for phase in phases:
+            print(f'Phase: {phase}')
+            for cos_theta in cos_theta_vals:
+                for phi in phi_vals:
+
+                    avg_fluxes = []
+                    max_fluxes = []
+                    peak_wavelengths = []
+
+                    for mej in mej_vals:
+
+                        mesh_grid = np.meshgrid(cos_theta, mej, phi, phase, lmbd)
+                        points = np.array(mesh_grid).T.reshape(-1, 5)
+                        sed = self.interpolator(points)
+                        
+                        avg_flux = np.mean(sed)
+
+                        idx = np.argmax(sed)
+                        max_flux = sed[idx]
+                        peak_wavelength = lmbd[idx]
+
+                        avg_fluxes.append(avg_flux)
+                        max_fluxes.append(max_flux)
+                        peak_wavelengths.append(peak_wavelength)
+
+                    # Best fit laws of the form y = a * (x ^ n)
+
+                    coeffs_max = np.polyfit(np.log10(mej_vals), np.log10(max_fluxes), deg=1)
+                    log_a_max = coeffs_max[1]
+
+                    a_max = 10**log_a_max
+                    n_max = coeffs_max[0] 
+
+                    coeffs_avg = np.polyfit(np.log10(mej_vals), np.log10(avg_fluxes), deg=1)
+                    log_a_avg = coeffs_avg[1]
+
+                    a_avg = 10**log_a_avg
+                    n_avg = coeffs_avg[0]
+
+                    d = {
+
+                        'phase': phase,
+                        'cos_theta': cos_theta,
+                        'phi': phi,
+                        'a_max': a_max,
+                        'n_max': n_max,
+                        'a_avg': a_avg,
+                        'n_avg': n_avg,
+                        '0.01_mej_avg_flux': avg_fluxes[0],
+                        '0.1_mej_avg_flux': avg_fluxes[-1],
+                    }
+
+                    if plot:
+
+                        fit_mej = np.arange(start=0.01, stop=0.1, step=0.001)
+                        fit = a_avg * (fit_mej**n_avg) 
+
+                        plt.scatter(mej_vals, avg_fluxes, c=peak_wavelengths, cmap='plasma')
+                        plt.plot(fit_mej, fit, label='Best power law fit')
+
+                        plt.xlabel('mej')
+                        plt.ylabel('avg flux')
+                        plt.colorbar()
+                        plt.legend()
+                        plt.title(f'Phase: {phase}, cos theta: {cos_theta}, phi: {phi}')
+                        plt.show()
+
+                    d = pd.DataFrame(d, index=[0])
+                    df = pd.concat([df, d], ignore_index = True)
+
+
+        print(df)
+        df.to_csv('data/scaling_laws.csv')
 
     def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot = False):
 
@@ -133,12 +218,12 @@ class BullaSEDInterpolator():
         return interpolator
 if __name__ == '__main__':
 
-    temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
-    print(temp1.interpolate(1.0, 0.09, 45, 0.1, 5500))
+    # temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
+    # print(temp1.interpolate(1.0, 0.09, 45, 0.1, 5500))
 
     temp2 = BullaSEDInterpolator(from_source=False)
     print(temp2.interpolate(1.0, 0.09, 45, 0.1, 5500))
 
-    vals = (1.0, 0.09, 45, 0.1, 5500)
+    temp2.computeFluxScalingLaws(plot=False)
 
 
