@@ -8,6 +8,7 @@ from astropy.io import ascii
 from matplotlib.colors import LightSource
 from matplotlib import cm
 from scipy.interpolate import RegularGridInterpolator
+from scipy.optimize import curve_fit
 
 # Wrapper for a scipy Regular Grid Interpolator
 class BullaSEDInterpolator():
@@ -52,6 +53,29 @@ class BullaSEDInterpolator():
         # return the interpolated result.
         return self.interpolator((cos_theta, mej, phi, phase, wavelength))
     
+    def fitPowerLaw(self, x, y):
+
+        coeffs, residuals, _, _, _ = np.polyfit(np.log10(x), np.log10(y), deg=1, full=True)
+
+        log_a = coeffs[1]
+
+        a = 10**log_a
+        n = coeffs[0] 
+
+        return a, n, residuals
+    
+    def OneMinusLogisticRegression(self, x, x_0, L, k):
+
+        sol = 1 - (L/(1 + (np.e**(-k*(x-x_0)))))
+        return sol
+    
+    def FitOneMinusLogisticRegression(self, x, y):
+
+        popt, pcov = curve_fit(self.OneMinusLogisticRegression, x, y)
+        return popt
+
+
+    
     def computeFluxScalingLaws(self, plot=False):
 
         mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
@@ -62,10 +86,12 @@ class BullaSEDInterpolator():
 
         df = pd.DataFrame(columns=['phase','cos_theta', 'phi', 'a_max', 'n_max', 'a_avg', 'n_avg'])
 
-        for phase in phases:
+        residuals_grid = np.zeros((len(cos_theta_vals), len(phi_vals)))
+
+        for k, phase in enumerate(phases):
             print(f'Phase: {phase}')
-            for cos_theta in cos_theta_vals:
-                for phi in phi_vals:
+            for i, cos_theta in enumerate(cos_theta_vals):
+                for j, phi in enumerate(phi_vals):
 
                     avg_fluxes = []
                     max_fluxes = []
@@ -87,19 +113,11 @@ class BullaSEDInterpolator():
                         max_fluxes.append(max_flux)
                         peak_wavelengths.append(peak_wavelength)
 
-                    # Best fit laws of the form y = a * (x ^ n)
+                    # Best fit laws of the form y = a * (x ^ n) if phi
+                    a_max, n_max, residuals_max = self.fitPowerLaw(mej_vals, max_fluxes)
+                    a_avg, n_avg, residuals_avg = self.fitPowerLaw(mej_vals, avg_fluxes)
 
-                    coeffs_max = np.polyfit(np.log10(mej_vals), np.log10(max_fluxes), deg=1)
-                    log_a_max = coeffs_max[1]
-
-                    a_max = 10**log_a_max
-                    n_max = coeffs_max[0] 
-
-                    coeffs_avg = np.polyfit(np.log10(mej_vals), np.log10(avg_fluxes), deg=1)
-                    log_a_avg = coeffs_avg[1]
-
-                    a_avg = 10**log_a_avg
-                    n_avg = coeffs_avg[0]
+                    residuals_grid[i][j] += residuals_avg
 
                     d = {
 
@@ -110,9 +128,13 @@ class BullaSEDInterpolator():
                         'n_max': n_max,
                         'a_avg': a_avg,
                         'n_avg': n_avg,
-                        '0.01_mej_avg_flux': avg_fluxes[0],
-                        '0.1_mej_avg_flux': avg_fluxes[-1],
+                        'power_fit_residuals': residuals_avg,
+                        'total_avg_flux': np.sum(avg_fluxes), # Average flux summed over all mej values for this phase, cos theta, phi  combination
                     }
+
+                    # if phi == 75 and k==1:
+                        
+                    #     plt.plot(mej_vals, avg_fluxes, label=f'cos theta: {cos_theta}, phase = {phases[k]}', marker='o', linestyle='dashed')
 
                     if plot:
 
@@ -132,7 +154,21 @@ class BullaSEDInterpolator():
                     d = pd.DataFrame(d, index=[0])
                     df = pd.concat([df, d], ignore_index = True)
 
+        # plt.xlabel('mej')
+        # plt.ylabel('avg flux')
+        # plt.legend()
+        # plt.show()
 
+        residuals_grid /= len(phases)
+        # Plot the surface.
+        plt.imshow(residuals_grid.T, cmap=cm.plasma)
+        plt.xlabel('cos theta')
+        plt.ylabel('phi')
+        plt.xticks(range(len(cos_theta_vals)),labels=cos_theta_vals)
+        plt.yticks(range(len(phi_vals)),labels=phi_vals)
+        plt.colorbar(label='Average residuals (over all phases)')
+        plt.show()
+        
         print(df)
         df.to_csv('data/scaling_laws.csv')
 

@@ -21,7 +21,7 @@ jwst_NIRcam_bands = ['f200w']
 hst_bands = ['uvf625w']
 
 
-phases = np.arange(start=0.1, stop=7.6, step=0.2)
+phases = np.arange(start=0.2, stop=7.6, step=0.2)
 lmbd = np.arange(start=100, stop = 99901, step=200)
 
 mej_grid_low = 0.01
@@ -98,7 +98,7 @@ class SEDDerviedLC():
             closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
 
             # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['0.1_mej_avg_flux'] == np.max(closest_df['0.1_mej_avg_flux']))]
+            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
 
             # Curve parameters
             a_avgs = closest_df['a_avg']
@@ -113,14 +113,14 @@ class SEDDerviedLC():
             closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
 
             # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['0.01_mej_avg_flux'] == np.max(closest_df['0.01_mej_avg_flux']))]
+            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
 
             # Curve parameters
             a_avgs = closest_df['a_avg']
             n_avgs = closest_df['n_avg']
 
             # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
-            scaling_values = (a_avgs * (self.mej)**n_avgs) / ((a_avgs * (mej_grid_low)**n_avgs))
+            scaling_values = (a_avgs * (self.mej**n_avgs)) / (a_avgs * (mej_grid_low**n_avgs))
 
         # If multiple phases have the same average flux, returns the first one
         return scaling_values.to_numpy()[0]
@@ -135,7 +135,7 @@ class SEDDerviedLC():
             closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
 
             # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['0.1_mej_avg_flux'] == np.max(closest_df['0.1_mej_avg_flux']))]
+            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
 
             # Curve parameters
             a_maxs = closest_df['a_max']
@@ -150,7 +150,7 @@ class SEDDerviedLC():
             closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
 
             # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['0.01_mej_avg_flux'] == np.max(closest_df['0.01_mej_avg_flux']))]
+            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
 
             # Curve parameters
             a_maxs = closest_df['a_max']
@@ -209,7 +209,7 @@ class SEDDerviedLC():
         return ax
 
     
-    def getAbsMagsInPB(self, passband, phases, apply_extinction = True):
+    def getAbsMagsInPB(self, passband, phases, apply_extinction = True, scaling='avg'):
         """
         Find the absolute mag (AB) vs phase time series. 
 
@@ -225,7 +225,7 @@ class SEDDerviedLC():
         
         source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
-        interpolated_sed = self.getSed(phases=phases)
+        interpolated_sed = self.getSed(phases=phases, scaling=scaling)
 
         source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name)
 
@@ -246,7 +246,7 @@ class SEDDerviedLC():
     
         return abs_mags
 
-    def buildLsstLC(self, bands = lsst_bands, phases = phases):
+    def buildLsstLC(self, bands = lsst_bands, phases = phases, scaling='avg'):
         """
         Build apparent (AB mag) vs Phase LC's for the interpolated SED model in LSST passband.
 
@@ -262,8 +262,7 @@ class SEDDerviedLC():
 
         lc = {}
         for band in bands:
-                
-                mag = self.getAbsMagsInPB(passband=band, phases=phases)
+                mag = self.getAbsMagsInPB(passband=band, phases=phases, scaling=scaling)
 
                 # Convert from absolute mag to apparent mag based on the distance value
                 lc[band] = mag + self.distance.distmod.value
@@ -436,7 +435,7 @@ if __name__ == '__main__':
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
     # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
-    mej = 0.5
+    mej = 0.1
     phi = 30
     cos_theta = 0.9
 
@@ -495,7 +494,8 @@ if __name__ == '__main__':
 
         for mej in mej_vals:
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
-            lcs = temp.buildLsstLC()
+            lcs = temp.buildLsstLC(scaling='avg')
+            temp.makeSedPlot()
             
             for band in lcs:
                 mej_mag[band].append(min(lcs[band]))
@@ -543,9 +543,35 @@ if __name__ == '__main__':
             print(f"mej {mej}")
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
             #temp.makeSedPlot([1,1.1117677,1.2])
-            spectra = temp.getSed([1]).reshape((len(lmbd)))
+            spectra = temp.getSed([1], scaling='max').reshape((len(lmbd)))
             ax[int(i/4)][i%4].plot(lmbd, spectra)
             ax[int(i/4)][i%4].set_title(f'mej: {mej}, flux scaling factor: {temp.scaling_factor:4f}')
+            # ax[int(i/4),i%4].set_xlabel('Wavelength (A)')
+            # ax[int(i/4),i%4].set_ylabel('Spectral flux density (erg / s / cm^2 / A)')
+            #plt.savefig(f'SED_mej_{mej}.png')
+        plt.show()
+
+    def plot_spectra_at_mej_3d(scaling='avg'):
+        mej_vals = [0.001, 0.002, 0.005, 0.007, 0.01, 0.025, 0.05, 0.075, 0.11, 0.3, 0.7, 0.9]
+
+        fig, ax = plt.subplots(3, 4,subplot_kw={"projection": "3d"})
+
+        fig.suptitle(f'Flux scaling used: {scaling}')
+
+
+        for i, mej in enumerate(mej_vals):
+            print(f"mej {mej}")
+            temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+            spectra = temp.getSed(phases, scaling=scaling)
+
+            X, Y = np.meshgrid(lmbd, phases)
+
+            # Plot the surface.
+            ax[int(i/4)][i%4].plot_surface(X, Y, spectra, cmap=cm.plasma)
+            ax[int(i/4)][i%4].set_title(f'mej: {mej}, flux scaling factor: {temp.scaling_factor:4f}')
+            ax[int(i/4)][i%4].set_xlabel('Wavelength (A)', fontsize = 5)
+            ax[int(i/4)][i%4].set_ylabel('Phase (days)', fontsize = 5)
+            ax[int(i/4)][i%4].set_zlabel('Spectral flux density (erg / s / cm^2 / A)', fontsize = 5)
             # ax[int(i/4),i%4].set_xlabel('Wavelength (A)')
             # ax[int(i/4),i%4].set_ylabel('Spectral flux density (erg / s / cm^2 / A)')
             #plt.savefig(f'SED_mej_{mej}.png')
@@ -585,7 +611,40 @@ if __name__ == '__main__':
         plt.loglog
         plt.show()
 
+    def plot_plot_mej_poly_fits():
+    
+        # mej_vals = np.arange(start=0.001, stop=0.9, step=0.001)
+        # mej_vals = np.concatenate((k*0.001, k*0.01, k*0.1))
+        mej_vals = np.arange(start=0.01, stop=0.1, step=0.005)
+
+        peak_flux = []
+        peak_flux_wavelength = []
+
+        for i, mej in enumerate(mej_vals):
+            temp = SEDDerviedLC(mej = mej, phi = 75, cos_theta = 0.9, dist=d, coord=c, av = 1)
+            spectra = temp.getInterpolatedSed([1]).reshape((len(lmbd)))
+            idx = np.argmax(spectra)
+            peak_flux.append(np.mean(spectra))
+            peak_flux_wavelength.append(lmbd[idx])
+        
+        fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+
+        deg = 2
+        p = np.polyfit(mej_vals, peak_flux, deg=deg)
+
+        fit = p[0] * (fit_mej**2) + p[1] * (fit_mej) + p[2]
+        plt.scatter(mej_vals, peak_flux, c=peak_flux_wavelength, cmap='plasma')
+        plt.plot(fit_mej, fit, label='Best power law fit')
+        plt.xlabel('mej')
+        plt.ylabel('avg flux')
+        plt.colorbar()
+        plt.legend()
+        plt.loglog
+        plt.show()
+
     #plot_GW170817_lc_and_spectra()
-    plot_mag_vs_mej()
+    #plot_mag_vs_mej()
     #plot_spectra_at_mej()
     #plot_plot_mej_power_fits()
+    #plot_spectra_at_mej_3d(scaling='avg')
+    plot_plot_mej_poly_fits()
