@@ -21,7 +21,7 @@ jwst_NIRcam_bands = ['f200w']
 hst_bands = ['uvf625w']
 
 
-phases = np.arange(start=0.2, stop=7.6, step=0.2)
+phases = np.arange(start=0.3, stop=7.6, step=0.2)
 lmbd = np.arange(start=100, stop = 99901, step=200)
 
 mej_grid_low = 0.01
@@ -92,74 +92,46 @@ class SEDDerviedLC():
         
         df = pd.read_csv('data/scaling_laws.csv')
 
+        # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
+        closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+        # Curve parameters
+        a_avgs = closest_df['a_avg']
+        n_avgs = closest_df['n_avg']
+
         if self.mej > mej_grid_high:
-
-            # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
-            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-            # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
-
-            # Curve parameters
-            a_avgs = closest_df['a_avg']
-            n_avgs = closest_df['n_avg']
 
             # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
             scaling_values = (a_avgs * (self.mej)**n_avgs) / ((a_avgs * (mej_grid_high)**n_avgs))
 
         elif self.mej < mej_grid_low:
 
-            # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
-            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-            # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
-
-            # Curve parameters
-            a_avgs = closest_df['a_avg']
-            n_avgs = closest_df['n_avg']
-
             # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
             scaling_values = (a_avgs * (self.mej**n_avgs)) / (a_avgs * (mej_grid_low**n_avgs))
 
-        # If multiple phases have the same average flux, returns the first one
         return scaling_values.to_numpy()[0]
     
     def getMaxScalingFactor(self):
 
         df = pd.read_csv('data/scaling_laws.csv')
 
+        # Find entries with the same cos theta and phi at all phase values
+        closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+        # Curve parameters
+        a_maxs = closest_df['a_max']
+        n_maxs = closest_df['n_max']
+
         if self.mej > mej_grid_high:
-
-            # Find entries with the same cos theta and phi at all phase values
-            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-            # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
-
-            # Curve parameters
-            a_maxs = closest_df['a_max']
-            n_maxs = closest_df['n_max']
 
             # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
             scaling_values = (a_maxs * (self.mej)**n_maxs) / ((a_maxs * (mej_grid_high)**n_maxs))
 
         elif self.mej < mej_grid_low:
 
-            # Find entries with the same cos theta and phi at all phase values
-            closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-            # Find phase where average flux is maximum and use it for scaling
-            closest_df = closest_df[(closest_df['total_avg_flux'] == np.max(closest_df['total_avg_flux']))]
-
-            # Curve parameters
-            a_maxs = closest_df['a_max']
-            n_maxs = closest_df['n_max']
-
             # Find the avg flux relative to mej = mej_grid_high at all phase values for current mej
             scaling_values = (a_maxs * (self.mej)**n_maxs) / ((a_maxs * (mej_grid_low)**n_maxs))
 
-        # If multiple phases have the same average flux, returns the first one
         return scaling_values.to_numpy()[0]
 
     def getSed(self, phases=phases, scaling='avg'):
@@ -301,7 +273,7 @@ class SEDDerviedLC():
 
         # If a passband has 1 or more detection below threshold mag, then mark as true
         for band in phases_below_cutoff:
-            
+
             detection_bool[band] = (len(phases_below_cutoff[band]) >= 1)
         
         return detection_bool
@@ -435,7 +407,7 @@ if __name__ == '__main__':
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
     # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
-    mej = 0.1
+    mej = 0.05
     phi = 30
     cos_theta = 0.9
 
@@ -446,7 +418,7 @@ if __name__ == '__main__':
     def plot_GW170817_lc_and_spectra():
 
         # LC from sed
-        temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
+        temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 0.1)
         lcs = temp.buildLsstLC(phases=phases)
         temp.makeSedPlot()
         plt.show()
@@ -495,7 +467,6 @@ if __name__ == '__main__':
         for mej in mej_vals:
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
             lcs = temp.buildLsstLC(scaling='avg')
-            temp.makeSedPlot()
             
             for band in lcs:
                 mej_mag[band].append(min(lcs[band]))
@@ -643,8 +614,8 @@ if __name__ == '__main__':
         plt.show()
 
     #plot_GW170817_lc_and_spectra()
-    #plot_mag_vs_mej()
+    plot_mag_vs_mej()
     #plot_spectra_at_mej()
     #plot_plot_mej_power_fits()
     #plot_spectra_at_mej_3d(scaling='avg')
-    plot_plot_mej_poly_fits()
+    #plot_plot_mej_poly_fits()
