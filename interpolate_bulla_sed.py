@@ -448,13 +448,6 @@ class BullaSEDInterpolator():
             mej_idx = np.where(uniq_mej == sed.mej)[0]
             phi_idx = np.where(uniq_phi == sed.phi)[0]
 
-            # # Replacing zero flux with a really small number
-            # # This is to avoid negative flux values after extrapolating.
-            # flux_mesh[flux_mesh == 0] = 10e-18
-
-            # # Converting to log flux to ensure +ve flux value after extrapolation.
-            # log_flux_mesh = np.log10(flux_mesh)
-
             # Adding the mesh the correct part 
             arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
 
@@ -482,8 +475,6 @@ class BullaSEDInterpolator():
 
             for j, phase in enumerate(uniq_phase):
                 
-
-             
                 mesh_grid = np.meshgrid(sed.cos_theta, sed.mej, sed.phi, phase, uniq_wavelength)
                 points = np.array(mesh_grid).T.reshape(-1, 5)
                 interpolated_sed[j,:] = interpolator(points)
@@ -512,11 +503,116 @@ class BullaSEDInterpolator():
             plt.show()
 
         return interpolator
+    
+    def Bulla19Plot(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO'):
+
+        # Info file
+        data = ascii.read(sed_dir + sed_info_file, data_start=7, names = ('TEMP','FILE', 'KN_INDEX', 'COSTHETA', 'MEJ', 'PHI'), guess=False)
+
+        uniq_phase = None # 100 counts
+        uniq_wavelength = None # 50 counts
+
+        uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
+        uniq_mej=  np.array([0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]) # 10 counts    
+        uniq_phi = np.array([15, 30, 45, 60, 75]) # 5 counts
+
+        # cos theta, meh, phi, phase, wavelength ordering followed
+        arr = np.zeros((11, 10, 5, 100, 500))
+
+        mejs = []
+        phis = []
+        costhetas = []
+
+        for i in range(len(data)):
+
+            print(f'{i}/{len(data)}\r')
+
+            # Creating SED object and opening the corresponding file 
+            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJ'][i], data['PHI'][i], sed_dir + data['FILE'][i])
+            t = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
+
+            # Finding the unique phases and wavelength values. Same for all SED's 
+            uniq_phase = np.unique(t['Phase'])
+            uniq_wavelength = np.unique(t['Wavelength'])
+
+            # Creating the mesh function for flux 
+            flux_mesh = np.array(t['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
+
+            # Indeces corresponding to sed parameters
+            cos_idx = np.where(uniq_cos_theta == sed.cos_theta)[0]
+            mej_idx = np.where(uniq_mej == sed.mej)[0]
+            phi_idx = np.where(uniq_phi == sed.phi)[0]
+
+
+            # Adding the mesh the correct part 
+            arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
+
+            mejs.append(sed.mej)
+            phis.append(sed.phi)
+            costhetas.append(sed.cos_theta)
+
+        cos_idx = 10
+        phi_idx = 1
+        mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
+        d = 40 * u.Mpc
+
+        phases = np.arange(start=0.5, stop=10, step=0.5)
+        bands = ['lsstu','lsstg','lsstr','lssti','lsstz','lssty']
+
+
+        fig, ax = plt.subplots(4, 4)
+
+        for i, band in enumerate(bands):
+
+            lcs = {}
+
+            for j, mej in enumerate(mej_vals):
+
+                mej_idx = np.where(uniq_mej == mej)[0]
+            
+                sed = arr[cos_idx, mej_idx, phi_idx, :, :].reshape(len(uniq_phase), len(uniq_wavelength))
+                source = sncosmo.TimeSeriesSource(phase=uniq_phase, wave=uniq_wavelength, flux = sed, zero_before=True, time_spline_degree=1)
+                model = sncosmo.Model(source)
+
+                # add MW extinction to observing frame
+                model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+                model.set(mwebv=0.105)
+                lc = model.bandmag(band=band, time = phases, magsys="ab") + Distance(d).distmod.value
+
+                lcs[mej] = lc 
+
+                x = int(i/4) * 2
+                y = i%4
+                ax[x][y].plot(phases, lc, label=f'{mej}')
+                ax[x][y].invert_yaxis()
+
+                ax[x][y].set_ylabel('Mag')
+                ax[x][y].set_title(band)
+                ax[x][y].legend()
+
+
+
+            for mej in mej_vals:
+
+                x = int(i/4) * 2 + 1
+                y = i%4
+
+                lc = lcs[0.04] - lcs[mej] 
+                ax[x][y].plot(phases, lc)
+                ax[x][y].set_ylabel(r'$\Delta$')
+
+                ax[x][y].set_aspect(0.8)
+
+                if x == 3:
+                    ax[x][y].set_xlabel('Phase (days)')
+
+        plt.show()    
+
 if __name__ == '__main__':
 
 
     # temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
-    temp2 = BullaSEDInterpolator(from_source=True)
+    temp2 = BullaSEDInterpolator(from_source=False)
     temp2.Bulla19Plot()
     #temp2.computeMaximumFluxPhases(plot=True)
     #temp2.computeFluxScalingLogisticLaws(plot=True)
