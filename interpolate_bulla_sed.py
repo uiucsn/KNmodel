@@ -14,6 +14,15 @@ from scipy.interpolate import RegularGridInterpolator
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 
+# Grid values for Bulla m3 model: https://github.com/mbulla/kilonova_models/tree/87a25e1c4dd1d7b18a0dfa59808672e36978313d/bns_m3_3comp
+uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
+uniq_mej_dyn  = np.array([0.001, 0.005, 0.01, 0.02]) # 4 counts   
+uniq_mej_wind =  np.array([0.01, 0.03, 0.05, 0.07, 0.09, 0.11, 0.13]) # 7 counts
+uniq_phi = np.array([15, 30, 45, 60, 75]) # 5 counts
+
+phases = np.arange(start=0.1, stop=20, step=0.2)
+lmbd = np.arange(start=100, stop = 99901, step=200)
+
 # Wrapper for a scipy Regular Grid Interpolator
 class BullaSEDInterpolator():
 
@@ -60,350 +69,77 @@ class BullaSEDInterpolator():
         c = coeffs[1]
 
         return m, c, residuals
-    
-    def fitOneMinusLogisticFunction(self, x, y):
-
-        L = np.max(y)
-        popt, _ = curve_fit(self.oneMinusLogisticFunction, x, y, p0=[0.05, L, L, 100])
-        return popt
-    
-    def fitPowerLaw(self, x, y):
-
-        coeffs, residuals, _, _, _ = np.polyfit(np.log10(x), np.log10(y), deg=1, full=True)
-
-        log_a = coeffs[1]
-
-        a = 10**log_a
-        n = coeffs[0] 
-
-        return a, n, residuals
-    
-    def oneMinusLogisticFunction(self, x, x_0, A, L, k):
-
-        logistic = np.where((x-x_0) >= 0, 
-                    L / (1 + np.exp(-k*(x-x_0))), 
-                   (L * np.exp(k*(x-x_0)))/ (1 + np.exp(k*(x-x_0))))
-
-        sol = L - logistic
-        return sol
-    
-    def powerLaw(self, x, a, n):
-
-        sol = a * (x**n)
-        return sol
-    
+        
     def linearFunction(self, x, m, c):
 
         sol = m * x + c
         return sol
 
-    def computeMaximumFluxPhases(self, plot=False):
-                    
-        mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
-        cos_theta_vals = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        phi_vals = np.array([15, 30, 45, 60, 75])
-        phases = np.arange(start=0.1, stop=7.6, step=0.2)
-        lmbd = np.arange(start=100, stop = 99901, step=200)
-
-        df = pd.DataFrame(columns=['cos_theta', 'phi', 'max_flux_phase'])
-
-        for i, cos_theta in enumerate(cos_theta_vals):
-            for j, phi in enumerate(phi_vals):
-
-                # Flux at different phases over all mej values
-                total_flux_at_phases = []
-
-                for k, phase in enumerate(phases):
-
-                    avg_fluxes = []
-                    max_fluxes = []
-
-                    for mej in mej_vals:
-
-                        mesh_grid = np.meshgrid(cos_theta, mej, phi, phase, lmbd)
-                        points = np.array(mesh_grid).T.reshape(-1, 5)
-                        sed = self.interpolator(points)
-                        
-                        avg_flux = np.mean(sed)
-
-                        idx = np.argmax(sed)
-                        max_flux = sed[idx]
-                        peak_wavelength = lmbd[idx]
-
-                        avg_fluxes.append(avg_flux)
-                        max_fluxes.append(max_flux)
-
-                    # Find sum of avg flux over all mej values
-                    total_flux_at_phases.append(np.sum(avg_fluxes))
-
-                idx = np.argmax(total_flux_at_phases)
-                max_flux_phase = phases[idx]
-
-                d = {
-                    'cos_theta': cos_theta,
-                    'phi': phi,
-                    'max_flux_phase': max_flux_phase,
-                }
-
-                d = pd.DataFrame(d, index=[0])
-                df = pd.concat([df, d], ignore_index = True)
-
-        df.to_csv('data/scaling_phases.csv')
-
-        if plot:
-            plt.hist(df['max_flux_phase'])
-            plt.xlabel('Phase for max flux (days)')
-            plt.show()
-
-    def computeFluxScalingPowerLaws(self, plot=False, function_type = 'power'):
-
-        function_types = ['power', 'logistic']
-        if function_type not in function_types:
-            raise ValueError(f"Invalid fitting method. Expected one of: {function_types}, got {function_type}" )
-    
-
-        mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
-        cos_theta_vals = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        phi_vals = np.array([15, 30, 45, 60, 75])
-        lmbd = np.arange(start=100, stop = 99901, step=200)
-
-        if plot:
-            fig, ax = plt.subplots(len(cos_theta_vals), len(phi_vals))
-            fig.set_size_inches(60, 25)
-            plt.rcParams.update({'font.size': 5})
-
-
-        peak_phases = pd.read_csv('data/scaling_phases.csv')
-        df = pd.DataFrame(columns=['phase','cos_theta', 'phi', 'a_max', 'n_max', 'a_avg', 'n_avg'])
-
-        residuals_grid_max = np.zeros((len(cos_theta_vals), len(phi_vals)))
-        residuals_grid_avg = np.zeros((len(cos_theta_vals), len(phi_vals)))
-
-        for i, cos_theta in enumerate(cos_theta_vals):
-            for j, phi in enumerate(phi_vals):
-
-                # Phase for peak flux
-                phase = peak_phases[(peak_phases['cos_theta']==cos_theta) & (peak_phases['phi']==phi)]['max_flux_phase'].to_numpy()[0]
-
-                avg_fluxes = []
-                max_fluxes = []
-                peak_wavelengths = []
-
-                for mej in mej_vals:
-
-                    mesh_grid = np.meshgrid(cos_theta, mej, phi, phase, lmbd)
-                    points = np.array(mesh_grid).T.reshape(-1, 5)
-                    sed = self.interpolator(points)
-                    
-                    avg_flux = np.mean(sed)
-
-                    idx = np.argmax(sed)
-                    max_flux = sed[idx]
-                    peak_wavelength = lmbd[idx]
-
-                    avg_fluxes.append(avg_flux)
-                    max_fluxes.append(max_flux)
-                    peak_wavelengths.append(peak_wavelength)
-
-                # Find Best fit laws of the form y = a * (x ^ n) 
-                a_max, n_max, residuals_max = self.fitPowerLaw(mej_vals, max_fluxes)
-                a_avg, n_avg, residuals_avg = self.fitPowerLaw(mej_vals, avg_fluxes)
-
-                d = {
-
-                    'phase': phase,
-                    'cos_theta': cos_theta,
-                    'phi': phi,
-                    'a_max': a_max,
-                    'n_max': n_max,
-                    'a_avg': a_avg,
-                    'n_avg': n_avg,
-                    'fit_residuals_avg': residuals_avg,
-                    'fit_residuals_max': residuals_avg,
-
-                }
-
-                if plot:
-
-                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
-                    fit = self.powerLaw(fit_mej, a_avg, n_avg)
-
-                    ax[i][j].scatter(mej_vals, avg_fluxes, c=peak_wavelengths, cmap='plasma')
-                    ax[i][j].plot(fit_mej, fit)
-
-
-                    ax[i][j].set_title(f'Phase: {phase:2f}, cos theta: {cos_theta}, phi: {phi}')
-                    ax[i][j].set_xscale('log')
-
-                    ax[i][j].tick_params(axis='both', which='major', labelsize=5)
-                    ax[i][j].tick_params(axis='both', which='minor', labelsize=5)
-
-                d = pd.DataFrame(d, index=[0])
-                df = pd.concat([df, d], ignore_index = True)
-
-                residuals_grid_max[i][j] += residuals_max
-                residuals_grid_avg[i][j] += residuals_avg
-
-        # Plot the surface.
-        if plot:
-            plt.show()
-            fig.savefig(f'all_power_fits.pdf')
-
-        
-        print(df)
-        df.to_csv('data/power_scaling_laws.csv')
-    
-    def computeFluxScalingLogisticLaws(self, plot=False):
-    
-
-        mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
-        cos_theta_vals = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        phi_vals = np.array([15, 30, 45, 60, 75])
-        lmbd = np.arange(start=100, stop = 99901, step=200)
-
-        if plot:
-            fig, ax = plt.subplots(len(cos_theta_vals), len(phi_vals))
-            fig.set_size_inches(60, 25)
-            plt.rcParams.update({'font.size': 5})
-
-
-        peak_phases = pd.read_csv('data/scaling_phases.csv')
-        df = pd.DataFrame(columns=['phase','cos_theta', 'phi', 'a_max', 'n_max', 'a_avg', 'n_avg'])
-
-        residuals_grid_max = np.zeros((len(cos_theta_vals), len(phi_vals)))
-        residuals_grid_avg = np.zeros((len(cos_theta_vals), len(phi_vals)))
-
-        for i, cos_theta in enumerate(cos_theta_vals):
-            for j, phi in enumerate(phi_vals):
-
-                # Phase for peak flux
-                phase = peak_phases[(peak_phases['cos_theta']==cos_theta) & (peak_phases['phi']==phi)]['max_flux_phase'].to_numpy()[0]
-
-                avg_fluxes = []
-                max_fluxes = []
-                peak_wavelengths = []
-
-                for mej in mej_vals:
-
-                    mesh_grid = np.meshgrid(cos_theta, mej, phi, phase, lmbd)
-                    points = np.array(mesh_grid).T.reshape(-1, 5)
-                    sed = self.interpolator(points)
-                    
-                    avg_flux = np.mean(sed)
-
-                    idx = np.argmax(sed)
-                    max_flux = sed[idx]
-                    peak_wavelength = lmbd[idx]
-
-                    avg_fluxes.append(avg_flux)
-                    max_fluxes.append(max_flux)
-                    peak_wavelengths.append(peak_wavelength)
-                
-                    
-                try:
-                    x_0_max, A_max, L_max, k_max = self.fitOneMinusLogisticFunction(mej_vals, max_fluxes)   
-                    x_0_avg, A_avg, L_avg, k_avg = self.fitOneMinusLogisticFunction(mej_vals, avg_fluxes)
-
-                    fit_vals_max = self.oneMinusLogisticFunction(mej_vals, x_0_max, A_max, L_max, k_max)
-                    fit_vals_avg = self.oneMinusLogisticFunction(mej_vals, x_0_avg, A_avg, L_avg, k_avg)
-
-                    avg_fluxes = np.array(avg_fluxes)
-                    max_fluxes = np.array(max_fluxes)
-
-                    residuals_avg = np.sum((fit_vals_avg - avg_fluxes)**2)
-                    residuals_max = np.sum((fit_vals_max - max_fluxes)**2)
-
-                    if plot:
-                        
-                        fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
-                        fit = self.oneMinusLogisticFunction(fit_mej, x_0_avg, A_avg, L_avg, k_avg)
-
-                        ax[i][j].scatter(mej_vals, avg_fluxes, c=peak_wavelengths, cmap='plasma')
-                        ax[i][j].plot(fit_mej, fit)
-
-
-                        ax[i][j].set_title(f'Peak phase: {phase:2f}, cos theta: {cos_theta}, phi: {phi}')
-                        ax[i][j].set_xscale('log')
-
-
-                        ax[i][j].tick_params(axis='both', which='major', labelsize=5)
-                        ax[i][j].tick_params(axis='both', which='minor', labelsize=5)
-
-                        # plt.colorbar()
-
-                    #TODO: add the dataframe for logistic fits
-
-                except RuntimeError:
-                        
-                        print(f"phase {phase}, cos_theta {cos_theta}, phi {phi}: Failed to find params")
-                        if plot:
-
-                            ax[i][j].scatter(mej_vals, avg_fluxes, c=peak_wavelengths, cmap='plasma')
-
-                            ax[i][j].set_title(f'Failed: Peak phase: {phase:2f}, cos theta: {cos_theta}, phi: {phi}')
-                            ax[i][j].set_xscale('log')
-
-                            ax[i][j].tick_params(axis='both', which='major', labelsize=5)
-                            ax[i][j].tick_params(axis='both', which='minor', labelsize=5)
-
-            residuals_grid_max[i][j] += residuals_max
-            residuals_grid_avg[i][j] += residuals_avg
-
-        # Plot the surface.
-        if plot:
-            plt.show()
-            fig.savefig(f'all_logistic_fits.pdf')
-        
-        print(df)
-        #df.to_csv('data/logistic_scaling_laws.csv')
-
     def computeFluxScalingLinearLaws(self, plot=False):
                     
-        mej_vals = np.arange(start=0.01, stop=0.11, step=0.01)
-        cos_theta_vals = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        phi_vals = np.array([15, 30, 45, 60, 75])
-        phases = np.arange(start=0.1, stop=7.6, step=0.2)
-        lmbd = np.arange(start=100, stop = 99901, step=200)
-
         if plot:
-            fig, ax = plt.subplots(len(cos_theta_vals), len(phi_vals))
+            fig, ax = plt.subplots(len(uniq_cos_theta), len(uniq_phi))
             fig.set_size_inches(60, 25)
             plt.rcParams.update({'font.size': 5})
 
-        for i, cos_theta in enumerate(cos_theta_vals):
-            for j, phi in enumerate(phi_vals):
+        df = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
 
-                # total flux for each mej across all phases
+        print('Computing flux scaling laws...')
+        for i, cos_theta in tqdm(enumerate(uniq_cos_theta), total=len(uniq_cos_theta)):
+            for j, phi in enumerate(uniq_phi):
+
                 total_fluxes = []
-                for k, mej in enumerate(mej_vals):
+                total_mej = []
+
+                for k, mej_wind in enumerate(uniq_mej_wind):
+                    for l, mej_dyn in enumerate(uniq_mej_dyn):
+
+                        f = 0 # flux over all phases
                     
-                    total_fluxes.append(0)
+                        for phase in phases:
 
-                    for phase in phases:
+                            mesh_grid = np.meshgrid(cos_theta, mej_dyn, mej_wind, phi, phase, lmbd)
+                            points = np.array(mesh_grid).T.reshape(-1, 6)
+                            sed = self.interpolator(points)
+                            f += np.sum(sed)
 
-                        mesh_grid = np.meshgrid(cos_theta, mej, phi, phase, lmbd)
-                        points = np.array(mesh_grid).T.reshape(-1, 5)
-                        sed = self.interpolator(points)
-                        total_fluxes[k] += np.sum(sed)
-                
-                m, c, _ = self.fitLinearFunction(mej_vals, total_fluxes)
+                        total_fluxes.append(f)
+                        total_mej.append(mej_dyn + mej_wind)
+
+                # Find best linear fit
+                m, c, _ = self.fitLinearFunction(total_mej, total_fluxes)
+
+                # Add fit to the data frame
+                d = {
+                    'cos_theta': cos_theta,
+                    'phi': phi,
+                    'slope': m, 
+                    'intercept': c,
+                }
+                d = pd.DataFrame(d, index=[0])
+                df = pd.concat([df, d], ignore_index = True)
 
                 if plot:
-                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+
+                    fit_mej = np.arange(start=0, stop=0.9, step=0.001)
                     fit = self.linearFunction(fit_mej, m, c)
 
-                    ax[i][j].scatter(mej_vals, total_fluxes)
                     ax[i][j].plot(fit_mej, fit)
+                    ax[i][j].scatter(total_mej, total_fluxes)
 
                     ax[i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=5)
                     ax[i][j].set_xscale('log')
 
                     ax[i][j].set_xlabel('mej', fontsize=5)
-                    ax[i][j].set_ylabel('Total bolometric flux \n(over 7.5 days)', fontsize=5)
+                    ax[i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+
+        print('Saving flux scaling laws for Bulla m3...')
+        df.to_csv('data/m3_linear_scaling_laws.csv')
 
         if plot:
             fig.savefig(f'all_linear_fits.pdf')
             plt.show()
+
 
     def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M3-3COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot=False):
 
@@ -465,7 +201,8 @@ class BullaSEDInterpolator():
 
         print('Verifying interpolator...')
         
-        # This loop verifies that all points on the grid are interpolated precisely
+        # TEST: This loop verifies that all points on the grid are interpolated precisely
+
         for i in tqdm(range(len(data))):
 
             # Creating SED object and opening the corresponding file 
@@ -490,7 +227,7 @@ class BullaSEDInterpolator():
                     points = np.array(mesh_grid).T.reshape(-1, 6)
                     interpolated_sed[j,:] = interpolator(points)
                 
-
+                # If interpolation at any grid point is incorrect, 
                 assert np.array_equal(real_sed, interpolated_sed), f'Interpolator check failed at {sed}'
         
         print('Grid check successful! Saving...')
@@ -526,15 +263,12 @@ class BullaSEDInterpolator():
         return interpolator
     
 if __name__ == '__main__':
+    #i1 = BullaSEDInterpolator(from_source=True)
+
+    i2 = BullaSEDInterpolator(from_source=False)
+    i2.computeFluxScalingLinearLaws(plot=True)
 
 
-    # temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
-    temp2 = BullaSEDInterpolator(from_source=True)
-    #temp2.Bulla19Plot()
-    #temp2.computeMaximumFluxPhases(plot=True)
-    #temp2.computeFluxScalingLogisticLaws(plot=True)
-    #temp2.computeFluxScalingPowerLaws(plot=True)
-    #temp2.computeFluxScalingLinearLaws(plot=True)
 
 
     
