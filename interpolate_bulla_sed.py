@@ -138,7 +138,7 @@ class BullaSEDInterpolator():
                     fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
                     fit = self.linearFunction(fit_mej, m, c)
 
-                    ax[2*i][j].plot(fit_mej, fit)
+                    ax[2*i][j].plot(fit_mej, fit, label=fr"$y = {m:.3f} \cdot x + {c:.3f}$")
                     ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
 
                     ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
@@ -149,6 +149,8 @@ class BullaSEDInterpolator():
 
                     ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
                     ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    ax[2*i][j].legend()
 
                     # Plotting relative errors
                     grid_fit = self.linearFunction(total_mej, m, c)
@@ -226,7 +228,7 @@ class BullaSEDInterpolator():
                     fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
                     fit = self.powerFunction(fit_mej, a, n)
 
-                    ax[2*i][j].plot(fit_mej, fit)
+                    ax[2*i][j].plot(fit_mej, fit, label=f"$y = {a:.3f} \cdot x^{{{n:.3f}}}$")
                     ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
 
                     ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
@@ -237,6 +239,8 @@ class BullaSEDInterpolator():
 
                     ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
                     ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    ax[2*i][j].legend()
 
                     # Plotting relative errors
                     grid_fit = self.powerFunction(total_mej, a, n)

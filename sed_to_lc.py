@@ -55,6 +55,7 @@ class SEDDerviedLC():
         # Call the important functions
         self._setNearestGridMejPoints()
         self._setLinearScalingFactor()
+        self._setPowerScalingFactor()
 
         # Compute the SED
         self.sed = self.getSed(phases, lmbd)
@@ -153,16 +154,52 @@ class SEDDerviedLC():
         # Find the scaling constant using law based on total bolometric flux across all phases
         scaling_factor = (m * real_total_mej + c) / (m * closest_total_mej + c)
 
-        self.scaling_factor = scaling_factor.to_numpy()[0]
+        self.linear_scaling_factor = scaling_factor.to_numpy()[0]
     
-    def getSed(self, phases=phases, wavelengths = lmbd):
+    def _setPowerScalingFactor(self):
+
+        df = pd.read_csv('data/m3_power_scaling_laws.csv')
+
+        # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
+        closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
+
+        # fit parameters
+        a = closest_df['coefficient']
+        n = closest_df['exponent']
+
+        # scaling values
+        real_total_mej = self.mej_dyn + self.mej_wind
+        closest_total_mej = self.nearest_grid_mej_dyn + self.nearest_grid_mej_wind
+
+        # Find the scaling constant using law based on total bolometric flux across all phases
+        scaling_factor = (real_total_mej ** n) / (closest_total_mej ** n)
+
+        self.power_scaling_factor = scaling_factor.to_numpy()[0]
+    
+    def getSed(self, phases=phases, wavelengths = lmbd, scaling='piecewise'):
+
+        scaling_types = ['power', 'linear', 'piecewise']
+        if scaling not in scaling_types:
+            raise ValueError(f"Invalid fitting method. Expected one of: {scaling_types}, got {scaling}" )
         
         # This finds the closest sed on the grid.
         closest_sed = self._getInterpolatedSed(phases=phases, wavelengths=wavelengths, remove_negative=True)
 
         # Scale appropriately
-        sed = self.scaling_factor * closest_sed
+        if scaling == "power":
+            self.scaling_factor = self.power_scaling_factor
+        elif scaling == "linear":
+            self.scaling_factor = self.linear_scaling_factor
+        elif scaling == 'piecewise':
 
+            if (self.mej_dyn + self.mej_wind) < (mej_dyn_grid_low + mej_wind_grid_low):
+                # use power law to extrapolate on the low end
+                self.scaling_factor = self.power_scaling_factor
+            else: 
+                # use linear law to extrapolate on the high end
+                self.scaling_factor = self.linear_scaling_factor 
+                
+        sed = self.scaling_factor * closest_sed
         return sed
 
     def makeSedPlot(self):
@@ -320,7 +357,7 @@ if __name__ == '__main__':
 
         # fig, ax = plt.subplots(3, 4,subplot_kw={"projection": "3d"})
         fig, ax = plt.subplots(3, 4)
-
+        fig.set_size_inches(20, 20)
         # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
         mej_wind = 0.05
         mej_dyn = 0.001
@@ -343,6 +380,7 @@ if __name__ == '__main__':
             # ax[int(i/4),i%4].set_xlabel('Wavelength (A)')
             # ax[int(i/4),i%4].set_ylabel('Spectral flux density (erg / s / cm^2 / A)')
             #plt.savefig(f'SED_mej_{mej}.png')
+        fig.savefig('temp.png')
         plt.show()
 
     def plot_spectra_at_mej_3d(scaling='avg'):
@@ -387,5 +425,5 @@ if __name__ == '__main__':
 
     #plot_GW170817_lc_and_spectra()
     #plot_mag_vs_mej()
-    #plot_spectra_at_mej()
-    plot_spectra_at_mej_3d(scaling='avg')
+    plot_spectra_at_mej()
+    #plot_spectra_at_mej_3d(scaling='avg')
