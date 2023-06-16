@@ -12,6 +12,7 @@ from matplotlib.colors import LightSource
 from matplotlib import cm
 from scipy.interpolate import RegularGridInterpolator
 from scipy.optimize import curve_fit
+from tqdm import tqdm
 
 # Wrapper for a scipy Regular Grid Interpolator
 class BullaSEDInterpolator():
@@ -19,16 +20,17 @@ class BullaSEDInterpolator():
     # Bulla Model SED
     class KnSED():
 
-        def __init__(self, index, cos_theta, mej, phi, sed_file):
+        def __init__(self, index, cos_theta, mej_dyn, mej_wind, phi, sed_file):
 
             self.index = index
             self.cos_theta = cos_theta # Observing angle
-            self.mej = mej # Ejecta Mass
+            self.mej_dyn = mej_dyn # Ejecta Mass
+            self.mej_wind = mej_wind # Ejecta Mass
             self.phi = phi # half-opening angle of the lanthanide-rich component
             self.sed_file = sed_file # File containing the sed information
 
         def __str__(self):
-            return f'Index: {self.index}\nCOS_THETA: {self.cos_theta}\nEJECTA_MASS: {self.mej}\nPHI: {self.phi}\nFILE_NAME: {self.sed_file}'
+            return f'Index: {self.index}\nCOS_THETA: {self.cos_theta}\nEJECTA_MASS_DYN: {self.mej_dyn}\nEJECTA_MASS_WIND: {self.mej_wind}\nPHI: {self.phi}\nFILE_NAME: {self.sed_file}'
 
     def __init__(self, from_source = False,  bounds_error = False):
         """
@@ -50,11 +52,6 @@ class BullaSEDInterpolator():
             # Load the pickled object
             with open('Bulla_SED_Interpolator.pkl', 'rb') as f:
                 self.interpolator = pickle.load(f)
-
-    def interpolate(self, cos_theta, mej, phi, phase, wavelength):
-
-        # return the interpolated result.
-        return self.interpolator((cos_theta, mej, phi, phase, wavelength))
     
     def fitLinearFunction(self, x, y):
 
@@ -82,7 +79,6 @@ class BullaSEDInterpolator():
         return a, n, residuals
     
     def oneMinusLogisticFunction(self, x, x_0, A, L, k):
-
 
         logistic = np.where((x-x_0) >= 0, 
                     L / (1 + np.exp(-k*(x-x_0))), 
@@ -409,86 +405,110 @@ class BullaSEDInterpolator():
             fig.savefig(f'all_linear_fits.pdf')
             plt.show()
 
-    def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot = False):
+    def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M3-3COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot=False):
 
         # Info file
-        data = ascii.read(sed_dir + sed_info_file, data_start=7, names = ('TEMP','FILE', 'KN_INDEX', 'COSTHETA', 'MEJ', 'PHI'), guess=False)
-
+        data = ascii.read(sed_dir + sed_info_file, data_start=7, names = ('TEMP','FILE', 'KN_INDEX', 'COSTHETA', 'MEJDYN', 'MEJWIND', 'PHI'), guess=False)
+        
         uniq_phase = None # 100 counts
         uniq_wavelength = None # 50 counts
 
         uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        uniq_mej=  np.array([0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]) # 10 counts    
+        uniq_mej_dyn  = np.array([0.001, 0.005, 0.01, 0.02]) # 4 counts   
+        uniq_mej_wind =  np.array([0.01, 0.03, 0.05, 0.07, 0.09, 0.11, 0.13]) # 7 counts
         uniq_phi = np.array([15, 30, 45, 60, 75]) # 5 counts
 
-        # cos theta, meh, phi, phase, wavelength ordering followed
-        arr = np.zeros((11, 10, 5, 100, 500))
+        # cos theta, mej_dyn, mej_wind, phi, phase, wavelength ordering followed
+        arr = np.zeros((len(uniq_cos_theta), len(uniq_mej_dyn), len(uniq_mej_wind), len(uniq_phi), 100, 500))
 
-        mejs = []
-        phis = []
-        costhetas = []
+        if to_plot:
+            mejs_dyn = []
+            mejs_wind = []
+            phis = []
+            costhetas = []
 
-        for i in range(len(data)):
+        print('Building grid...')
 
-            print(f'{i}/{len(data)}\r')
-
-            # Creating SED object and opening the corresponding file 
-            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJ'][i], data['PHI'][i], sed_dir + data['FILE'][i])
-            t = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
-
-            # Finding the unique phases and wavelength values. Same for all SED's 
-            uniq_phase = np.unique(t['Phase'])
-            uniq_wavelength = np.unique(t['Wavelength'])
-
-            # Creating the mesh function for flux 
-            flux_mesh = np.array(t['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
-
-            # Indeces corresponding to sed parameters
-            cos_idx = np.where(uniq_cos_theta == sed.cos_theta)[0]
-            mej_idx = np.where(uniq_mej == sed.mej)[0]
-            phi_idx = np.where(uniq_phi == sed.phi)[0]
-
-            # Adding the mesh the correct part 
-            arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
-
-            mejs.append(sed.mej)
-            phis.append(sed.phi)
-            costhetas.append(sed.cos_theta)
-
-        interpolator = RegularGridInterpolator((uniq_cos_theta, uniq_mej, uniq_phi, uniq_phase, uniq_wavelength), arr, bounds_error=bounds_error, fill_value=None)
-
-        for i in range(len(data)):
-
-            print(f'Verifying {i}/{len(data)}\r')
+        for i in tqdm(range(len(data))):
 
             # Creating SED object and opening the corresponding file 
-            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJ'][i], data['PHI'][i], sed_dir + data['FILE'][i])
-            t = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
+            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJDYN'][i], data['MEJWIND'][i], data['PHI'][i], sed_dir + data['FILE'][i])
 
-            # Finding the unique phases and wavelength values. Same for all SED's 
-            uniq_phase = np.unique(t['Phase'])
-            uniq_wavelength = np.unique(t['Wavelength'])
-
-            # Creating the mesh function for flux 
-            real_sed = np.array(t['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
-            interpolated_sed = np.zeros_like(real_sed)
-
-            for j, phase in enumerate(uniq_phase):
+            if sed.phi in uniq_phi:
                 
-                mesh_grid = np.meshgrid(sed.cos_theta, sed.mej, sed.phi, phase, uniq_wavelength)
-                points = np.array(mesh_grid).T.reshape(-1, 5)
-                interpolated_sed[j,:] = interpolator(points)
+                # Table contain sed
+                table = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
 
-            assert np.array_equal(real_sed, interpolated_sed), f'Interpolator check failed at {sed}'
+                # Finding the unique phases and wavelength values. Same for all SED's 
+                uniq_phase = np.unique(table['Phase'])
+                uniq_wavelength = np.unique(table['Wavelength'])
+
+                # Creating the mesh function for flux 
+                flux_mesh = np.array(table['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
+
+                # Indices corresponding to sed parameters
+                cos_idx = np.where(uniq_cos_theta == sed.cos_theta)[0]
+                mej_wind_idx = np.where(uniq_mej_wind == sed.mej_wind)[0]
+                mej_dyn_idx = np.where(uniq_mej_dyn == sed.mej_dyn)[0]
+                phi_idx = np.where(uniq_phi == sed.phi)[0]
+
+                # Adding the mesh the correct part 
+                arr[cos_idx, mej_dyn_idx, mej_wind_idx, phi_idx, :, :] = flux_mesh
+
+                if to_plot:
+                    mejs_dyn.append(sed.mej_dyn)
+                    mejs_wind.append(sed.mej_wind)
+                    phis.append(sed.phi)
+                    costhetas.append(sed.cos_theta)
+
+        interpolator = RegularGridInterpolator((uniq_cos_theta, uniq_mej_dyn, uniq_mej_wind, uniq_phi, uniq_phase, uniq_wavelength), arr, bounds_error=bounds_error, fill_value=None)
+
+        print('Verifying interpolator...')
+        
+        # This loop verifies that all points on the grid are interpolated precisely
+        for i in tqdm(range(len(data))):
+
+            # Creating SED object and opening the corresponding file 
+            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJDYN'][i], data['MEJWIND'][i], data['PHI'][i], sed_dir + data['FILE'][i])
+
+            if sed.phi in uniq_phi:
+                
+                # Table contain sed
+                table = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
+
+                # Finding the unique phases and wavelength values. Same for all SED's 
+                uniq_phase = np.unique(table['Phase'])
+                uniq_wavelength = np.unique(table['Wavelength'])
+
+                # Creating the mesh function for flux 
+                real_sed = np.array(table['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
+                interpolated_sed = np.zeros_like(real_sed)
+
+                for j, phase in enumerate(uniq_phase):
+                    
+                    mesh_grid = np.meshgrid(sed.cos_theta, sed.mej_dyn, sed.mej_wind, sed.phi, phase, uniq_wavelength)
+                    points = np.array(mesh_grid).T.reshape(-1, 6)
+                    interpolated_sed[j,:] = interpolator(points)
+                
+
+                assert np.array_equal(real_sed, interpolated_sed), f'Interpolator check failed at {sed}'
+        
+        print('Grid check successful! Saving...')
 
         # Pickle the file 
         with open('Bulla_SED_Interpolator.pkl', 'wb') as f:
             pickle.dump(interpolator, f)
+            print('Done!')
 
         if to_plot:
 
-            plt.hist(mejs)
-            plt.xlabel('Ejecta Mass')
+            plt.hist(mejs_dyn)
+            plt.xlabel('Dynamical Ejecta Mass')
+            plt.ylabel('Count')
+            plt.show()
+
+            plt.hist(mejs_wind)
+            plt.xlabel('Wind Ejecta Mass')
             plt.ylabel('Count')
             plt.show()
 
@@ -500,162 +520,17 @@ class BullaSEDInterpolator():
             plt.hist(costhetas)
             plt.xlabel('Cos theta')
             plt.ylabel('Count')
+
             plt.show()
 
         return interpolator
     
-    def Bulla19Plot(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M2-2COMP/', sed_info_file = 'SED.INFO'):
-
-        # Info file
-        data = ascii.read(sed_dir + sed_info_file, data_start=7, names = ('TEMP','FILE', 'KN_INDEX', 'COSTHETA', 'MEJ', 'PHI'), guess=False)
-
-        uniq_phase = None # 100 counts
-        uniq_wavelength = None # 50 counts
-
-        uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
-        uniq_mej=  np.array([0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1]) # 10 counts    
-        uniq_phi = np.array([15, 30, 45, 60, 75]) # 5 counts
-
-        # cos theta, meh, phi, phase, wavelength ordering followed
-        arr = np.zeros((11, 10, 5, 100, 500))
-
-        mejs = []
-        phis = []
-        costhetas = []
-
-        for i in range(len(data)):
-
-            print(f'{i}/{len(data)}\r')
-
-            # Creating SED object and opening the corresponding file 
-            sed = self.KnSED(data['KN_INDEX'][i], data['COSTHETA'][i], data['MEJ'][i], data['PHI'][i], sed_dir + data['FILE'][i])
-            t = pd.read_csv(sed.sed_file, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
-
-            # Finding the unique phases and wavelength values. Same for all SED's 
-            uniq_phase = np.unique(t['Phase'])
-            uniq_wavelength = np.unique(t['Wavelength'])
-
-            # Creating the mesh function for flux 
-            flux_mesh = np.array(t['Flux']).reshape((len(uniq_phase), len(uniq_wavelength)))
-
-            # Indeces corresponding to sed parameters
-            cos_idx = np.where(uniq_cos_theta == sed.cos_theta)[0]
-            mej_idx = np.where(uniq_mej == sed.mej)[0]
-            phi_idx = np.where(uniq_phi == sed.phi)[0]
-
-
-            # Adding the mesh the correct part 
-            arr[cos_idx, mej_idx, phi_idx, :, :] = flux_mesh
-
-            mejs.append(sed.mej)
-            phis.append(sed.phi)
-            costhetas.append(sed.cos_theta)
-
-        # Bulla Plotting code
-        theta = 0.00
-        phi = 30
-
-        mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
-
-        lcs_dir = "/Users/ved/Documents/Research/UIUCSN/kilonova_models/lcs/"
-        bands = ['sdss::u','sdss::g','sdss::r','sdss::i','sdss::z','swope2::y', 'swope2::J', 'swope2::H']
-
-
-        d_bulla = {}
-
-        for i, mej in enumerate(mej_vals):
-
-            m1_file_name = f"nph1.0e+06_mej{mej:.2f}_phi{phi}_T5.0e+03_theta{theta:.2f}_dMpc40.dat"
-            m2_file_name = f"nph1.0e+06_mej{mej:.3f}_phi{phi}_theta{theta:.2f}_dMpc40.dat"
-            file_path = lcs_dir + m2_file_name
-
-            with open(file_path, 'r') as file:
-                text = file.read()
-
-
-                data = ascii.read(file_path)
-                d_bulla[mej] = {}
-                for band in bands:
-                    d_bulla[mej][band] = (data['t[days]'], data[band])
-
-        # SED plotting code
-        cos_idx = np.where(uniq_cos_theta == 1)[0]
-        phi_idx = np.where(uniq_phi == 30)[0]
-
-        mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
-        d = 40 * u.Mpc
-
-        phases = np.arange(start=0.5, stop=10.1, step=0.2)
-        bands = ['sdss::u','sdss::g','sdss::r','sdss::i','sdss::z','swope2::y', 'swope2::J', 'swope2::H']
-        #bands = ['standard::u', 'lsstg', 'standard::r', 'standard::i', 'lsstz','lssty']
-        #bands = ['standard::u','desg','desr','desi','desz','desy', '2massj', '2massh']
-
-        
-
-        fig, ax = plt.subplots(4, 4)
-
-        for i, band in enumerate(bands):
-
-            lcs = {}
-
-            for j, mej in enumerate(mej_vals):
-
-                mej_idx = np.where(uniq_mej == mej)[0]
-            
-                sed = arr[cos_idx, mej_idx, phi_idx, :, :].reshape(len(uniq_phase), len(uniq_wavelength))
-                source = sncosmo.TimeSeriesSource(phase=uniq_phase, wave=uniq_wavelength, flux = sed, time_spline_degree=3)
-                model = sncosmo.Model(source)
-
-                # add MW extinction to observing frame
-                # model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
-                # model.set(mwebv=0.105)
-
-                lc = model.bandmag(band=band, time = phases, magsys="ab") + Distance(d).distmod.value
-
-                lcs[mej] = lc 
-
-                x = int(i/4) * 2
-                y = i%4
-                ax[x][y].plot(phases, lc, label=f'{mej}', linewidth=3)
-                ax[x][y].invert_yaxis()
-
-                ax[x][y].set_ylabel('Mag')
-                ax[x][y].set_title(band)
-                ax[x][y].legend()
-                ax[x][y].set_ylim(top=16, bottom=23.5)
-                ax[x][y].set_xlim(left=0, right=10)
-
-                # Bulla lc
-                ax[x][y].plot(d_bulla[mej][band][0], d_bulla[mej][band][1],linestyle='dotted', color='white')
-
-
-            for mej in mej_vals:
-
-                x = int(i/4) * 2 + 1
-                y = i%4
-
-                lc = lcs[0.04] - lcs[mej] 
-                ax[x][y].plot(phases, lc, linewidth=3)
-                ax[x][y].set_ylabel(r'$\Delta$')
-
-                ax[x][y].set_aspect(1)
-                ax[x][y].set_ylim(bottom=-1.6, top=1.6)
-                ax[x][y].set_xlim(left=0, right=10)
-
-                # Bulla lc
-                ax[x][y].plot(d_bulla[mej][band][0],d_bulla[0.04][band][1] - d_bulla[mej][band][1],linestyle='dotted',color='white')
-
-                if x == 3:
-                    ax[x][y].set_xlabel('Phase (days)')
-
-        plt.show()    
-
 if __name__ == '__main__':
 
 
     # temp1 = BullaSEDInterpolator(from_source=True, bounds_error=False)
-    temp2 = BullaSEDInterpolator(from_source=False)
-    temp2.Bulla19Plot()
+    temp2 = BullaSEDInterpolator(from_source=True)
+    #temp2.Bulla19Plot()
     #temp2.computeMaximumFluxPhases(plot=True)
     #temp2.computeFluxScalingLogisticLaws(plot=True)
     #temp2.computeFluxScalingPowerLaws(plot=True)
