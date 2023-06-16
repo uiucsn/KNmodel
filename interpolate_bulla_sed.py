@@ -2,16 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
-import json
-import sncosmo
 
 from astropy.io import ascii
-from astropy import units as u
-from astropy.coordinates import Distance, SkyCoord
-from matplotlib.colors import LightSource
-from matplotlib import cm
 from scipy.interpolate import RegularGridInterpolator
-from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 # Grid values for Bulla m3 model: https://github.com/mbulla/kilonova_models/tree/87a25e1c4dd1d7b18a0dfa59808672e36978313d/bns_m3_3comp
@@ -75,16 +68,32 @@ class BullaSEDInterpolator():
         sol = m * x + c
         return sol
 
+    def fitPowerLaw(self, x, y):
+
+        coeffs, residuals, _, _, _ = np.polyfit(np.log10(x), np.log10(y), deg=1, full=True)
+
+        log_a = coeffs[1]
+
+        a = 10**log_a
+        n = coeffs[0] 
+
+        return a, n, residuals
+
+    def powerFunction(self, x, a, n):
+
+        sol = a * (x**n)
+        return sol
+
     def computeFluxScalingLinearLaws(self, plot=False):
                     
         if plot:
-            fig, ax = plt.subplots(len(uniq_cos_theta), len(uniq_phi))
-            fig.set_size_inches(60, 25)
+            fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
+            fig.set_size_inches(50, 45)
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
 
-        print('Computing flux scaling laws...')
+        print('Computing flux scaling linear laws...')
         for i, cos_theta in tqdm(enumerate(uniq_cos_theta), total=len(uniq_cos_theta)):
             for j, phi in enumerate(uniq_phi):
 
@@ -106,6 +115,10 @@ class BullaSEDInterpolator():
                         total_fluxes.append(f)
                         total_mej.append(mej_dyn + mej_wind)
 
+            
+                total_mej = np.array(total_mej)
+                total_fluxes = np.array(total_fluxes)
+
                 # Find best linear fit
                 m, c, _ = self.fitLinearFunction(total_mej, total_fluxes)
 
@@ -120,18 +133,37 @@ class BullaSEDInterpolator():
                 df = pd.concat([df, d], ignore_index = True)
 
                 if plot:
-
-                    fit_mej = np.arange(start=0, stop=0.9, step=0.001)
+                    
+                    # Plotting fits
+                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
                     fit = self.linearFunction(fit_mej, m, c)
 
-                    ax[i][j].plot(fit_mej, fit)
-                    ax[i][j].scatter(total_mej, total_fluxes)
+                    ax[2*i][j].plot(fit_mej, fit)
+                    ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
 
-                    ax[i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=5)
-                    ax[i][j].set_xscale('log')
+                    ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
+                    ax[2*i][j].set_xscale('log')
 
-                    ax[i][j].set_xlabel('mej', fontsize=5)
-                    ax[i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+                    ax[2*i][j].set_xlabel('mej', fontsize=5)
+                    ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+
+                    ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
+                    ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    # Plotting relative errors
+                    grid_fit = self.linearFunction(total_mej, m, c)
+                    relative_error = (grid_fit - total_fluxes) * 100 / total_fluxes 
+
+                    ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
+
+                    ax[2*i + 1][j].set_xscale('log')
+                    ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
+                    ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
+
+                    ax[2*i + 1][j].axhline(y=0, color = 'red')
+
 
         print('Saving flux scaling laws for Bulla m3...')
         df.to_csv('data/m3_linear_scaling_laws.csv')
@@ -140,6 +172,93 @@ class BullaSEDInterpolator():
             fig.savefig(f'all_linear_fits.pdf')
             plt.show()
 
+    def computeFluxScalingPowerLaws(self, plot=False):
+                    
+        if plot:
+            fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
+            fig.set_size_inches(50, 45)
+            plt.rcParams.update({'font.size': 5})
+
+        df = pd.DataFrame(columns=['cos_theta', 'phi', 'coefficient', 'exponent'])
+
+        print('Computing flux scaling power laws...')
+        for i, cos_theta in tqdm(enumerate(uniq_cos_theta), total=len(uniq_cos_theta)):
+            for j, phi in enumerate(uniq_phi):
+
+                total_fluxes = []
+                total_mej = []
+
+                for k, mej_wind in enumerate(uniq_mej_wind):
+                    for l, mej_dyn in enumerate(uniq_mej_dyn):
+
+                        f = 0 # flux over all phases
+                    
+                        for phase in phases:
+
+                            mesh_grid = np.meshgrid(cos_theta, mej_dyn, mej_wind, phi, phase, lmbd)
+                            points = np.array(mesh_grid).T.reshape(-1, 6)
+                            sed = self.interpolator(points)
+                            f += np.sum(sed)
+
+                        total_fluxes.append(f)
+                        total_mej.append(mej_dyn + mej_wind)
+
+            
+                total_mej = np.array(total_mej)
+                total_fluxes = np.array(total_fluxes)
+
+                # Find best linear fit
+                a, n, _ = self.fitPowerLaw(total_mej, total_fluxes)
+
+                # Add fit to the data frame
+                d = {
+                    'cos_theta': cos_theta,
+                    'phi': phi,
+                    'coefficient': a, 
+                    'exponent': n,
+                }
+                d = pd.DataFrame(d, index=[0])
+                df = pd.concat([df, d], ignore_index = True)
+
+                if plot:
+                    
+                    # Plotting fits
+                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+                    fit = self.powerFunction(fit_mej, a, n)
+
+                    ax[2*i][j].plot(fit_mej, fit)
+                    ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
+
+                    ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
+                    ax[2*i][j].set_xscale('log')
+
+                    ax[2*i][j].set_xlabel('mej', fontsize=5)
+                    ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+
+                    ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
+                    ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    # Plotting relative errors
+                    grid_fit = self.powerFunction(total_mej, a, n)
+                    relative_error = (grid_fit - total_fluxes) * 100 / total_fluxes 
+
+                    ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
+
+                    ax[2*i + 1][j].set_xscale('log')
+                    ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+
+                    ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
+                    ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
+
+                    ax[2*i + 1][j].axhline(y=0, color = 'red')
+
+
+        print('Saving flux scaling laws for Bulla m3...')
+        df.to_csv('data/m3_power_scaling_laws.csv')
+
+        if plot:
+            fig.savefig(f'all_power_fits.pdf')
+            plt.show()
 
     def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M3-3COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot=False):
 
@@ -266,7 +385,8 @@ if __name__ == '__main__':
     #i1 = BullaSEDInterpolator(from_source=True)
 
     i2 = BullaSEDInterpolator(from_source=False)
-    i2.computeFluxScalingLinearLaws(plot=True)
+    #i2.computeFluxScalingLinearLaws(plot=True)
+    i2.computeFluxScalingPowerLaws(plot=True)
 
 
 
