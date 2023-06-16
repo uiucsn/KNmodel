@@ -55,13 +55,14 @@ def get_ejecta_mass(m1, m2):
     c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
     c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
     if m_b_2 == 0.0 or m_b_1 == 0.0:
-        # treat as NSBH
-        m_rem = computeDiskMass(m1, m2, 0., 0., eosname=EOSNAME)
+        # treat as NSBH. We do not have reliable spectra so ignore
+
+        return 0, 0
     else:
         # treat as BNS
-        m_rem = CoDi2019.calc_meje(np.array([m1]), np.array([c_ns_1]), np.array([m2]), np.array([c_ns_2]))[0]
+        mej, mej_dyn, mej_wind = CoDi2019.calc_meje(np.array([m1]), np.array([c_ns_1]), np.array([m2]), np.array([c_ns_2]), split_mej=True)
+        return mej_dyn[0], mej_wind[0]
         
-    return m_rem
 
 def get_range(detector):
     psd_url = detector_asd_links[detector]
@@ -211,14 +212,12 @@ def main(argv=None):
                 return [], [], [], [], [], [], [], [], [], 0, 0, 0  # FIXME: fix to prevent unpacking error
         print(f"### Num trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
+            print("MW population chosen.")
             mass1, mass2 = galactic_masses(n_events)
-            # max_m, min_m = np.maximum(mass1, mass2), np.minimum(mass1, mass2)
-            # print(get_ejecta_mass(max_m,min_m))
             ejecta_masses = np.array([ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)])
         elif mass_distrib == 'exg':
+            print("Extra galactic population chosen.")
             mass1, mass2 = extra_galactic_masses(n_events)
-            # max_m, min_m = np.maximum(mass1, mass2), np.minimum(mass1, mass2)
-            # print(get_ejecta_mass(max_m,min_m))
             ejecta_masses = np.array([ get_ejecta_mass(m1, m2) for m1, m2 in zip(mass1, mass2)])
         elif mass_distrib == 'msp':
             print("MSP population chosen, overriding mean_mass and sig_mass if supplied.")
@@ -227,7 +226,8 @@ def main(argv=None):
             mean_mass, sig_mass = random.choice([(1.393, 0.064), (1.807, 0.177)])
             mass1 = spstat.truncnorm.rvs(0, np.inf, mean_mass, sig_mass, n_events)
             mass2 = spstat.truncnorm.rvs(0, np.inf, mean_mass, sig_mass, n_events)
-        else:
+
+        elif mass_distrib == 'flat':
             print("Flat population chosen.")
             stars = s22p(population_size=n_events)
             mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
@@ -289,14 +289,16 @@ def main(argv=None):
         four_det_obs = n_detectors_on_and_obs == 4
 
         # decide whether there is a kilnova based on remnant matter
-        has_ejecta_bool = ejecta_masses > 0
+        total_ejecta = np.sum(ejecta_masses, axis=1)
+        has_ejecta_bool = total_ejecta > 0
+
 
 
         count = len(ejecta_masses)
-        exp_count_low = (ejecta_masses < 0.01).sum() 
-        exp_count_high = (ejecta_masses > 0.1).sum()
-        print(f'{(exp_count_low/n_events) * 100} % of the SEDs were extrapolated at < 0.01...')
-        print(f'{(exp_count_high/n_events) * 100} % of the SEDs were extrapolated at > 0.1...')
+        # exp_count_low = (ejecta_masses < 0.01).sum() 
+        # exp_count_high = (ejecta_masses > 0.1).sum()
+        # print(f'{(exp_count_low/n_events) * 100} % of the SEDs were extrapolated at < 0.01...')
+        # print(f'{(exp_count_high/n_events) * 100} % of the SEDs were extrapolated at > 0.1...')
 
         # Get random values for phi and cos theta as parameters for the model
         uniq_cos_theta = np.array([0,  0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]) # 11 counts
@@ -312,14 +314,14 @@ def main(argv=None):
 
         for i, (cos_theta, phi, mej, d) in enumerate(zip(cos_thetas, phis, ejecta_masses, dist)):
 
-            #print(f"Sample parameters: cos_theta = {cos_theta}, phi = {phi}, ejecta_masses = {mej}, dist = {d}")
+            print(f"Sample parameters: mass1 = {mass1[i]}, mass2 = {mass2[i]}, cos_theta = {cos_theta}, phi = {phi}, ejecta_mass_dyn = {mej[0]}, ejecta_mass_wind = {mej[1]}, dist = {d}")
 
 
             r, dec, ra = coord.cartesian_to_spherical(x[i], y[i], z[i])
             coordinates = coord.SkyCoord(ra=ra, dec=dec)
 
-            obj = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av = av[i])
-            lcs = obj.buildJwstNircamLC()
+            obj = SEDDerviedLC(mej_dyn = mej[0], mej_wind=mej[1], phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av = av[i])
+            lcs = obj.getAppMagsInPassbands(['f200w'])
 
             min_mag = min(lcs['f200w'])
 
@@ -338,6 +340,8 @@ def main(argv=None):
         em_bool = np.array(em_bool)
         obsmag = np.array(obsmag)
         peakmag = np.array(peakmag)
+
+        print('Peak mags', peakmag)
 
 
         # whether this event was not affected by then sun
