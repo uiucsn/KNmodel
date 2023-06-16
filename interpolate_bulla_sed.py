@@ -551,14 +551,46 @@ class BullaSEDInterpolator():
             phis.append(sed.phi)
             costhetas.append(sed.cos_theta)
 
-        cos_idx = 10
-        phi_idx = 1
+        # Bulla Plotting code
+        theta = 0.00
+        phi = 30
+
+        mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
+
+        lcs_dir = "/Users/ved/Documents/Research/UIUCSN/kilonova_models/lcs/"
+        bands = ['sdss::u','sdss::g','sdss::r','sdss::i','sdss::z','swope2::y', 'swope2::J', 'swope2::H']
+
+
+        d_bulla = {}
+
+        for i, mej in enumerate(mej_vals):
+
+            m1_file_name = f"nph1.0e+06_mej{mej:.2f}_phi{phi}_T5.0e+03_theta{theta:.2f}_dMpc40.dat"
+            m2_file_name = f"nph1.0e+06_mej{mej:.3f}_phi{phi}_theta{theta:.2f}_dMpc40.dat"
+            file_path = lcs_dir + m2_file_name
+
+            with open(file_path, 'r') as file:
+                text = file.read()
+
+
+                data = ascii.read(file_path)
+                d_bulla[mej] = {}
+                for band in bands:
+                    d_bulla[mej][band] = (data['t[days]'], data[band])
+
+        # SED plotting code
+        cos_idx = np.where(uniq_cos_theta == 1)[0]
+        phi_idx = np.where(uniq_phi == 30)[0]
+
         mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
         d = 40 * u.Mpc
 
-        phases = np.arange(start=0.5, stop=10, step=0.5)
-        bands = ['lsstu','lsstg','lsstr','lssti','lsstz','lssty']
+        phases = np.arange(start=0.5, stop=10.1, step=0.2)
+        bands = ['sdss::u','sdss::g','sdss::r','sdss::i','sdss::z','swope2::y', 'swope2::J', 'swope2::H']
+        #bands = ['standard::u', 'lsstg', 'standard::r', 'standard::i', 'lsstz','lssty']
+        #bands = ['standard::u','desg','desr','desi','desz','desy', '2massj', '2massh']
 
+        
 
         fig, ax = plt.subplots(4, 4)
 
@@ -571,25 +603,30 @@ class BullaSEDInterpolator():
                 mej_idx = np.where(uniq_mej == mej)[0]
             
                 sed = arr[cos_idx, mej_idx, phi_idx, :, :].reshape(len(uniq_phase), len(uniq_wavelength))
-                source = sncosmo.TimeSeriesSource(phase=uniq_phase, wave=uniq_wavelength, flux = sed, zero_before=True, time_spline_degree=1)
+                source = sncosmo.TimeSeriesSource(phase=uniq_phase, wave=uniq_wavelength, flux = sed, time_spline_degree=3)
                 model = sncosmo.Model(source)
 
                 # add MW extinction to observing frame
-                model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
-                model.set(mwebv=0.105)
+                # model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+                # model.set(mwebv=0.105)
+
                 lc = model.bandmag(band=band, time = phases, magsys="ab") + Distance(d).distmod.value
 
                 lcs[mej] = lc 
 
                 x = int(i/4) * 2
                 y = i%4
-                ax[x][y].plot(phases, lc, label=f'{mej}')
+                ax[x][y].plot(phases, lc, label=f'{mej}', linewidth=3)
                 ax[x][y].invert_yaxis()
 
                 ax[x][y].set_ylabel('Mag')
                 ax[x][y].set_title(band)
                 ax[x][y].legend()
+                ax[x][y].set_ylim(top=16, bottom=23.5)
+                ax[x][y].set_xlim(left=0, right=10)
 
+                # Bulla lc
+                ax[x][y].plot(d_bulla[mej][band][0], d_bulla[mej][band][1],linestyle='dotted', color='white')
 
 
             for mej in mej_vals:
@@ -598,10 +635,15 @@ class BullaSEDInterpolator():
                 y = i%4
 
                 lc = lcs[0.04] - lcs[mej] 
-                ax[x][y].plot(phases, lc)
+                ax[x][y].plot(phases, lc, linewidth=3)
                 ax[x][y].set_ylabel(r'$\Delta$')
 
-                ax[x][y].set_aspect(0.8)
+                ax[x][y].set_aspect(1)
+                ax[x][y].set_ylim(bottom=-1.6, top=1.6)
+                ax[x][y].set_xlim(left=0, right=10)
+
+                # Bulla lc
+                ax[x][y].plot(d_bulla[mej][band][0],d_bulla[0.04][band][1] - d_bulla[mej][band][1],linestyle='dotted',color='white')
 
                 if x == 3:
                     ax[x][y].set_xlabel('Phase (days)')

@@ -182,39 +182,27 @@ class SEDDerviedLC():
 
     
     def getAbsMagsInPB(self, passband, phases, apply_extinction = True, scaling='avg'):
-        """
-        Find the absolute mag (AB) vs phase time series. 
-
-        Args:
-            lmbd (numpy array): List of wavelenghts to interpolate SED at.
-            t (numpy array): Transmission from the survey filter.
-            phases (numpy array): Times to interpolate SED at.
-
-        Returns:
-            abs_mag: The absolute magnitudes computed from the SED's for the given
-                            survey filter. 
-        """
         
         source_name = f"Interpolated Object\ncos_theta: {self.cos_theta}, mej: {self.mej}, phi: {self.phi}"
 
         interpolated_sed = self.getSed(phases=phases, scaling=scaling)
 
-        source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name)
+        source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name, zero_before=True)
 
-        model = sncosmo.Model(source)
+        self.model = sncosmo.Model(source)
 
         if apply_extinction:
 
             # add host galaxy extinction E(B-V)
-            model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
-            model.set(hostebv = self.host_ebv)
+            self.model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+            self.model.set(hostebv = self.host_ebv)
 
             # add MW extinction to observing frame
-            model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
-            model.set(mwebv=self.mw_ebv)
+            self.model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
+            self.model.set(mwebv=self.mw_ebv)
 
 
-        abs_mags = model.bandmag(band=passband, time = phases, magsys="ab")
+        abs_mags = self.model.bandmag(band=passband, time = phases, magsys="ab")
     
         return abs_mags
 
@@ -413,13 +401,16 @@ if __name__ == '__main__':
 
     # coordinates for GW170817
     c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
-    d = 40*u.Mpc
+    d = 43*u.Mpc
 
     def plot_GW170817_lc_and_spectra():
 
+        av = 0.0
+
         # LC from sed
-        temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 0.1)
+        temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
         lcs = temp.buildLsstLC(phases=phases)
+        print(temp.model)
         temp.makeSedPlot()
         plt.show()
 
@@ -559,9 +550,9 @@ if __name__ == '__main__':
 
         for i, mej in enumerate(mej_vals):
             temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 1)
-            spectra = temp.getInterpolatedSed([1]).reshape((len(lmbd)))
+            spectra = temp.getInterpolatedSed(phases).reshape((len(lmbd)))
             idx = np.argmax(spectra)
-            peak_flux.append(np.mean(spectra))
+            peak_flux.append(np.sum(spectra))
             peak_flux_wavelength.append(lmbd[idx])
         
         fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
@@ -579,7 +570,7 @@ if __name__ == '__main__':
         plt.colorbar()
         plt.legend()
         plt.title(rf'$y = {a:2f} \cdot x^{n:2f}$')
-        plt.loglog
+        plt.xscale('log')
         plt.show()
 
     def plot_plot_mej_poly_fits():
@@ -613,9 +604,67 @@ if __name__ == '__main__':
         plt.loglog
         plt.show()
 
+    def plotBulla19Plot():
+        # https://watermark.silverchair.com/stz2495.pdf?token=AQECAHi208BE49Ooan9kkhW_Ercy7Dm3ZL_9Cf3qfKAc485ysgAAAsYwggLCBgkqhkiG9w0BBwagggKzMIICrwIBADCCAqgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMEuJWAI9tbfCgTjd2AgEQgIICefaJ5S02v8ICGEVAC-wHLh4LI0lNpWecSmLD807vmp2vMro9_uAlcH7kSj3w3_WXlkdCnw3XN6rl3U0atnCCWLon9nIW826JFjkxrPImGJ1opI4pQ3F-bjC3Oqg-M-A07lVLf9OIvIU7xESH_1jcMdfvatVEn1bSGI0AZNK92omwMAW5Kg6ena30gUbtrl6hFC3qlrk5EIFVBSSeXqz0MRxV0b51wJK1fI5Nu1m6kqeLyTFyJfDvKZzRbo51K14XpXrl4iVhI7QYRowpLtS1LSe2fUAe5m3ng9kdMhkrFnaLUTKbYH2hpKWM4AS8eNmGN2thAzP_hiXIq-DEWH0qvj9ZBy0QaXr8PGJL2c5Msc0urIxRDj6WtpE7Qw7sSy-bOTVUYDycX1g_EcBn2GFdxsBcsjaek3rdiUa6MzKcyiiClKxMKAP4ZAXARhOTZPFZT_G9moE47wYtgJAQu9zaOPlk-hq5pYRRe8xmcUx_CaCUbp2bSESlJKNUodF_KHOhnvpC3TgRJmt7_oLnkgtIXV_41btDh1wPsqpYV7PBrVxQ7nXybqOYH9bO6lz9dh2HJ9qQdmiPiSyNYIqqdx2MWWTklPBEehIfRvZw6TaDTegKFTQ_gyUFZVcYlS-mZJ_qQ7-ZMdwB8CxSUQjaiMqWU9rfV48KqM3RTROE7GyIhikxeh5ux0rcqGiF8ufSfNRG-o626pKcDP0k8DwW84-q9XnB__EuH2C-YiO7dDnicEy5mmVksYV_Rduum6lzF5Ja-rSDvX5EjzEhVw_i-xTcWwXEXscVE4IXSMhqoS6F-wyzJAJjJ40ZptBy6J5nA7kIlZbJe2BTXQufXw
+        cos_theta = 1
+        phi = 30
+        mej_vals = [0.02, 0.04, 0.06, 0.08, 0.1]
+        d = 40 * u.Mpc
+
+        phases = np.arange(start=0.5, stop=10, step=0.5)
+        bands = ['lsstu','lsstg','lsstr','lssti','lsstz','lssty']
+
+
+        fig, ax = plt.subplots(4, 4)
+
+        for i, band in enumerate(bands):
+
+            lcs = {}
+
+            for mej in mej_vals:
+                temp = SEDDerviedLC(mej = mej, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = 0.1)
+                lc = temp.getAbsMagsInPB([band], phases) + Distance(d).distmod.value
+                
+                lcs[mej] = lc
+
+                x = int(i/4) * 2
+                y = i%4
+                ax[x][y].plot(phases, lc, label=f'{mej}')
+                ax[x][y].invert_yaxis()
+
+                ax[x][y].set_ylabel('Mag')
+                ax[x][y].set_title(band)
+                ax[x][y].legend()
+
+
+
+            for mej in mej_vals:
+
+                x = int(i/4) * 2 + 1
+                y = i%4
+
+                lc = lcs[0.04] - lcs[mej] 
+                ax[x][y].plot(phases, lc)
+                ax[x][y].set_ylabel(r'$\Delta$')
+
+                ax[x][y].set_aspect(0.8)
+
+                if x == 3:
+                    ax[x][y].set_xlabel('Phase (days)')
+
+        plt.show()
+
+
+
+
+
+
+
+
     #plot_GW170817_lc_and_spectra()
-    plot_mag_vs_mej()
+    #plot_mag_vs_mej()
     #plot_spectra_at_mej()
     #plot_plot_mej_power_fits()
     #plot_spectra_at_mej_3d(scaling='avg')
     #plot_plot_mej_poly_fits()
+    plotBulla19Plot()
