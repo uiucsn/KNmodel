@@ -62,58 +62,25 @@ class SEDDerviedLC():
 
     def _setNearestGridMejPoints(self):
 
-        # Find nearest grid neighbors for mej
+        # Find nearest grid neighbors for mej_wind
         if self.mej_wind > mej_wind_grid_high:
-
-                if self.mej_dyn > mej_dyn_grid_high:
-
-                    self.nearest_grid_mej_dyn = mej_dyn_grid_high
-                    self.nearest_grid_mej_wind = mej_wind_grid_high
-
-                elif self.mej_dyn < mej_dyn_grid_low:
-
-                    self.nearest_grid_mej_dyn =  mej_dyn_grid_low
-                    self.nearest_grid_mej_wind = mej_wind_grid_high
-
-                else:
-
-                    self.nearest_grid_mej_dyn = self.mej_dyn
-                    self.nearest_grid_mej_wind = mej_wind_grid_high
+            self.nearest_grid_mej_wind = mej_wind_grid_high 
 
         elif self.mej_wind < mej_wind_grid_low:
+            self.nearest_grid_mej_wind = mej_wind_grid_low 
 
-            if self.mej_dyn > mej_dyn_grid_high:
+        else: 
+            self.nearest_grid_mej_wind = self.mej_wind
 
-                self.nearest_grid_mej_dyn = mej_dyn_grid_high
-                self.nearest_grid_mej_wind = mej_wind_grid_low
+        # Find nearest grid neighbors for mej_dyn
+        if self.mej_dyn > mej_dyn_grid_high:
+            self.nearest_grid_mej_dyn = mej_dyn_grid_high 
 
-            elif self.mej_dyn < mej_dyn_grid_low:
+        elif self.mej_wind < mej_wind_grid_low:
+            self.nearest_grid_mej_dyn = mej_dyn_grid_low 
 
-                self.nearest_grid_mej_dyn = mej_dyn_grid_low
-                self.nearest_grid_mej_wind = mej_wind_grid_low
-
-            else:
-
-                self.nearest_grid_mej_dyn = self.mej_dyn
-                self.nearest_grid_mej_wind = mej_wind_grid_low
-
-        else:
-            
-            if self.mej_dyn > mej_dyn_grid_high:
-
-                self.nearest_grid_mej_dyn = mej_dyn_grid_high
-                self.nearest_grid_mej_wind = self.mej_wind
-
-            elif self.mej_dyn < mej_dyn_grid_low:
-
-                self.nearest_grid_mej_dyn = mej_dyn_grid_low
-                self.nearest_grid_mej_wind = self.mej_wind
-
-            else:
-            
-                self.nearest_grid_mej_dyn = self.mej_dyn
-                self.nearest_grid_mej_wind = self.mej_wind
-    
+        else: 
+            self.nearest_grid_mej_dyn = self.mej_dyn
 
     def _getInterpolatedSed(self, phases = phases, wavelengths = lmbd, remove_negative = True):
 
