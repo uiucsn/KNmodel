@@ -392,5 +392,5 @@ if __name__ == '__main__':
 
     #plot_GW170817_lc_and_spectra()
     #plot_mag_vs_mej()
-    plot_spectra_at_mej()
+    #plot_spectra_at_mej()
     #plot_spectra_at_mej_3d(scaling='avg')
