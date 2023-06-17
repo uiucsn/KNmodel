@@ -52,7 +52,7 @@ class BullaSEDInterpolator():
             self.interpolator = self.buildFromSourceData(bounds_error=bounds_error)
         else:
             # Load the pickled object
-            with open('Bulla_SED_Interpolator.pkl', 'rb') as f:
+            with open('data/Bulla_SED_Interpolator.pkl', 'rb') as f:
                 self.interpolator = pickle.load(f)
     
     def fitLinearFunction(self, x, y):
@@ -356,7 +356,7 @@ class BullaSEDInterpolator():
         print('Grid check successful! Saving...')
 
         # Pickle the file 
-        with open('Bulla_SED_Interpolator.pkl', 'wb') as f:
+        with open('data/Bulla_SED_Interpolator.pkl', 'wb') as f:
             pickle.dump(interpolator, f)
             print('Done!')
 

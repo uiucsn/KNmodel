@@ -254,7 +254,7 @@ if __name__ == '__main__':
         plt.show()
         
         # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
-        data = pd.read_csv('gw170817photometry.csv', delimiter='\t' )  
+        data = pd.read_csv('data/gw170817photometry.csv', delimiter='\t' )  
         data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
         plt.scatter(data[data['Filter'] == 'g']['MJD'], data[data['Filter'] == 'g']['mag'] + 2, label='g + 2',c=colors[0])
