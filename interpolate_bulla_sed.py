@@ -171,7 +171,7 @@ class BullaSEDInterpolator():
         df.to_csv('data/m3_linear_scaling_laws.csv')
 
         if plot:
-            fig.savefig(f'all_linear_fits.pdf')
+            fig.savefig(f'paper_figures/all_linear_fits.pdf')
             plt.show()
 
     def computeFluxScalingPowerLaws(self, plot=False):
@@ -261,7 +261,7 @@ class BullaSEDInterpolator():
         df.to_csv('data/m3_power_scaling_laws.csv')
 
         if plot:
-            fig.savefig(f'all_power_fits.pdf')
+            fig.savefig(f'paper_figures/all_power_fits.pdf')
             plt.show()
 
     def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M3-3COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot=False):
