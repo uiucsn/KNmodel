@@ -84,16 +84,16 @@ class BullaSEDInterpolator():
         sol = a * (x**n)
         return sol
 
-    def computeFluxScalingLinearLaws(self, plot=False):
+    def computeFluxScalingLinearLaws(self, plot=False, show_plot=False):
                     
         if plot:
             fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
-            fig.set_size_inches(50, 45)
+            fig.set_size_inches(30, 45)
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
 
-        print('Computing flux scaling linear laws...')
+        print('Computing flux scaling laws (linear)...')
         for i, cos_theta in tqdm(enumerate(uniq_cos_theta), total=len(uniq_cos_theta)):
             for j, phi in enumerate(uniq_phi):
 
@@ -144,8 +144,9 @@ class BullaSEDInterpolator():
                     ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
                     ax[2*i][j].set_xscale('log')
 
-                    ax[2*i][j].set_xlabel('mej', fontsize=5)
-                    ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+
+
+
 
                     ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
                     ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
@@ -154,17 +155,17 @@ class BullaSEDInterpolator():
 
                     # Plotting relative errors
                     grid_fit = self.linearFunction(total_mej, m, c)
-                    relative_error = (grid_fit - total_fluxes) * 100 / total_fluxes 
+                    relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
 
                     ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
 
                     ax[2*i + 1][j].set_xscale('log')
                     ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+                    ax[2*i + 1][j].set_ylim(top=100, bottom=0)
 
                     ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
                     ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
 
-                    ax[2*i + 1][j].axhline(y=0, color = 'red')
 
 
         print('Saving flux scaling laws for Bulla m3...')
@@ -172,18 +173,19 @@ class BullaSEDInterpolator():
 
         if plot:
             fig.savefig(f'paper_figures/all_linear_fits.pdf')
-            plt.show()
+            if show_plot:        
+                plt.show()
 
-    def computeFluxScalingPowerLaws(self, plot=False):
+    def computeFluxScalingPowerLaws(self, plot=False, show_plot=False):
                     
         if plot:
             fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
-            fig.set_size_inches(50, 45)
+            fig.set_size_inches(30, 45)
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'coefficient', 'exponent'])
 
-        print('Computing flux scaling power laws...')
+        print('Computing flux scaling laws (power)...')
         for i, cos_theta in tqdm(enumerate(uniq_cos_theta), total=len(uniq_cos_theta)):
             for j, phi in enumerate(uniq_phi):
 
@@ -244,17 +246,17 @@ class BullaSEDInterpolator():
 
                     # Plotting relative errors
                     grid_fit = self.powerFunction(total_mej, a, n)
-                    relative_error = (grid_fit - total_fluxes) * 100 / total_fluxes 
+                    relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
 
                     ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
 
                     ax[2*i + 1][j].set_xscale('log')
                     ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+                    ax[2*i + 1][j].set_ylim(top=100, bottom=0)
 
                     ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
                     ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
 
-                    ax[2*i + 1][j].axhline(y=0, color = 'red')
 
 
         print('Saving flux scaling laws for Bulla m3...')
@@ -262,7 +264,8 @@ class BullaSEDInterpolator():
 
         if plot:
             fig.savefig(f'paper_figures/all_power_fits.pdf')
-            plt.show()
+            if show_plot:        
+                plt.show()
 
     def buildFromSourceData(self, sed_dir = 'SEDs/SIMSED.BULLA-BNS-M3-3COMP/', sed_info_file = 'SED.INFO', bounds_error = False, to_plot=False):
 
@@ -386,11 +389,8 @@ class BullaSEDInterpolator():
         return interpolator
     
 if __name__ == '__main__':
-    #i1 = BullaSEDInterpolator(from_source=True)
+    i1 = BullaSEDInterpolator(from_source=True)
 
-    i2 = BullaSEDInterpolator(from_source=False)
-    #i2.computeFluxScalingLinearLaws(plot=True)
-    i2.computeFluxScalingPowerLaws(plot=True)
 
 
 

@@ -65,22 +65,28 @@ class SEDDerviedLC():
         # Find nearest grid neighbors for mej_wind
         if self.mej_wind > mej_wind_grid_high:
             self.nearest_grid_mej_wind = mej_wind_grid_high 
+            self.requires_mej_wind_extrapolation = True
 
         elif self.mej_wind < mej_wind_grid_low:
             self.nearest_grid_mej_wind = mej_wind_grid_low 
+            self.requires_mej_wind_extrapolation = True
 
         else: 
             self.nearest_grid_mej_wind = self.mej_wind
+            self.requires_mej_wind_extrapolation = False
 
         # Find nearest grid neighbors for mej_dyn
         if self.mej_dyn > mej_dyn_grid_high:
             self.nearest_grid_mej_dyn = mej_dyn_grid_high 
+            self.requires_mej_dyn_extrapolation = True
 
         elif self.mej_wind < mej_wind_grid_low:
             self.nearest_grid_mej_dyn = mej_dyn_grid_low 
+            self.requires_mej_dyn_extrapolation = True
 
         else: 
             self.nearest_grid_mej_dyn = self.mej_dyn
+            self.requires_mej_dyn_extrapolation = False
 
     def _getInterpolatedSed(self, phases = phases, wavelengths = lmbd, remove_negative = True):
 
