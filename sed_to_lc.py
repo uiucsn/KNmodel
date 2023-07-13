@@ -192,7 +192,7 @@ class SEDDerviedLC():
         return ax
 
     
-    def getAbsMagsInPassbands(self, passbands, apply_extinction = True):
+    def getAbsMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = True):
 
         lcs = {}
         
@@ -215,16 +215,21 @@ class SEDDerviedLC():
                 model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
                 model.set(mwebv=self.mw_ebv)
 
+            if apply_redshift:
 
-            abs_mags = model.bandmag(band=passband, time = phases, magsys="ab")
+                # Adding redshift based on distance: https://docs.astropy.org/en/stable/api/astropy.coordinates.Distance.html#astropy.coordinates.Distance.z
+                z = self.distance.z
+                model.set(z=z)
+
+            abs_mags = model.bandmag(band=passband, time = lc_phases, magsys="ab")
             lcs[passband] = abs_mags
 
         return lcs
 
-    def getAppMagsInPassbands(self, passbands, apply_extinction = True):
+    def getAppMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = True):
 
         # Get abs mags first
-        lcs = self.getAbsMagsInPassbands(passbands, apply_extinction = apply_extinction)
+        lcs = self.getAbsMagsInPassbands(passbands, lc_phases=lc_phases, apply_extinction = apply_extinction, apply_redshift= apply_redshift)
 
         # Add the distance modulus
         for passband in passbands:
@@ -243,7 +248,7 @@ if __name__ == '__main__':
 
         # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
         mej_wind = 0.05
-        mej_dyn = 0.001
+        mej_dyn = 0.005
         phi = 30
         cos_theta = 0.9
 
@@ -251,7 +256,7 @@ if __name__ == '__main__':
         c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
         d = 43*u.Mpc
 
-        av = 0.1
+        av = 0.0
 
         # LC from sed
         GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
@@ -396,7 +401,7 @@ if __name__ == '__main__':
         plt.show()
 
 
-    #plot_GW170817_lc_and_spectra()
+    plot_GW170817_lc_and_spectra()
     #plot_mag_vs_mej()
     #plot_spectra_at_mej()
     #plot_spectra_at_mej_3d(scaling='avg')

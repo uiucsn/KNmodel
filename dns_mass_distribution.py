@@ -1,6 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+# specific to EoS model
+MAX_MASS = 2.05 
+MIN_MASS = 1
+
 def extra_galactic_masses(n):
     # https://iopscience.iop.org/article/10.3847/2041-8213/abe7f6/pdf
 
@@ -35,6 +39,11 @@ def extra_galactic_masses(n):
     m_slow = np.concatenate((m_slow_1, m_slow_2))
     np.random.shuffle(m_slow)
 
+    m_recycled[m_recycled > MAX_MASS] = MAX_MASS
+    m_recycled[m_recycled < MIN_MASS] = MIN_MASS
+    m_slow[m_slow > MAX_MASS] = MAX_MASS
+    m_slow[m_slow < MIN_MASS] = MIN_MASS
+
     return m_recycled, m_slow
 
 def galactic_masses(n):
@@ -49,6 +58,11 @@ def galactic_masses(n):
     np.random.shuffle(m1)
     np.random.shuffle(m2)
 
+    m1[m1 > MAX_MASS] = MAX_MASS
+    m1[m1 < MIN_MASS] = MIN_MASS
+    m2[m2 > MAX_MASS] = MAX_MASS
+    m2[m2 < MIN_MASS] = MIN_MASS
+    
     return m1, m2
 
 

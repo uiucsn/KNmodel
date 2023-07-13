@@ -39,35 +39,25 @@ from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
 from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019, CoDi2019
 from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
+from kilopop.kilonovae import bns_kilonova as saeev
 
 np.random.RandomState(int(time.time()))
 
 EOSNAME = "APR4_EPP"
-MAX_MASS = 2.21  # specific to EoS model
+MAX_MASS = 2.05  # specific to EoS model
+MIN_MASS = 1
 
 detector_asd_links = dict(
     ligo='https://dcc.ligo.org/public/0165/T2000012/001/aligo_O4high.txt',
     virgo='https://dcc.ligo.org/public/0165/T2000012/001/avirgo_O4high_NEW.txt',
     kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
 )
-
+    
 def get_ejecta_mass(m1, m2):
-    """Calculate ejecta mass of any remnant matter based on
-    Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
-    equation of state.
-    """
-    m1, m2 = max(m1, m2), min(m1, m2)
-    c_ns_1, m_b_1, _ = computeCompactness(m1, EOSNAME)
-    c_ns_2, m_b_2, _ = computeCompactness(m2, EOSNAME)
-    if m_b_2 == 0.0 or m_b_1 == 0.0:
-        # treat as NSBH. We do not have reliable spectra so ignore
 
-        return 0, 0
-    else:
-        # treat as BNS
-        mej, mej_dyn, mej_wind = CoDi2019.calc_meje(np.array([m1]), np.array([c_ns_1]), np.array([m2]), np.array([c_ns_2]), split_mej=True)
-        return mej_dyn[0], mej_wind[0]
-        
+    merger = saeev(mass1=m1, mass2=m2)
+    merger.map_to_kilonova_ejecta()
+    return merger.param7, merger.param10
 
 def get_range(detector):
     psd_url = detector_asd_links[detector]
@@ -138,14 +128,13 @@ def get_options(argv=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', default='trial-mw-100', help='Directory to store simulation results')
-    parser.add_argument('--mass_distrib', choices=['mw','flat', 'exg'], default='mw', help='Pick BNS mass distribution')
+    parser.add_argument('--mass_distrib', choices=['mw','flat', 'exg'], default='exg', help='Pick BNS mass distribution')
+    parser.add_argument('--rate_model', choices=['Nitz23','Abbott23'], default='Abbott23', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='f200w', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
     parser.add_argument('--detection_threshold', default=23, help='Pick detection threshold in detection passband.')
     parser.add_argument('--box_size', default=400., action=MinZeroAction, type=float, help='Specify the side of the box in which to simulate events')
     parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
-    parser.add_argument('--mean_lograte', default=-6.49, help='specify the lograthim of the mean BNS rate', type=float)
-    parser.add_argument('--sig_lograte',  default=0.5, type=float, help='specify the std of the mean BNS rate')
     parser.add_argument('--hdutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
     parser.add_argument('--ldutycycle', default=0.8, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
     parser.add_argument('--vdutycycle', default=0.75, action=MinZeroAction, type=float, help='Set the Virgo duty cycle')
@@ -205,9 +194,8 @@ def main(argv=None):
     k_duty = args.kdutycycle
 
     # setup event rates
-    mean_lograte = args.mean_lograte
-    sig_lograte  = args.sig_lograte
     n_try = args.ntry
+    rate_model = args.rate_model
 
     # Create the dir
     trials_dir = args.trials_dir
@@ -232,8 +220,13 @@ def main(argv=None):
         
         trial_df = pd.DataFrame()
 
-        rate = 10.**(np.random.normal(mean_lograte, sig_lograte))
-        n_events = np.around(rate*volume*fractional_duration).astype('int')
+        if rate_model == "Nitz23":
+            rate = np.random.uniform(52, 508)
+        elif rate_model == "Abbott23":
+            rate = np.random.uniform(10, 1700)
+
+
+        n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
 
         em_bool = np.array([], dtype=bool)
         discovery_mags = np.array([])
@@ -283,7 +276,7 @@ def main(argv=None):
             mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
 
             mej_dyn_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['dynamical_ejecta_mass'] for i in range(n_events)])
-            mej_wind_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['total_ejecta_mass'] - stars.compute_lightcurve_properties_per_kilonova(i)['dynamical_ejecta_mass'] for i in range(n_events)])
+            mej_wind_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['secular_ejecta_mass'] for i in range(n_events)])
 
         bns_range_ligo = np.array(
             [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
@@ -302,13 +295,13 @@ def main(argv=None):
         tot_mass = mass1 + mass2
         tot_ejecta_masses = mej_dyn_arr + mej_wind_arr
 
-        av = np.random.exponential(1, n_events)*0.4
+        av = np.random.exponential(0.334, n_events)*0.334
 
         # simulate coordinates. Additional term ensures minimum distance of 0.05 Mpc
-        x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
-        y = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
-        z = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec + (0.05/(3**0.5)) * u.megaparsec
-        dist = (x**2. + y**2. + z**2.)**0.5
+        x = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec 
+        y = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec 
+        z = np.random.uniform(-box_size/2., box_size/2., n_events)*u.megaparsec 
+        dist = (x**2. + y**2. + z**2.)**0.5 + (0.05 * u.megaparsec)
 
 
         h_on, l_on, v_on, k_on = get_sim_dutycycles(n_events, upper_chol,
@@ -354,8 +347,11 @@ def main(argv=None):
 
             coordinates = coord.SkyCoord(ra=ra, dec=dec)
 
-            obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av = av[i])
-            lcs = obj.getAppMagsInPassbands([detection_band])
+            p = np.arange(0.3, 7.6, 0.2)
+
+            obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
+            lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
+
 
             scaling_factors = np.append(scaling_factors, [obj.scaling_factor])
 
@@ -373,7 +369,7 @@ def main(argv=None):
             else:
                 em_bool = np.append(em_bool, [False])
                 discovery_mags = np.append(discovery_mags, [np.nan])
-
+        plt.show()
         # whether this event was not affected by then sun
         detected_events = np.where(em_bool)
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
@@ -424,6 +420,8 @@ def main(argv=None):
         trial_df['two_detector_event'] = n2_bool
         trial_df['three_detector_event'] = n3_bool
         trial_df['four_detector_event'] = n4_bool
+
+        print(f"Number of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}")
 
         return dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\

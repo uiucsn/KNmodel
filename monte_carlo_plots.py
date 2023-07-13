@@ -231,5 +231,5 @@ if __name__=='__main__':
     fig.legend(patches, legend_text,
                 'upper center', frameon=False, ncol=3, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'{trials_dir}/mc_plot.pdf')
+    fig.savefig(f'{trials_dir}/{trials_dir}.pdf')
     plt.show()
