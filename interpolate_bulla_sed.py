@@ -87,8 +87,7 @@ class BullaSEDInterpolator():
     def computeFluxScalingLinearLaws(self, plot=False, show_plot=False):
                     
         if plot:
-            fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
-            fig.set_size_inches(30, 45)
+            fig, ax = plt.subplots(4, len(uniq_phi))
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
@@ -134,53 +133,56 @@ class BullaSEDInterpolator():
 
                 if plot:
                     
-                    # Plotting fits
-                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
-                    fit = self.linearFunction(fit_mej, m, c)
+                    if i == 0 or i == 1:
+                        # Plotting fits
+                        fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+                        fit = self.linearFunction(fit_mej, m, c)
 
-                    ax[2*i][j].plot(fit_mej, fit, label=fr"$y = {m:.3f} \cdot x + {c:.3f}$")
-                    ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
+                        ax[2*i][j].plot(fit_mej, fit, label=fr"$y = {m:.3f} \cdot x + {c:.3f}$")
+                        ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
 
-                    ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
-                    ax[2*i][j].set_xscale('log')
-
-
-
+                        ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
+                        ax[2*i][j].set_xscale('log')
 
 
-                    ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
-                    ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
 
-                    ax[2*i][j].legend()
 
-                    # Plotting relative errors
-                    grid_fit = self.linearFunction(total_mej, m, c)
-                    relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
 
-                    ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
+                        ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
+                        ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
 
-                    ax[2*i + 1][j].set_xscale('log')
-                    ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
-                    ax[2*i + 1][j].set_ylim(top=100, bottom=0)
+                        ax[2*i][j].legend()
 
-                    ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
-                    ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
+                        # Plotting relative errors
+                        grid_fit = self.linearFunction(total_mej, m, c)
+                        relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
+
+                        ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
+
+                        ax[2*i + 1][j].set_xscale('log')
+                        ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+                        ax[2*i + 1][j].set_ylim(top=100, bottom=0)
+
+                        ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
+                        ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
 
 
 
         print('Saving flux scaling laws for Bulla m3...')
         df.to_csv('data/m3_linear_scaling_laws.csv')
 
+        print(df.to_latex())
+
         if plot:
-            fig.savefig(f'paper_figures/all_linear_fits.pdf')
+            plt.tight_layout()
+            fig.savefig(f'paper_figures/linear_fits.pdf')
             if show_plot:        
                 plt.show()
 
     def computeFluxScalingPowerLaws(self, plot=False, show_plot=False):
                     
         if plot:
-            fig, ax = plt.subplots(2*len(uniq_cos_theta), len(uniq_phi))
-            fig.set_size_inches(30, 45)
+            fig, ax = plt.subplots(4, len(uniq_phi))
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'coefficient', 'exponent'])
@@ -225,45 +227,47 @@ class BullaSEDInterpolator():
                 df = pd.concat([df, d], ignore_index = True)
 
                 if plot:
-                    
-                    # Plotting fits
-                    fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
-                    fit = self.powerFunction(fit_mej, a, n)
+                    if i == 0 or i == 1:
+                        # Plotting fits
+                        fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
+                        fit = self.powerFunction(fit_mej, a, n)
 
-                    ax[2*i][j].plot(fit_mej, fit, label=f"$y = {a:.3f} \cdot x^{{{n:.3f}}}$")
-                    ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
+                        ax[2*i][j].plot(fit_mej, fit, label=f"$y = {a:.3f} \cdot x^{{{n:.3f}}}$")
+                        ax[2*i][j].scatter(total_mej, total_fluxes,  marker='.')
 
-                    ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
-                    ax[2*i][j].set_xscale('log')
+                        ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
+                        ax[2*i][j].set_xscale('log')
 
-                    ax[2*i][j].set_xlabel('mej', fontsize=5)
-                    ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+                        ax[2*i][j].set_xlabel('mej', fontsize=5)
+                        ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
 
-                    ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
-                    ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+                        ax[2*i][j].axvspan(xmin=np.min(total_mej), xmax=np.max(total_mej), alpha = 0.2, color='orange')
+                        ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
 
-                    ax[2*i][j].legend()
+                        ax[2*i][j].legend()
 
-                    # Plotting relative errors
-                    grid_fit = self.powerFunction(total_mej, a, n)
-                    relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
+                        # Plotting relative errors
+                        grid_fit = self.powerFunction(total_mej, a, n)
+                        relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
 
-                    ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
+                        ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.', sharex = ax[2*i][j])
 
-                    ax[2*i + 1][j].set_xscale('log')
-                    ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
-                    ax[2*i + 1][j].set_ylim(top=100, bottom=0)
+                        ax[2*i + 1][j].set_xscale('log')
+                        ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
+                        ax[2*i + 1][j].set_ylim(top=100, bottom=0)
 
-                    ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
-                    ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
+                        ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
+                        ax[2*i + 1][j].set_ylabel("Relative error %", fontsize=5)
 
 
 
         print('Saving flux scaling laws for Bulla m3...')
         df.to_csv('data/m3_power_scaling_laws.csv')
+        print(df.to_latex())
 
         if plot:
-            fig.savefig(f'paper_figures/all_power_fits.pdf')
+            plt.tight_layout()
+            fig.savefig(f'paper_figures/power_fits.pdf')
             if show_plot:        
                 plt.show()
 
