@@ -47,10 +47,11 @@ EOSNAME = "APR4_EPP"
 MAX_MASS = 2.05  # specific to EoS model
 MIN_MASS = 1
 
+# asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
 detector_asd_links = dict(
-    ligo='https://dcc.ligo.org/public/0165/T2000012/001/aligo_O4high.txt',
-    virgo='https://dcc.ligo.org/public/0165/T2000012/001/avirgo_O4high_NEW.txt',
-    kagra='https://dcc.ligo.org/public/0165/T2000012/001/kagra_80Mpc.txt'
+    ligo='https://dcc.ligo.org/public/0180/T2200043/003/aligo_O4high.txt',
+    virgo='https://dcc.ligo.org/public/0180/T2200043/003/avirgo_O4high_NEW.txt',
+    kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_10Mpc.txt'
 )
     
 def get_ejecta_mass(m1, m2):
@@ -288,9 +289,15 @@ def main(argv=None):
             [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
 
-        bns_range_ligo = args.bns_ligo_range * u.Mpc
-        bns_range_virgo = args.bns_virgo_range * u.Mpc
-        bns_range_kagra = args.bns_kagra_range * u.Mpc
+        print(mass1)
+        print(mass2)
+        print(bns_range_ligo)
+        print(bns_range_virgo)
+        print(bns_range_kagra)
+
+        # bns_range_ligo = args.bns_ligo_range * u.Mpc
+        # bns_range_virgo = args.bns_virgo_range * u.Mpc
+        # bns_range_kagra = args.bns_kagra_range * u.Mpc
 
         tot_mass = mass1 + mass2
         tot_ejecta_masses = mej_dyn_arr + mej_wind_arr
