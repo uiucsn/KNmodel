@@ -105,13 +105,13 @@ if __name__=='__main__':
     # mean_nevents = np.mean(n_detect4)
     # #vals*=nor
     # #test = dict(zip(ebins, vals))
-    # axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
-    # axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
-    # five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
-    # axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
-    #                 label=r'$\langle N \rangle = %d ;~ N_{95} = %d$' % (round(mean_nevents), ninetyfive_percent))
-    # axes[0].axvline(ninetyfive_percent, color='C2',
-    #                 linestyle='dotted', lw=1)
+    axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
+    axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
+    five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
+    axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
+                    label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+    axes[0].axvline(ninetyfive_percent, color='C2',
+                    linestyle='dotted', lw=1)
     axes[0].legend(frameon=False, fontsize='medium', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
@@ -231,5 +231,5 @@ if __name__=='__main__':
     fig.legend(patches, legend_text,
                 'upper center', frameon=False, ncol=3, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'{trials_dir}/{trials_dir}.pdf')
+    fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
