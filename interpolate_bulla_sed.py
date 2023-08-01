@@ -88,6 +88,7 @@ class BullaSEDInterpolator():
                     
         if plot:
             fig, ax = plt.subplots(4, len(uniq_phi))
+            fig.set_size_inches(20, 20)
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
@@ -183,6 +184,7 @@ class BullaSEDInterpolator():
                     
         if plot:
             fig, ax = plt.subplots(4, len(uniq_phi))
+            fig.set_size_inches(20, 20)
             plt.rcParams.update({'font.size': 5})
 
         df = pd.DataFrame(columns=['cos_theta', 'phi', 'coefficient', 'exponent'])
@@ -250,7 +252,7 @@ class BullaSEDInterpolator():
                         grid_fit = self.powerFunction(total_mej, a, n)
                         relative_error = np.absolute(grid_fit - total_fluxes) * 100 / total_fluxes 
 
-                        ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.', sharex = ax[2*i][j])
+                        ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.')
 
                         ax[2*i + 1][j].set_xscale('log')
                         ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
