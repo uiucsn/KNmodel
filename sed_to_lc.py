@@ -181,10 +181,15 @@ class SEDDerviedLC():
 
         fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
 
-        X, Y = np.meshgrid(lmbd, phases)
+        X, Y = np.meshgrid(lmbd[:200], phases[:50])
+
 
         # Plot the surface.
-        surf = ax.plot_surface(X, Y, self.sed, cmap=cm.plasma)
+        surf = ax.plot_surface(X, Y, self.sed[:50, :200], cmap=cm.plasma)
+
+        # ax.axes.set_xlim3d(left=0, right=30000) 
+        # ax.axes.set_ylim3d(bottom=0, top=10) 
+
         ax.set_xlabel('Wavelength (A)')
         ax.set_ylabel('Phase (days)')
         ax.set_zlabel('Spectral flux density (erg / s / cm^2 / A)')
