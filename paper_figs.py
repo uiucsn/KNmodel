@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import seaborn as sns
 import numpy as np
 import pandas as pd
 import re
@@ -32,22 +33,28 @@ def makeLinearScalingLawsPlot():
 
 def makeDnsMassHistograms():
 
-    n = 1000
+    n = 10000
 
-    fig, ax = plt.subplots(1, 2)
+    # fig, ax = plt.subplots(1, 2)
+    # fig.set_size_inches(10, 5)
 
     m1_exg, m2_exg = extra_galactic_masses(n)
     m1_mw, m2_mw = galactic_masses(n)
 
-    ax[0].hist(m1_exg, alpha= 0.5, histtype=u'step', label=r'$m_{recycled}$')
-    ax[0].hist(m2_exg, alpha= 0.5, histtype=u'step', label=r'$m_{slow}$')
-    ax[0].legend()
 
-    ax[1].hist(m1_mw, alpha= 0.5, histtype=u'step', label=r'$m_{1}$')
-    ax[1].hist(m2_mw, alpha= 0.5, histtype=u'step', label=r'$m_{2}$')
-    ax[1].legend()
 
-    fig.savefig(f'paper_figures/dns_mass_dist.pdf')
+    plt.hist(m1_exg, histtype=u'step', label=r'$exg m_{recycled}$', linewidth=3, linestyle='dashed', density=True)
+    plt.hist(m2_exg, histtype=u'step', label=r'$exg m_{slow}$', linewidth=3, linestyle='dashed',  density=True)
+
+
+    plt.hist(m1_mw, histtype=u'step', label=r'$mw m_{1}$', linewidth=3, linestyle='dotted',  density=True)
+    plt.hist(m2_mw, histtype=u'step', label=r'$mw m_{2}$', linewidth=3, linestyle='dotted',  density=True)
+    plt.legend()
+    plt.xlabel(r"$\mathrm{M_{sun}}$")
+    plt.ylabel("Relative count")
+
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/dns_mass_dist.pdf')
 
 def makeMejEjectaPlot():
 
@@ -106,12 +113,13 @@ def makeMejEjectaPlot():
     ax[1][1].hist(log_mej_total_mw, density=True)
     ax[1][1].set_xlabel(r'$m_{ej}$')
     ax[1][1].set_ylabel(r'$Count$')
-    
+    plt.tight_layout()
     fig.savefig(f'paper_figures/mej_dist.pdf')
 
     plt.show()
 
 def makeGW170817SedSurfacePlot():
+        
 
         # Pass band stuff
         bands = ['g','r','i']
@@ -133,6 +141,7 @@ def makeGW170817SedSurfacePlot():
         GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
         lcs = GW170817.getAppMagsInPassbands(lsst_bands)
         GW170817.makeSedPlot()
+        plt.tight_layout()
         plt.savefig(f'paper_figures/GW170817SED.pdf')
 
 
@@ -173,11 +182,17 @@ def makeGW170817PhotometryPlot():
     plt.xlabel('Phase')
     plt.ylabel('Apparent Mag')
 
+    plt.axhline(y=24, label = "LSST 10s exposure", linestyle='dotted', color='red')
+    #plt.axhline(y=24, label = "LSST 10s exposure")
+
     plt.gca().invert_yaxis()
     plt.legend()
     plt.grid(linestyle="--")
 
+
+
     plt.title(f'Interpolated Data: mej_total = {mej_dyn + mej_wind} phi = {phi} cos theta = {cos_theta}')
+    plt.tight_layout()
     plt.savefig(f'paper_figures/GW170817LC.pdf')
 
 def makeTrialsEjectaScatter():
@@ -188,11 +203,34 @@ def makeTrialsEjectaScatter():
     mej_dyn = df['mej_dyn']
 
     plt.scatter(mej_wind, mej_dyn, marker='.')
-    plt.xlabel('mej wind')
-    plt.ylabel('mej dyn')
+    plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$')
+    plt.ylabel(r'$\mathrm{m_{ej}^{dyn}}$')
     plt.axvspan(mej_wind_grid_low,  mej_wind_grid_high, alpha=0.25, color='orange')
     plt.axhspan(mej_dyn_grid_low, mej_dyn_grid_high, alpha=0.25, color='orange')
+    plt.tight_layout()
     plt.savefig('paper_figures/mej_scatter.pdf')
+
+def makeTrialsEjectaHistogram():
+     
+    df = pd.read_csv('500_exg_Abbott/trials_df.csv')
+
+    mej_wind = df['mej_wind']
+    mej_dyn = df['mej_dyn']
+
+    sns.kdeplot(x=mej_wind, y=mej_dyn, cmap="Reds", fill=True, bw_adjust=1.5)
+
+
+    plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$')
+    plt.ylabel(r'$\mathrm{m_{ej}^{dyn}}$')
+
+    plt.axvline(mej_wind_grid_low, color='black', linestyle='dotted')
+    plt.axvline(mej_wind_grid_high, color='black', linestyle='dotted')
+    plt.axhline(mej_dyn_grid_low, color='black', linestyle='dotted')
+    plt.axhline(mej_dyn_grid_high, color='black', linestyle='dotted')
+    
+    plt.savefig('paper_figures/mej_scatter_hist.pdf')
+
+    plt.show()
 
 
 def makeTrialsAvPlot():
@@ -210,10 +248,11 @@ def makeTrialsAvPlot():
 if __name__ == '__main__':
 
     #makeLinearScalingLawsPlot()
-    #makeDnsMassHistograms()
+    makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
     #makeGW170817SedSurfacePlot()
     #makeTrialsEjectaScatter()
-    makeTrialsAvPlot()
+    #makeTrialsEjectaHistogram()
+    #makeTrialsAvPlot()
 
