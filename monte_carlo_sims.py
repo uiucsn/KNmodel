@@ -289,12 +289,6 @@ def main(argv=None):
             [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
 
-        print(mass1)
-        print(mass2)
-        print(bns_range_ligo)
-        print(bns_range_virgo)
-        print(bns_range_kagra)
-
         # bns_range_ligo = args.bns_ligo_range * u.Mpc
         # bns_range_virgo = args.bns_virgo_range * u.Mpc
         # bns_range_kagra = args.bns_kagra_range * u.Mpc

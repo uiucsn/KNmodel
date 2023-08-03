@@ -25,11 +25,10 @@ from sed_to_lc import SEDDerviedLC, lsst_bands
 
 np.random.seed(seed=42)
 
-def makeLinearScalingLawsPlot():
+def makeScalingLawsPlot():
 
-    i2 = BullaSEDInterpolator(from_source=False)
-    i2.computeFluxScalingLinearLaws(plot=True)
-    i2.computeFluxScalingPowerLaws(plot=True)
+    i = BullaSEDInterpolator(from_source=False)
+    i.computeFluxScalingLaws(plot=True)
 
 def makeDnsMassHistograms():
 
@@ -175,9 +174,9 @@ def makeGW170817PhotometryPlot():
     plt.scatter(data[data['Filter'] == 'r']['MJD'], data[data['Filter'] == 'r']['mag'], label='r',c=colors[1]) 
     plt.scatter(data[data['Filter'] == 'i']['MJD'], data[data['Filter'] == 'i']['mag'] - 2, label='i - 2', c=colors[2])
 
-    plt.plot(phases, lcs[f'lsstg'] + 2, label = f'lsstg + 2', c=colors[0])
-    plt.plot(phases, lcs[f'lsstr'], label = f'lsstr', c=colors[1])
-    plt.plot(phases, lcs[f'lssti'] - 2, label = f'lssti - 2', c=colors[2])
+    plt.plot(phases[:60], lcs[f'lsstg'][:60] + 2, label = f'lsstg + 2', c=colors[0])
+    plt.plot(phases[:60], lcs[f'lsstr'][:60], label = f'lsstr', c=colors[1])
+    plt.plot(phases[:60], lcs[f'lssti'][:60] - 2, label = f'lssti - 2', c=colors[2])
 
     plt.xlabel('Phase')
     plt.ylabel('Apparent Mag')
@@ -247,8 +246,8 @@ def makeTrialsAvPlot():
 
 if __name__ == '__main__':
 
-    #makeLinearScalingLawsPlot()
-    makeDnsMassHistograms()
+    makeScalingLawsPlot()
+    #makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
     #makeGW170817SedSurfacePlot()
