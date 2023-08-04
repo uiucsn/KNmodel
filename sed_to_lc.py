@@ -108,17 +108,43 @@ class SEDDerviedLC():
 
         return interpolated_sed
 
+    def _getLinearLawParameters(self):
+
+        df_linear = pd.read_csv("data/m3_linear_scaling_laws.csv")
+
+        phi = df_linear['phi']
+        cos_theta = df_linear['cos_theta']
+        slopes = df_linear['slope']
+        intercepts = df_linear['intercept']
+
+        m_func = SmoothBivariateSpline(phi, cos_theta, slopes, s=0) 
+        c_func = SmoothBivariateSpline(phi, cos_theta, intercepts, s=0) 
+
+        m = m_func(self.phi, self.cos_theta)
+        c = c_func(self.phi, self.cos_theta)
+
+        return m, c 
+
+    def _getPowerLawParameters(self):
+
+        df_power = pd.read_csv("data/m3_power_scaling_laws.csv")
+
+        phi = df_power['phi']
+        cos_theta = df_power['cos_theta']
+        coefs = df_power['coefficient']
+        exponents = df_power['exponent']
+
+        a_func = SmoothBivariateSpline(phi, cos_theta, slopes, s=0) 
+        n_func = SmoothBivariateSpline(phi, cos_theta, intercepts, s=0) 
+
+        a = a_func(self.phi, self.cos_theta)
+        n = n_func(self.phi, self.cos_theta)
+
+        return a, n 
   
     def _setLinearScalingFactor(self):
         
-        df = pd.read_csv('data/m3_linear_scaling_laws.csv')
-
-        # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
-        closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-        # fit parameters
-        m = closest_df['slope']
-        c = closest_df['intercept']
+        m, c = self._getLinearLawParameters()
 
         # scaling values
         real_total_mej = self.mej_dyn + self.mej_wind
@@ -131,14 +157,7 @@ class SEDDerviedLC():
     
     def _setPowerScalingFactor(self):
 
-        df = pd.read_csv('data/m3_power_scaling_laws.csv')
-
-        # Find entries with the same cos theta and phi, for mej = mej_grid_high at all phase values
-        closest_df = df[(df['cos_theta'] == self.cos_theta) & (df['phi'] == self.phi)]
-
-        # fit parameters
-        a = closest_df['coefficient']
-        n = closest_df['exponent']
+        a, n = self._getPowerLawParameters()
 
         # scaling values
         real_total_mej = self.mej_dyn + self.mej_wind
