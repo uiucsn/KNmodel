@@ -253,6 +253,7 @@ def makeInterceptSurface():
     c = df_linear['intercept']
 
     fig = plt.figure()
+    fig.suptitle("Surface for intercept values")
 
     ax1 = fig.add_subplot(projection='3d')
 
@@ -285,6 +286,7 @@ def makeSlopeSurface():
     m = df_linear['slope']
 
     fig = plt.figure()
+    fig.suptitle("Surface for slope values")
     ax1 = fig.add_subplot(projection='3d')
 
     ax1.plot(phi, cos_theta, m, 'ro')
@@ -314,6 +316,7 @@ def makeExponentSurface():
     n = df_linear['exponent']
 
     fig = plt.figure()
+    fig.suptitle("Surface for exponent values")
 
     ax1 = fig.add_subplot(projection='3d')
 
