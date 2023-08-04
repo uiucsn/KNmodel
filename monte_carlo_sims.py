@@ -231,6 +231,7 @@ def main(argv=None):
 
         em_bool = np.array([], dtype=bool)
         discovery_mags = np.array([])
+        discovery_phases = np.array([])
         peak_mags = np.array([])
     
         ra_arr = np.array([])
@@ -366,11 +367,14 @@ def main(argv=None):
             if min_mag < detection_threshold:
                 em_bool = np.append(em_bool, [True])
                 discovery_mag = (lcs[detection_band][idx])[0]
+                discovery_phase = (p[idx])[0]
                 discovery_mags = np.append(discovery_mags, [discovery_mag])
+                discovery_phases = np.append(discovery_phases, [discovery_phase])
             else:
                 em_bool = np.append(em_bool, [False])
                 discovery_mags = np.append(discovery_mags, [np.nan])
-        plt.show()
+                discovery_phases = np.append(discovery_phases, [np.nan])
+
         # whether this event was not affected by then sun
         detected_events = np.where(em_bool)
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
@@ -417,6 +421,7 @@ def main(argv=None):
         trial_df['em_bool'] = em_bool
         trial_df['peak_mag'] = peak_mags
         trial_df['discovery_mag'] = discovery_mags
+        trial_df['discovery_phase'] = discovery_phases
         trial_df['scaling_factor'] = scaling_factors
         trial_df['two_detector_event'] = n2_bool
         trial_df['three_detector_event'] = n3_bool
@@ -431,6 +436,8 @@ def main(argv=None):
             discovery_mags[n4_good].tolist(),\
             peak_mags[n2_good].tolist(), peak_mags[n3_good].tolist(),\
             peak_mags[n4_good].tolist(),\
+            discovery_phases[n2_good].tolist(), discovery_phases[n3_good].tolist(),\
+            discovery_phases[n4_good].tolist(),\
             n2, n3, n4, trial_df
 
     with schwimmbad.SerialPool() as pool:
@@ -455,9 +462,12 @@ def main(argv=None):
     mag_peak2 = []
     mag_peak3 = []
     mag_peak4 = []
+    discovery_phase2 = []
+    discovery_phase3 = []
+    discovery_phase4 = []
     df_list = []
 
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, n2, n3, n4, df) in enumerate(values):
+    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4, n2, n3, n4, df) in enumerate(values):
 
         df_list.append(df)
         if n2 >= 0:
@@ -467,6 +477,7 @@ def main(argv=None):
                 mass_detect2 += m2
                 mag_detect2  += h2
                 mag_peak2 += p2
+                discovery_phase2 += phase2
         if n3>=0:
             n_detect3.append(n3)
             if n3 > 0:
@@ -474,6 +485,7 @@ def main(argv=None):
                 mass_detect3 += m3
                 mag_detect3  += h3
                 mag_peak3 += p3
+                discovery_phase3 += phase3
         if n4>=0:
             n_detect4.append(n4)
             if n4 > 0:
@@ -481,11 +493,13 @@ def main(argv=None):
                 mass_detect4 += m4
                 mag_detect4  += h4
                 mag_peak4 += p4
+                discovery_phase4 += phase4
         data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
                                "n2": n2, "n3": n3, "n4": n4,
-                               "p2": p2, "p3": p3, "p4": p4,}
+                               "p2": p2, "p3": p3, "p4": p4,
+                               "phase2": phase2, "phase3": phase3, "phase4": phase4}
         
     with open(f"{trials_dir}/data_dump.pickle", "wb") as f:
         pickle.dump(data_dump, f)
