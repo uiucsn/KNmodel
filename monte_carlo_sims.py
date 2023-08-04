@@ -333,8 +333,8 @@ def main(argv=None):
         # decide whether there is a kilonova based on remnant matter
         has_ejecta_bool = tot_ejecta_masses > 0
 
-        cos_thetas = np.random.choice(uniq_cos_theta, size=n_events)
-        phis = np.random.choice(uniq_phi, size=n_events)
+        cos_thetas = np.random.uniform(0, 1, size=n_events)
+        phis = np.random.uniform(15, 75, size=n_events)
 
         for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events):
 

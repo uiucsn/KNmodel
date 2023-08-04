@@ -5,7 +5,7 @@ import re
 import pandas as pd
 import sfdmap
 
-from scipy.integrate import simps, simpson
+from scipy.interpolate import SmoothBivariateSpline
 from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import Distance, SkyCoord
@@ -117,11 +117,11 @@ class SEDDerviedLC():
         slopes = df_linear['slope']
         intercepts = df_linear['intercept']
 
-        m_func = SmoothBivariateSpline(phi, cos_theta, slopes, s=0) 
-        c_func = SmoothBivariateSpline(phi, cos_theta, intercepts, s=0) 
+        m_func = SmoothBivariateSpline(phi, cos_theta, slopes) 
+        c_func = SmoothBivariateSpline(phi, cos_theta, intercepts) 
 
-        m = m_func(self.phi, self.cos_theta)
-        c = c_func(self.phi, self.cos_theta)
+        m = m_func.ev(self.phi, self.cos_theta)
+        c = c_func.ev(self.phi, self.cos_theta)
 
         return m, c 
 
@@ -134,11 +134,11 @@ class SEDDerviedLC():
         coefs = df_power['coefficient']
         exponents = df_power['exponent']
 
-        a_func = SmoothBivariateSpline(phi, cos_theta, slopes, s=0) 
-        n_func = SmoothBivariateSpline(phi, cos_theta, intercepts, s=0) 
+        a_func = SmoothBivariateSpline(phi, cos_theta, coefs) 
+        n_func = SmoothBivariateSpline(phi, cos_theta, exponents) 
 
-        a = a_func(self.phi, self.cos_theta)
-        n = n_func(self.phi, self.cos_theta)
+        a = a_func.ev(self.phi, self.cos_theta)
+        n = n_func.ev(self.phi, self.cos_theta)
 
         return a, n 
   
@@ -153,7 +153,7 @@ class SEDDerviedLC():
         # Find the scaling constant using law based on total bolometric flux across all phases
         scaling_factor = (m * real_total_mej + c) / (m * closest_total_mej + c)
 
-        self.linear_scaling_factor = scaling_factor.to_numpy()[0]
+        self.linear_scaling_factor = scaling_factor
     
     def _setPowerScalingFactor(self):
 
@@ -166,7 +166,7 @@ class SEDDerviedLC():
         # Find the scaling constant using law based on total bolometric flux across all phases
         scaling_factor = (real_total_mej ** n) / (closest_total_mej ** n)
 
-        self.power_scaling_factor = scaling_factor.to_numpy()[0]
+        self.power_scaling_factor = scaling_factor
     
     def getSed(self, phases=phases, wavelengths = lmbd, scaling='piecewise'):
 
