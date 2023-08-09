@@ -290,9 +290,9 @@ def main(argv=None):
             [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
 
-        bns_range_ligo = args.bns_ligo_range * u.Mpc
-        bns_range_virgo = args.bns_virgo_range * u.Mpc
-        bns_range_kagra = args.bns_kagra_range * u.Mpc
+        # bns_range_ligo = args.bns_ligo_range * u.Mpc
+        # bns_range_virgo = args.bns_virgo_range * u.Mpc
+        # bns_range_kagra = args.bns_kagra_range * u.Mpc
 
         tot_mass = mass1 + mass2
         tot_ejecta_masses = mej_dyn_arr + mej_wind_arr
@@ -404,6 +404,14 @@ def main(argv=None):
         # sanity check
         assert n4_gw >= n4, "GW events ({}) less than EM follow events ({})".format(n4_gw, n4)
 
+        n_em = len(np.where(em_bool & has_ejecta_bool)[0])
+
+        print("Number of events at each step")
+        print(f"gw_recovered: {(n2_gw + n3_gw + n4_gw) / n_events} em_recovered: {n_em/n_events}")
+
+        gw_recovered = (n2_gw + n3_gw + n4_gw) / n_events
+        em_recovered = n_em/n_events
+
         # Create a data frame with all the information
         trial_df['trial_number'] = trial_number
         trial_df['m1'] = mass1
@@ -438,7 +446,9 @@ def main(argv=None):
             peak_mags[n4_good].tolist(),\
             discovery_phases[n2_good].tolist(), discovery_phases[n3_good].tolist(),\
             discovery_phases[n4_good].tolist(),\
-            n2, n3, n4, trial_df
+            n2, n3, n4, \
+            gw_recovered, em_recovered, \
+            trial_df
 
     with schwimmbad.SerialPool() as pool:
         values = list(pool.map(dotry, range(n_try)))
@@ -465,11 +475,15 @@ def main(argv=None):
     discovery_phase2 = []
     discovery_phase3 = []
     discovery_phase4 = []
+    gw_recovered_arr = []
+    em_recovered_arr = []
     df_list = []
 
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4, n2, n3, n4, df) in enumerate(values):
+    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4, n2, n3, n4, gw_recovered, em_recovered, df) in enumerate(values):
 
         df_list.append(df)
+        gw_recovered_arr.append(gw_recovered)
+        em_recovered_arr.append(em_recovered)
         if n2 >= 0:
             n_detect2.append(n2)
             if n3>0:
@@ -510,7 +524,8 @@ def main(argv=None):
                     mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
                     mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
                     mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4,
-                    discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4)
+                    discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4, 
+                    gw_recovered=gw_recovered_arr, em_recovered=em_recovered_arr)
         pickle.dump(res, f)
 
     df_master = pd.concat(df_list, ignore_index=True)

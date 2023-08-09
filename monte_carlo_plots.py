@@ -233,3 +233,13 @@ if __name__=='__main__':
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
     fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
+
+    plt.hist(gw_recovered, density=True, label='GW detected', histtype=u'step', linewidth=3)
+    plt.hist(em_recovered, density=True, label='EM detected', histtype=u'step', linewidth=3)
+    plt.xlabel('Fraction of events detected')
+    plt.ylabel('Number of trials')
+    plt.legend()
+
+
+    plt.savefig(f'{trials_dir}/loss_fractions.pdf')
+    plt.show()
