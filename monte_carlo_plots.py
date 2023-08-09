@@ -145,7 +145,7 @@ if __name__=='__main__':
         p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
         print(p0_40*5, p40_80*5, p80_160*5)
     except ValueError:
-        print("Could not create KDE since no 2-det detection")
+        print("Could not create distance KDE since no 2-det detection")
 
     try:
         kde = spstat.gaussian_kde(dist_detect3, bw_method='scott')
@@ -158,7 +158,7 @@ if __name__=='__main__':
         axes[0][1].axvline(mean_dist, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle D \rangle = {:.0f}$ Mpc'.format(mean_dist))
         axes[0][1].legend(frameon=False, fontsize='medium')
     except ValueError:
-        print("Could not create KDE since no 3-det detection")
+        print("Could not create distance KDE since no 3-det detection")
 
     try:
         kde = spstat.gaussian_kde(dist_detect4, bw_method='scott')
@@ -171,7 +171,7 @@ if __name__=='__main__':
         legend_text.append('4 Detector Events')
         axes[0][1].legend(frameon=False, fontsize='medium')
     except ValueError:
-        print("Could not create KDE since no 4-det detection")
+        print("Could not create distance KDE since no 4-det detection")
 
     h_range = np.arange(15, 23, 0.1)
     kde = spstat.gaussian_kde(mag_detect2, bw_method='scott')
@@ -206,9 +206,52 @@ if __name__=='__main__':
         axes[1][0].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
         axes[1][0].legend(frameon=False, fontsize='medium')
     except ValueError:
-        print("Could not create KDE for h-mag since no 4 detector events found")
+        print("Could not create detection mag KDE for h-mag since no 4 detector events found")
 
+    phase_range = np.arange(0, 5, 0.1)
+    patches = list()
+    legend_text = list()
+    try:
+        #kde = spstat.gaussian_kde(discovery_phase2, bw_method='scott')
+        #pphase = kde(phase_range)
+        # axes[1][1].plot(phase_range, pphase, color='C0', linestyle='-', lw=3, zorder=4)
+        # patch1 = axes[1][1].fill_between(phase_range, np.zeros(len(phase_range)), pphase, color='C0', alpha=0.3, zorder=0)
+        # patches.append(patch1)
+        legend_text.append('2 Detector Events')
+        axes[1][1].hist(discovery_phase2, color='C0', alpha=0.3)
+        mean_phase = np.mean(discovery_phase2)
+        axes[1][1].axvline(mean_dist, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle Discovery phase \rangle = {:.0f}$ days'.format(mean_phase))
+    except ValueError:
+        print("Could not create phase KDE since no 2-det detection")
 
+    print(len(discovery_phase3), len(mag_detect3))
+    try:
+        #kde = spstat.gaussian_kde(discovery_phase3, bw_method='scott')
+        #pphase = kde(phase_range)
+        # axes[1][1].plot(phase_range, pphase, color='C1', linestyle='-', lw=3, zorder=2)
+        # patch2 = axes[1][1].fill_between(phase_range, np.zeros(len(phase_range)), pphase, color='C1', alpha=0.5, zorder=1)
+        # patches.append(patch2)
+        legend_text.append('3 Detector Events')
+        axes[1][1].hist(discovery_phase3, color='C1', alpha=0.3)
+        mean_phase = np.mean(discovery_phase3)
+        axes[1][1].axvline(mean_phase, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle Discovery phase \rangle = {:.0f}$ days'.format(mean_phase))
+        axes[1][1].legend(frameon=False, fontsize='medium')
+    except ValueError:
+        print("Could not create phase KDE since no 3-det detection")
+
+    try:
+        #kde = spstat.gaussian_kde(discovery_phase4, bw_method='scott')
+        #pphase = kde(discovery_phase4)
+        mean_phase = np.mean(discovery_phase4)
+        # axes[1][1].plot(phase_range, pphase, color='C2', linestyle='-', lw=3, zorder=2)
+        axes[1][1].hist(discovery_phase4, color='C2', alpha=0.3)
+        axes[1][1].axvline(mean_phase, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle Discovery phase \rangle = {:.0f}$ days'.format(mean_dist))
+        #patch3 = axes[1][1].fill_between(phase_range, np.zeros(len(phase_range)), pphase, color='C2', alpha=0.5, zorder=1)
+        #patches.append(patch3)
+        legend_text.append('4 Detector Events')
+        axes[1][1].legend(frameon=False, fontsize='medium')
+    except ValueError:
+        print("Could not create phase KDE since no 4-det detection")
     
 
     axes[0][1].set_xlabel('Distance ($D$, Mpc)', fontsize='x-large')
@@ -224,12 +267,16 @@ if __name__=='__main__':
     axes[1][0].set_ylabel('$P(r)$', fontsize='x-large')
     axes[0][0].set_xlim(0, ebins.max())
 
+    axes[1][1].set_xlabel('Discovery phase (DP, days)', fontsize='x-large')
+    axes[1][1].set_ylabel('$P(DP)$', fontsize='x-large')
+
     ymin, ymax = axes[0][1].get_ylim()
     axes[0][1].set_ylim(0, ymax)
     axes[0][1].set_xlim(0, 200)
     ymin, ymax = axes[1][0].get_ylim()
     axes[1][0].set_ylim(0, ymax)
     axes[1][0].set_xlim(16.5, 22.8)
+    axes[1][1].set_xlim(0, 2)
 
     fig.legend(patches, legend_text,
                 'upper center', frameon=False, ncol=3, fontsize='medium')

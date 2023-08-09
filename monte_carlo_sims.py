@@ -290,9 +290,9 @@ def main(argv=None):
             [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
         ) * u.Mpc
 
-        # bns_range_ligo = args.bns_ligo_range * u.Mpc
-        # bns_range_virgo = args.bns_virgo_range * u.Mpc
-        # bns_range_kagra = args.bns_kagra_range * u.Mpc
+        bns_range_ligo = args.bns_ligo_range * u.Mpc
+        bns_range_virgo = args.bns_virgo_range * u.Mpc
+        bns_range_kagra = args.bns_kagra_range * u.Mpc
 
         tot_mass = mass1 + mass2
         tot_ejecta_masses = mej_dyn_arr + mej_wind_arr
@@ -509,7 +509,8 @@ def main(argv=None):
                     dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
                     mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
                     mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
-                    mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4)
+                    mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4,
+                    discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4)
         pickle.dump(res, f)
 
     df_master = pd.concat(df_list, ignore_index=True)
