@@ -234,10 +234,20 @@ if __name__=='__main__':
     fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
 
-    plt.hist(gw_recovered, density=True, label='GW detected', histtype=u'step', linewidth=3)
-    plt.hist(em_recovered, density=True, label='EM detected', histtype=u'step', linewidth=3)
-    plt.xlabel('Fraction of events detected')
-    plt.ylabel('Number of trials')
+    gw_lost = 1 - np.array(gw_recovered)
+    em_lost = 1 - np.array(em_recovered)
+
+    gw_lost_mean = np.mean(gw_lost)
+    em_lost_mean = np.mean(em_lost)
+
+    plt.hist(gw_lost, density=True, label=r"$LF_{GW}$", histtype=u'step', linewidth=3, color='C0')
+    plt.hist(em_lost, density=True, label=r"$LF_{EM}$", histtype=u'step', linewidth=3, color='C1')
+
+    plt.axvline(gw_lost_mean, linestyle='dotted', label=r"$\langle LF_{GW} \rangle$", color='C0')
+    plt.axvline(em_lost_mean, linestyle='dotted', label=r"$\langle LF_{EM} \rangle$", color='C1')
+
+    plt.xlabel('Fraction of events lost')
+    plt.ylabel('Relative Number of trials')
     plt.legend()
 
 

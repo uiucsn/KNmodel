@@ -121,28 +121,28 @@ def makeMejEjectaPlot():
 def makeGW170817SedSurfacePlot():
         
 
-        # Pass band stuff
-        bands = ['g','r','i']
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    # Pass band stuff
+    bands = ['g','r','i']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
-        # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
-        mej_wind = 0.05
-        mej_dyn = 0.005
-        phi = 30
-        cos_theta = 0.9
+    # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
+    mej_wind = 0.05
+    mej_dyn = 0.005
+    phi = 30
+    cos_theta = 0.9
 
-        # coordinates for GW170817
-        c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
-        d = 43*u.Mpc
+    # coordinates for GW170817
+    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    d = 43*u.Mpc
 
-        av = 0.0
+    av = 0.0
 
-        # LC from sed
-        GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
-        lcs = GW170817.getAppMagsInPassbands(lsst_bands)
-        GW170817.makeSedPlot()
-        plt.tight_layout()
-        plt.savefig(f'paper_figures/GW170817SED.pdf')
+    # LC from sed
+    GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
+    lcs = GW170817.getAppMagsInPassbands(lsst_bands)
+    GW170817.makeSedPlot()
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/GW170817SED.pdf')
 
 
 def makeGW170817PhotometryPlot():
@@ -259,7 +259,7 @@ def makeInterceptSurface():
 
     ax1.plot(phi, cos_theta, c, 'ro')
 
-    func = SmoothBivariateSpline(phi, cos_theta, c, s=0)
+    func = SmoothBivariateSpline(phi, cos_theta, c)
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -291,7 +291,7 @@ def makeSlopeSurface():
 
     ax1.plot(phi, cos_theta, m, 'ro')
 
-    func = SmoothBivariateSpline(phi, cos_theta, m, s=0)
+    func = SmoothBivariateSpline(phi, cos_theta, m)
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -322,7 +322,7 @@ def makeExponentSurface():
 
     ax1.plot(phi, cos_theta, n, 'ro')
 
-    func = SmoothBivariateSpline(phi, cos_theta, n, s=0)
+    func = SmoothBivariateSpline(phi, cos_theta, n)
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -338,18 +338,111 @@ def makeExponentSurface():
     plt.tight_layout()
     fig.savefig('paper_figures/n_surface.pdf')
 
+def makeBlueKnLc():
+    # lanthanide free component - more wind ejecta. Bright and Blue due to the low opacity.
+    # Pass band stuff
+    bands = ['g','r','i']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
+    mej_wind = 2 * mej_wind_grid_low
+    mej_dyn = mej_dyn_grid_high
+    phi = 30
+    cos_theta = 0.9
+
+    # coordinates for GW170817
+    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    d = 43*u.Mpc
+
+    av = 0.0
+
+    # LC from sed
+    GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
+    lcs = GW170817.getAppMagsInPassbands(lsst_bands)
+    
+    # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
+    data = pd.read_csv('data/gw170817photometry.csv', delimiter='\t' )  
+    data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
+
+
+    plt.plot(phases[:60], lcs[f'lsstg'][:60] + 2, label = f'lsstg + 2', c=colors[0])
+    plt.plot(phases[:60], lcs[f'lsstr'][:60], label = f'lsstr', c=colors[1])
+    plt.plot(phases[:60], lcs[f'lssti'][:60] - 2, label = f'lssti - 2', c=colors[2])
+
+    plt.xlabel('Phase')
+    plt.ylabel('Apparent Mag')
+
+    plt.axhline(y=24, label = "LSST 10s exposure", linestyle='dotted', color='red')
+    #plt.axhline(y=24, label = "LSST 10s exposure")
+
+    plt.gca().invert_yaxis()
+    plt.legend()
+    plt.grid(linestyle="--")
+
+
+
+    plt.title(f'Interpolated Data: mej_total = {mej_dyn + mej_wind} phi = {phi} cos theta = {cos_theta}')
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/BlueKN.pdf')
+
+def makeRedKnLc():
+    # lanthanide rich component - more dynamical ejecta. Faint and red due to the high opacity of the the lanthanides
+    # Pass band stuff
+    bands = ['g','r','i']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
+    mej_wind = mej_wind_grid_high
+    mej_dyn = 2 * mej_dyn_grid_low
+    phi = 30
+    cos_theta = 0.9
+
+    # coordinates for GW170817
+    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    d = 43*u.Mpc
+
+    av = 0.0
+
+    # LC from sed
+    GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
+    lcs = GW170817.getAppMagsInPassbands(lsst_bands)
+
+    plt.plot(phases[:60], lcs[f'lsstg'][:60] + 2, label = f'lsstg + 2', c=colors[0])
+    plt.plot(phases[:60], lcs[f'lsstr'][:60], label = f'lsstr', c=colors[1])
+    plt.plot(phases[:60], lcs[f'lssti'][:60] - 2, label = f'lssti - 2', c=colors[2])
+
+    plt.xlabel('Phase')
+    plt.ylabel('Apparent Mag')
+
+    plt.axhline(y=24, label = "LSST 10s exposure", linestyle='dotted', color='red')
+    #plt.axhline(y=24, label = "LSST 10s exposure")
+
+    plt.gca().invert_yaxis()
+    plt.legend()
+    plt.grid(linestyle="--")
+
+
+
+    plt.title(f'Interpolated Data: mej_total = {mej_dyn + mej_wind} phi = {phi} cos theta = {cos_theta}')
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/RedKN.pdf')
+
+
 if __name__ == '__main__':
 
     #makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
-    #makeGW170817SedSurfacePlot()
+    makeGW170817SedSurfacePlot()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
-    makeInterceptSurface()
-    makeSlopeSurface()
-    makeExponentSurface()
+    # makeInterceptSurface()
+    # makeSlopeSurface()
+    # makeExponentSurface()
+    #makeRedKnLc()
+    #makeBlueKnLc()
     plt.show()
+
 
