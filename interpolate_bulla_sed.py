@@ -89,7 +89,10 @@ class BullaSEDInterpolator():
         if plot:
             fig, ax = plt.subplots(4, len(uniq_phi))
             fig.set_size_inches(20, 20)
-            plt.rcParams.update({'font.size': 5})
+            font = {
+                'size'   : 10}
+
+            plt.rc('font', **font)
 
         df_linear = pd.DataFrame(columns=['cos_theta', 'phi', 'slope', 'intercept'])
         df_power = pd.DataFrame(columns=['cos_theta', 'phi', 'coefficient', 'exponent'])
@@ -164,17 +167,18 @@ class BullaSEDInterpolator():
                         ax[2*i + 1][j].scatter(total_mej, relative_error, marker='.', color='green', label='Linear fit')
 
 
+
                         # Plotting fits for power scaling
                         fit_mej = np.arange(start=0.001, stop=0.9, step=0.001)
                         fit = self.powerFunction(fit_mej, a, n)
 
                         ax[2*i][j].plot(fit_mej, fit, label=f"$y = {a:.3f} \cdot x^{{{n:.3f}}}$", color='red')
 
-                        ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=8)
+                        ax[2*i][j].set_title(f'cos theta: {cos_theta}, phi: {phi}', fontsize=15, fontweight="bold")
                         ax[2*i][j].set_xscale('log')
 
-                        ax[2*i][j].set_xlabel('mej', fontsize=5)
-                        ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=5)
+                        ax[2*i][j].set_xlabel('mej', fontsize=0)
+                        ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=12)
 
 
                         ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
@@ -189,8 +193,8 @@ class BullaSEDInterpolator():
                         ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
 
 
-                        ax[2*i + 1][j].set_xlabel('mej', fontsize=5)
-                        ax[2*i + 1][j].set_ylabel(r"$\Delta F/F$", fontsize=5)
+                        ax[2*i + 1][j].set_xlabel('mej', fontsize=12)
+                        ax[2*i + 1][j].set_ylabel(r"$\Delta F/F$", fontsize=12)
 
                         ax[2*i + 1][j].legend()
                         ax[2*i][j].legend()

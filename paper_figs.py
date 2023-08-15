@@ -26,12 +26,18 @@ from sed_to_lc import SEDDerviedLC, lsst_bands
 
 np.random.seed(seed=42)
 
+
 def makeScalingLawsPlot():
 
     i = BullaSEDInterpolator(from_source=False)
     i.computeFluxScalingLaws(plot=True)
 
 def makeDnsMassHistograms():
+    font = {
+        'weight' : 'bold',
+        'size'   : 18}
+
+    plt.rc('font', **font)
 
     n = 10000
 
@@ -43,12 +49,13 @@ def makeDnsMassHistograms():
 
 
 
-    plt.hist(m1_exg, histtype=u'step', label=r'$exg m_{recycled}$', linewidth=3, linestyle='dashed', density=True)
-    plt.hist(m2_exg, histtype=u'step', label=r'$exg m_{slow}$', linewidth=3, linestyle='dashed',  density=True)
+    plt.hist(m1_exg, histtype=u'step', label=r'$exg m_{recycled}$', linewidth=3, density=True)
+    plt.hist(m2_exg, histtype=u'step', label=r'$exg m_{slow}$', linewidth=3,  density=True)
 
 
-    plt.hist(m1_mw, histtype=u'step', label=r'$mw m_{1}$', linewidth=3, linestyle='dotted',  density=True)
-    plt.hist(m2_mw, histtype=u'step', label=r'$mw m_{2}$', linewidth=3, linestyle='dotted',  density=True)
+    plt.hist(m1_mw, histtype=u'step', label=r'$mw m_{1}$', linewidth=3, linestyle='dashed',  density=True)
+    plt.hist(m2_mw, histtype=u'step', label=r'$mw m_{2}$', linewidth=3, linestyle='dashed',  density=True)
+    
     plt.legend()
     plt.xlabel(r"$\mathrm{M_{sun}}$")
     plt.ylabel("Relative count")
@@ -119,7 +126,7 @@ def makeMejEjectaPlot():
     plt.show()
 
 def makeGW170817SedSurfacePlot():
-        
+
 
     # Pass band stuff
     bands = ['g','r','i']
@@ -439,7 +446,7 @@ def makeRedKnLc():
 
 if __name__ == '__main__':
 
-    #makeScalingLawsPlot()
+    makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
@@ -447,11 +454,11 @@ if __name__ == '__main__':
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
-    makeInterceptSurface()
-    makeSlopeSurface()
-    makeExponentSurface()
+    #makeInterceptSurface()
+    #makeSlopeSurface()
+    #makeExponentSurface()
     #makeRedKnLc()
     #makeBlueKnLc()
-    plt.show()
+    #plt.show()
 
 
