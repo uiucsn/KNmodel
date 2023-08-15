@@ -134,7 +134,7 @@ def get_options(argv=None):
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='f200w', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
     parser.add_argument('--detection_threshold', default=23, help='Pick detection threshold in detection passband.')
-    parser.add_argument('--box_size', default=800., action=MinZeroAction, type=float, help='Specify the side of the box in which to simulate events')
+    parser.add_argument('--box_size', default=600., action=MinZeroAction, type=float, help='Specify the side of the box in which to simulate events')
     parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
     parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
     parser.add_argument('--ldutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')

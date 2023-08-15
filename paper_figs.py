@@ -169,6 +169,9 @@ def makeGW170817PhotometryPlot():
     
     # table from https://iopscience.iop.org/article/10.3847/2041-8213/aa8fc7#apjlaa8fc7t2
     data = pd.read_csv('data/gw170817photometry.csv', delimiter='\t' )  
+
+    data = data[data['Instrument'] == 'DECam']
+
     data['mag'] = [float(re.findall("\d+\.\d+", i)[0]) for i in data['Mag [AB]']]
 
     plt.scatter(data[data['Filter'] == 'g']['MJD'], data[data['Filter'] == 'g']['mag'] + 2, label='g + 2',c=colors[0])
@@ -260,6 +263,8 @@ def makeInterceptSurface():
     ax1.plot(phi, cos_theta, c, 'ro')
 
     func = SmoothBivariateSpline(phi, cos_theta, c)
+    print('c', func.get_residual())
+
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -292,6 +297,8 @@ def makeSlopeSurface():
     ax1.plot(phi, cos_theta, m, 'ro')
 
     func = SmoothBivariateSpline(phi, cos_theta, m)
+    print('m', func.get_residual())
+
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -323,6 +330,8 @@ def makeExponentSurface():
     ax1.plot(phi, cos_theta, n, 'ro')
 
     func = SmoothBivariateSpline(phi, cos_theta, n)
+    print('n', func.get_residual())
+
     x_grid = np.arange(start=14.5, stop=76, step=0.1)
     y_grid = np.arange(start=-0.05, stop=1.1, step=0.01)
     z_grid = func(x_grid, y_grid).T
@@ -434,13 +443,13 @@ if __name__ == '__main__':
     #makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
-    makeGW170817SedSurfacePlot()
+    #makeGW170817SedSurfacePlot()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
-    # makeInterceptSurface()
-    # makeSlopeSurface()
-    # makeExponentSurface()
+    makeInterceptSurface()
+    makeSlopeSurface()
+    makeExponentSurface()
     #makeRedKnLc()
     #makeBlueKnLc()
     plt.show()
