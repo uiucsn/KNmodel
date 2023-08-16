@@ -33,11 +33,6 @@ def makeScalingLawsPlot():
     i.computeFluxScalingLaws(plot=True)
 
 def makeDnsMassHistograms():
-    font = {
-        'weight' : 'bold',
-        'size'   : 18}
-
-    plt.rc('font', **font)
 
     n = 10000
 
@@ -57,8 +52,8 @@ def makeDnsMassHistograms():
     plt.hist(m2_mw, histtype=u'step', label=r'$mw m_{2}$', linewidth=3, linestyle='dashed',  density=True)
     
     plt.legend()
-    plt.xlabel(r"$\mathrm{M_{sun}}$")
-    plt.ylabel("Relative count")
+    plt.xlabel(r"$\mathrm{M_{sun}}$", fontsize=12)
+    plt.ylabel("Relative count", fontsize=12)
 
     plt.tight_layout()
     plt.savefig(f'paper_figures/dns_mass_dist.pdf')
@@ -249,7 +244,7 @@ def makeTrialsAvPlot():
 
     av = df['a_v']
 
-    plt.hist(av, density=True, bins=50)
+    plt.hist(av, density=True, bins=50,  histtype=u'step')
     plt.xlabel(r'$A_V$')
     plt.ylabel('Density')
     plt.savefig('paper_figures/av_hist.pdf')
@@ -285,7 +280,7 @@ def makeInterceptSurface():
     ax1.set_zlabel('c')
 
     plt.tight_layout()
-    fig.savefig('paper_figures/c_surface.pdf')
+    fig.savefig('paper_figures/c_surface.pdf', bbox_inches='tight')
 
 
 
@@ -319,7 +314,7 @@ def makeSlopeSurface():
     ax1.set_zlabel('m')
 
     plt.tight_layout()
-    fig.savefig('paper_figures/m_surface.pdf')
+    fig.savefig('paper_figures/m_surface.pdf', bbox_inches='tight')
 
 def makeExponentSurface():
 
@@ -352,7 +347,7 @@ def makeExponentSurface():
     ax1.set_zlabel('n')
 
     plt.tight_layout()
-    fig.savefig('paper_figures/n_surface.pdf')
+    fig.savefig('paper_figures/n_surface.pdf', bbox_inches='tight')
 
 def makeBlueKnLc():
     # lanthanide free component - more wind ejecta. Bright and Blue due to the low opacity.
@@ -446,14 +441,14 @@ def makeRedKnLc():
 
 if __name__ == '__main__':
 
-    makeScalingLawsPlot()
+    #makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeMejEjectaPlot()
     #makeGW170817PhotometryPlot()
     #makeGW170817SedSurfacePlot()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
-    #makeTrialsAvPlot()
+    makeTrialsAvPlot()
     #makeInterceptSurface()
     #makeSlopeSurface()
     #makeExponentSurface()
