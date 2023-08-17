@@ -102,7 +102,7 @@ if __name__=='__main__':
     axes[0].axvline(ninetyfive_percent, color='C1',
                 linestyle='dotted', lw=1)
     #vals, bins = np.histogram(n_detect4, bins=ebins, density=True)
-    # mean_nevents = np.mean(n_detect4)
+    mean_nevents = np.mean(n_detect4)
     # #vals*=nor
     # #test = dict(zip(ebins, vals))
     axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
@@ -234,22 +234,50 @@ if __name__=='__main__':
     fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
 
-    gw_lost = 1 - np.array(gw_recovered)
-    em_lost = 1 - np.array(em_recovered)
+    # Figure for losses
 
-    gw_lost_mean = np.mean(gw_lost)
-    em_lost_mean = np.mean(em_lost)
+    gw_mean = np.mean(gw_recovered) * 100
+    em_mean = np.mean(em_recovered) * 100
+    single_gw_detection_mean = np.mean(single_gw_detection) * 100
 
-    plt.hist(gw_lost, density=True, label=r"$LF_{GW}$", histtype=u'step', linewidth=3, color='C0')
-    plt.hist(em_lost, density=True, label=r"$LF_{EM}$", histtype=u'step', linewidth=3, color='C1')
+    plt.hist(np.array(gw_recovered) * 100, density=True, label=r"$F_{GW}$", histtype=u'step', linewidth=3, color='C0')
+    plt.hist(np.array(em_recovered) * 100, density=True, label=r"$F_{EM}$", histtype=u'step', linewidth=3, color='C1')
+    plt.hist(np.array(single_gw_detection) * 100, density=True, label=r"$F_{1GW+EM}$", histtype=u'step', linewidth=3, color='C2')
 
-    plt.axvline(gw_lost_mean, linestyle='dotted', label=r"$\langle LF_{GW} \rangle$", color='C0')
-    plt.axvline(em_lost_mean, linestyle='dotted', label=r"$\langle LF_{EM} \rangle$", color='C1')
+    plt.axvline(gw_mean, linestyle='dotted', label=r"$\langle F_{{GW}} \rangle = {:.1f}$".format(gw_mean), color='C0')
+    plt.axvline(em_mean, linestyle='dotted', label=r"$\langle F_{{EM}} \rangle = {:.1f}$".format(em_mean), color='C1')
+    plt.axvline(single_gw_detection_mean, linestyle='dotted', label=r"$\langle F_{{1GW+EM}} \rangle = {:.1f}$".format(single_gw_detection_mean), color='C2')
 
-    plt.xlabel('Fraction of events lost')
+    plt.xlabel('Percent of events')
     plt.ylabel('Relative Number of trials')
     plt.legend()
 
 
     plt.savefig(f'{trials_dir}/loss_fractions.pdf')
     plt.show()
+
+    # Figure for discovery window 
+
+    discovery_window2_mean = np.mean(discovery_window2)
+    discovery_window3_mean = np.mean(discovery_window3)
+    discovery_window4_mean = np.mean(discovery_window4)
+
+    discovery_window2_std = np.std(discovery_window2)
+    discovery_window3_std = np.std(discovery_window3)
+    discovery_window4_std = np.std(discovery_window4)
+
+    plt.hist(discovery_window2, density=True, histtype=u'step', linewidth=3, color='C0', label='2 detector')
+    plt.hist(discovery_window3, density=True, histtype=u'step', linewidth=3, color='C1', label='3 detector')
+    plt.hist(discovery_window4, density=True, histtype=u'step', linewidth=3, color='C2', label='4 detector')
+
+    plt.axvline(discovery_window2_mean, linestyle='dotted', color='C0')
+    plt.axvline(discovery_window3_mean, linestyle='dotted', color='C1')
+
+    plt.xlabel('Discovery window (days)')
+    plt.ylabel('Relative number of events')
+
+
+    plt.savefig(f'{trials_dir}/discovery_windows.pdf')
+    plt.show()
+
+    print(f"Discovery windows:\n2 det mean: {discovery_window2_mean} std: {discovery_window2_std}\n3 det: {discovery_window3_mean} std: {discovery_window3_std}\n4 det: {discovery_window4_mean} std: {discovery_window4_std}")
