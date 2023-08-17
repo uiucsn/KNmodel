@@ -133,7 +133,7 @@ def get_options(argv=None):
     parser.add_argument('--rate_model', choices=['Nitz23','Abbott23'], default='Abbott23', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='desr', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
-    parser.add_argument('--detection_threshold', default=24, help='Pick detection threshold in detection passband.')
+    parser.add_argument('--detection_threshold', default=23, help='Pick detection threshold in detection passband.')
     parser.add_argument('--box_size', default=600., action=MinZeroAction, type=float, help='Specify the side of the box in which to simulate events')
     parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
     parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
@@ -233,12 +233,14 @@ def main(argv=None):
         discovery_mags = np.array([])
         discovery_phases = np.array([])
         peak_mags = np.array([])
+        discovery_windows = np.array([])
     
         ra_arr = np.array([])
         dec_arr = np.array([])
         d_Mpc = np.array([])
 
         trial_number = np.array(([n] * n_events))
+        n1_bool = np.array(([False] * n_events))
         n2_bool = np.array(([False] * n_events))
         n3_bool = np.array(([False] * n_events))
         n4_bool = np.array(([False] * n_events))
@@ -327,6 +329,7 @@ def main(argv=None):
             axis=1
         )
 
+        one_det_obs = n_detectors_on_and_obs == 1 
         two_det_obs = n_detectors_on_and_obs == 2
         three_det_obs = n_detectors_on_and_obs == 3
         four_det_obs = n_detectors_on_and_obs == 4
@@ -370,15 +373,27 @@ def main(argv=None):
                 discovery_phase = (p[idx])[0]
                 discovery_mags = np.append(discovery_mags, [discovery_mag])
                 discovery_phases = np.append(discovery_phases, [discovery_phase])
+                discovery_window = (p[idx])[-1] - (p[idx])[0] + 0.2
+                discovery_windows = np.append(discovery_windows, [discovery_window])
             else:
                 em_bool = np.append(em_bool, [False])
                 discovery_mags = np.append(discovery_mags, [np.nan])
                 discovery_phases = np.append(discovery_phases, [np.nan])
+                discovery_windows = np.append(discovery_windows, [np.nan])
+
 
         # whether this event was not affected by then sun
         detected_events = np.where(em_bool)
         sun_bool = np.random.random(len(detected_events[0])) >= args.sun_loss
         em_bool[detected_events] = sun_bool
+
+        n1_gw_only = np.where(one_det_obs)[0]
+        n1_gw = len(n1_gw_only)
+        n1_good = np.where(one_det_obs & em_bool & has_ejecta_bool)[0]
+        n1 = len(n1_good)
+        n1_bool[n1_good] = True
+        # sanity check
+        assert n1_gw >= n1, "GW events ({}) less than EM follow events ({})".format(n1_gw, n1)
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
@@ -404,13 +419,20 @@ def main(argv=None):
         # sanity check
         assert n4_gw >= n4, "GW events ({}) less than EM follow events ({})".format(n4_gw, n4)
 
+        # Events which gw detection on >=2 instrument
+        gw_recovered = (n2_gw + n3_gw + n4_gw) / n_events
+
+        # Events which have em detection
         n_em = len(np.where(em_bool & has_ejecta_bool)[0])
+        em_recovered = n_em / n_events
+
+        # Events which gw detection on one instrument but also have detectable em counterparts - could've been caught if we had better duty cycles
+        single_gw_detection = n1 / n_events
 
         print("Number of events at each step")
-        print(f"gw_recovered: {(n2_gw + n3_gw + n4_gw) / n_events} em_recovered: {n_em/n_events}")
+        print(f"gw_recovered: {gw_recovered} em_recovered: {em_recovered} single gw detection: {single_gw_detection}")
+        print(f"Events that could be caught if LVK duty cycles were more correlated {n1}")
 
-        gw_recovered = (n2_gw + n3_gw + n4_gw) / n_events
-        em_recovered = n_em/n_events
 
         # Create a data frame with all the information
         trial_df['trial_number'] = trial_number
@@ -434,6 +456,7 @@ def main(argv=None):
         trial_df['two_detector_event'] = n2_bool
         trial_df['three_detector_event'] = n3_bool
         trial_df['four_detector_event'] = n4_bool
+        trial_df['em_discovery_window'] = discovery_windows
 
         print(f"Number of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}")
 
@@ -446,8 +469,10 @@ def main(argv=None):
             peak_mags[n4_good].tolist(),\
             discovery_phases[n2_good].tolist(), discovery_phases[n3_good].tolist(),\
             discovery_phases[n4_good].tolist(),\
+            discovery_windows[n2_good].tolist(), discovery_windows[n3_good].tolist(),\
+            discovery_windows[n4_good].tolist(),\
             n2, n3, n4, \
-            gw_recovered, em_recovered, \
+            gw_recovered, em_recovered, single_gw_detection, \
             trial_df
 
     with schwimmbad.SerialPool() as pool:
@@ -475,15 +500,22 @@ def main(argv=None):
     discovery_phase2 = []
     discovery_phase3 = []
     discovery_phase4 = []
+    discovery_window2 = []
+    discovery_window3 = []
+    discovery_window4 = []
     gw_recovered_arr = []
     em_recovered_arr = []
+    single_gw_detection_arr = []
+
     df_list = []
 
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4, n2, n3, n4, gw_recovered, em_recovered, df) in enumerate(values):
+    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4,window2, window3, window4, n2, n3, n4, gw_recovered, em_recovered, single_gw_detection, df) in enumerate(values):
 
         df_list.append(df)
         gw_recovered_arr.append(gw_recovered)
         em_recovered_arr.append(em_recovered)
+        single_gw_detection_arr.append(single_gw_detection)
+
         if n2 >= 0:
             n_detect2.append(n2)
             if n3>0:
@@ -492,6 +524,7 @@ def main(argv=None):
                 mag_detect2  += h2
                 mag_peak2 += p2
                 discovery_phase2 += phase2
+                discovery_window2 += window2
         if n3>=0:
             n_detect3.append(n3)
             if n3 > 0:
@@ -500,6 +533,7 @@ def main(argv=None):
                 mag_detect3  += h3
                 mag_peak3 += p3
                 discovery_phase3 += phase3
+                discovery_window3 += window3
         if n4>=0:
             n_detect4.append(n4)
             if n4 > 0:
@@ -508,12 +542,14 @@ def main(argv=None):
                 mag_detect4  += h4
                 mag_peak4 += p4
                 discovery_phase4 += phase4
+                discovery_window4 += window4
         data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
                                "m3": m3, "d4": d4, "m4": m4,
                                "h2": h2, "h3": h3, "h4": h4,
                                "n2": n2, "n3": n3, "n4": n4,
                                "p2": p2, "p3": p3, "p4": p4,
-                               "phase2": phase2, "phase3": phase3, "phase4": phase4}
+                               "phase2": phase2, "phase3": phase3, "phase4": phase4,
+                               "window2": window2, 'window3': window3, 'window4':window4}
         
     with open(f"{trials_dir}/data_dump.pickle", "wb") as f:
         pickle.dump(data_dump, f)
@@ -525,7 +561,8 @@ def main(argv=None):
                     mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
                     mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4,
                     discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4, 
-                    gw_recovered=gw_recovered_arr, em_recovered=em_recovered_arr)
+                    discovery_window2=discovery_window2, discovery_window3=discovery_window3, discovery_window4 = discovery_window4,
+                    gw_recovered=gw_recovered_arr, em_recovered=em_recovered_arr, single_gw_detection=single_gw_detection_arr)
         pickle.dump(res, f)
 
     df_master = pd.concat(df_list, ignore_index=True)
