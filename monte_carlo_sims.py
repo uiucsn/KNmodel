@@ -48,10 +48,17 @@ MAX_MASS = 2.05  # specific to EoS model
 MIN_MASS = 1
 
 # asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
-detector_asd_links = dict(
+detector_asd_links_O4 = dict(
     ligo='https://dcc.ligo.org/public/0180/T2200043/003/aligo_O4high.txt',
     virgo='https://dcc.ligo.org/public/0180/T2200043/003/avirgo_O4high_NEW.txt',
     kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_10Mpc.txt'
+)
+
+# asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
+detector_asd_links_O5 = dict(
+    ligo='https://dcc.ligo.org/public/0180/T2200043/003/AplusDesign.txt',
+    virgo='https://dcc.ligo.org/public/0180/T2200043/003/avirgo_O5low_NEW.txt',
+    kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_128Mpc.txt'
 )
     
 def get_ejecta_mass(m1, m2):
@@ -60,8 +67,12 @@ def get_ejecta_mass(m1, m2):
     merger.map_to_kilonova_ejecta()
     return merger.param7, merger.param10
 
-def get_range(detector):
-    psd_url = detector_asd_links[detector]
+def get_range(detector, ligo_run):
+    if ligo_run == 'O4':
+        psd_url = detector_asd_links_O4[detector]
+    elif ligo_run == 'O5':
+        psd_url = detector_asd_links_O5[detector]
+    print(psd_url)
     try:
         # if downloaded locally
         asd_fp = open(os.path.basename(parse.urlparse(psd_url).path), "rb")
@@ -129,21 +140,13 @@ def get_options(argv=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', default='trial-exg-100', help='Directory to store simulation results')
+    parser.add_argument('--ligo_run', choices=['O4','O5'], default='O4', help='Pick LIGO observing run')
     parser.add_argument('--mass_distrib', choices=['mw','flat', 'exg'], default='exg', help='Pick BNS mass distribution')
     parser.add_argument('--rate_model', choices=['Nitz23','Abbott23'], default='Abbott23', help='Pick BNS merger rate model')
-    parser.add_argument('--ntry', default=100, type=int, action=MinZeroAction, help='Set the number of MC samples')
+    parser.add_argument('--ntry', default=500, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='desr', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
-    parser.add_argument('--detection_threshold', default=23, help='Pick detection threshold in detection passband.')
-    parser.add_argument('--box_size', default=600., action=MinZeroAction, type=float, help='Specify the side of the box in which to simulate events')
-    parser.add_argument('--sun_loss', default=0.61, help='The fraction not observed due to sun', type=float)
-    parser.add_argument('--hdutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Hanford duty cycle')
-    parser.add_argument('--ldutycycle', default=0.7, action=MinZeroAction, type=float, help='Set the Livingston duty cycle')
-    parser.add_argument('--vdutycycle', default=0.54, action=MinZeroAction, type=float, help='Set the Virgo duty cycle')
-    parser.add_argument('--kdutycycle', default=0.27, action=MinZeroAction, type=float, help='Set the Kagra duty cycle')
-    parser.add_argument('--ligo_run_start', default='2023-05-24T00:00:00.0', help = 'Set the run start date for ligo')
-    parser.add_argument('--ligo_run_end', default='2024-11-24T00:00:00.0', help = 'Set the run end date for ligo')
-    parser.add_argument('--survey_start', default='2023-05-24T00:00:00.0', help = 'Set the start date for your survey of choice')
-    parser.add_argument('--survey_end', default='2024-11-24T00:00:00.0', help = 'Set the end date for your survey of choice')
+    parser.add_argument('--detection_threshold', default=23, type=float, help='Pick detection threshold in detection passband.')
+    parser.add_argument('--sun_loss', default=0.5, help='The fraction not observed due to sun', type=float)
     parser.add_argument('--bns_ligo_range', default= 150, help = 'Set the bns detection range for the two ligo detectors')
     parser.add_argument('--bns_virgo_range', default= 70, help = 'Set the bns detection range for the virgo detectors')
     parser.add_argument('--bns_kagra_range', default= 5, help = 'Set the bns detection range for the kagra detectors')
@@ -159,22 +162,54 @@ def main(argv=None):
     args = get_options(argv=argv)
     np.random.seed(seed=42)
 
-    # setup time-ranges
-    ligo_run_start = Time(args.ligo_run_start)
-    ligo_run_end   = Time(args.ligo_run_end)
-    survey_cyc_start  = Time(args.survey_start)
-    survey_cyc_end    = Time(args.survey_end)
-    eng_time       = 2.*u.week
+    # LIGO run 
+    ligo_observing_run = args.ligo_run 
 
-    Range = namedtuple('Range', ['start', 'end'])
+    if ligo_observing_run == 'O4':
+        print("Configuring parameters for O4...")
+        # setup time-ranges
+        Range = namedtuple('Range', ['start', 'end'])
+        ligo_run_start = Time('2023-05-24T00:00:00.0')
+        ligo_run_end   = Time('2024-11-24T00:00:00.0')
+        survey_cyc_start = Time('2023-05-24T00:00:00.0')
+        survey_cyc_end = Time('2024-11-24T00:00:00.0')
+        eng_time       = 2.*u.week
+
+        # setup duty cycles
+        h_duty = 0.7
+        l_duty = 0.7
+        v_duty = 0.54
+        k_duty = 0.27
+
+        box_size = 700
+
+
+    elif ligo_observing_run == 'O5':
+        print("Configuring parameters for O5...")
+        Range = namedtuple('Range', ['start', 'end'])
+        ligo_run_start = Time('2026-10-1T00:00:00.0')
+        ligo_run_end   = Time('2029-06-1T00:00:00.0')
+        survey_cyc_start = Time('2026-10-1T00:00:00.0')
+        survey_cyc_end = Time('2029-06-1T00:00:00.0')
+        eng_time       = 2.*u.week
+
+        # setup duty cycles
+        h_duty = 0.7
+        l_duty = 0.7
+        v_duty = 0.7
+        k_duty = 0.7
+
+        box_size = 1000
+
+
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
     survey_cycle = Range(start=survey_cyc_start,  end=survey_cyc_end)
-    latest_start = max(ligo_run.start, survey_cycle.start)
-    earliest_end = min(ligo_run.end, survey_cycle.end)
+    latest_start = max(ligo_run_start, survey_cyc_start)
+    earliest_end = min(ligo_run_end, survey_cyc_end)
     td = (earliest_end - latest_start) + eng_time
     fractional_duration = (td/(1.*u.year)).decompose().value
 
-    box_size = args.box_size
+
     volume = box_size**3
 
     # the two ligo detectors ahve strongly correlated duty cycles
@@ -187,12 +222,6 @@ def main(argv=None):
 
     # create the mass distribution of the merging neutron star
     mass_distrib = args.mass_distrib
-
-    # setup duty cycles
-    h_duty = args.hdutycycle
-    l_duty = args.ldutycycle
-    v_duty = args.vdutycycle
-    k_duty = args.kdutycycle
 
     # setup event rates
     n_try = args.ntry
@@ -211,9 +240,9 @@ def main(argv=None):
     detection_threshold = args.detection_threshold
 
     # define ranges
-    ligo_range = get_range('ligo')
-    virgo_range = get_range('virgo')
-    kagra_range = get_range('kagra')
+    ligo_range = get_range('ligo', ligo_observing_run)
+    virgo_range = get_range('virgo', ligo_observing_run)
+    kagra_range = get_range('kagra', ligo_observing_run)
 
 
 
