@@ -3,6 +3,8 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 import re
+import io
+from urllib import parse, request
 
 from kilopop.kilonovae import bns_kilonova as saeev
 from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
@@ -11,7 +13,7 @@ from tqdm import tqdm
 from interpolate_bulla_sed import BullaSEDInterpolator
 from scipy.interpolate import SmoothBivariateSpline
 from dns_mass_distribution import extra_galactic_masses, galactic_masses
-from monte_carlo_sims import get_ejecta_mass
+from monte_carlo_sims import get_ejecta_mass, detector_asd_links_O4, detector_asd_links_O5, get_range
 from sed_to_lc import mej_dyn_grid_high, mej_dyn_grid_low, mej_wind_grid_high, mej_wind_grid_low
 
 from astropy import units as u
@@ -438,6 +440,202 @@ def makeRedKnLc():
     plt.tight_layout()
     plt.savefig(f'paper_figures/RedKN.pdf')
 
+def makeGW170817PhotometryPlotVillar():
+
+
+    # Pass band stuff
+    bands = ['g','r','i']
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+
+    # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
+    mej_wind = 0.05
+    mej_dyn = 0.005
+    phi = 30
+    cos_theta = 0.9
+
+    # coordinates for GW170817
+    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    d = 43*u.Mpc
+
+    av = 0.0
+
+    # LC from sed
+    GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
+    lcs = GW170817.getAppMagsInPassbands(lsst_bands)
+    
+
+    from astropy.io import ascii
+    data = ascii.read('data/Villar_170817.txt') 
+    data = data[data['Used'] == "*"]
+
+    data_g = data[data['Band']=='g']
+    data_r = data[data['Band']=='r']
+    data_i = data[data['Band']=='i']
+
+
+
+    plt.errorbar(data_g['Phase'].data, np.array(data_g['Mag'].data, dtype=float) + 2, yerr=np.array(data_g['e_Mag'].data, dtype=float) , label='g + 2',c=colors[0], fmt='.')
+    plt.errorbar(data_r['Phase'].data, np.array(data_r['Mag'].data, dtype=float), yerr=np.array(data_r['e_Mag'].data, dtype=float), label='r',c=colors[1], fmt='.')
+    plt.errorbar(data_i['Phase'].data, np.array(data_i['Mag'].data, dtype=float) - 2, yerr=np.array(data_i['e_Mag'].data, dtype=float), label='i - 2',c=colors[2], fmt='.')
+
+    plt.plot(phases[:60], lcs[f'lsstg'][:60] + 2, label = f'lsstg + 2', c=colors[0])
+    plt.plot(phases[:60], lcs[f'lsstr'][:60], label = f'lsstr', c=colors[1])
+    plt.plot(phases[:60], lcs[f'lssti'][:60] - 2, label = f'lssti - 2', c=colors[2])
+
+    plt.xlabel('Phase')
+    plt.ylabel('Apparent Mag')
+
+    plt.axhline(y=24, label = "Rubin 10s exposure", linestyle='dotted', color='red')
+
+    plt.xlim(left= 0, right=7)
+
+    plt.gca().invert_yaxis()
+    plt.legend()
+    plt.grid(linestyle="--")
+
+
+
+    plt.title(f'Interpolated Data: mej_total = {mej_dyn + mej_wind} phi = {phi} cos theta = {cos_theta}')
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/GW170817LC_villar.pdf')
+
+def makeO4PSD():
+
+    for detector in detector_asd_links_O4:
+        print(f"Downloading PSD for O4 {detector}")
+        psd_url = detector_asd_links_O4[detector]
+        asd_fp = io.BytesIO(request.urlopen(psd_url).read())
+        freq, asd = np.loadtxt(asd_fp, unpack=True)
+        psd = asd**2
+        plt.plot(freq, psd, label=f"O4 {detector}")
+    
+    
+    plt.xscale('log')
+    plt.yscale('log')
+
+    plt.title('LVK PSD for run O4')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Strain Noise')
+
+    plt.xlim(10,10**4)
+
+    plt.legend()
+
+    plt.savefig('paper_figures/O4_psd.pdf')
+    plt.show()
+
+def makeO5PSD():
+
+    for detector in detector_asd_links_O5:
+
+        print(f"Downloading PSD for O5 {detector}")
+        psd_url = detector_asd_links_O5[detector]
+        asd_fp = io.BytesIO(request.urlopen(psd_url).read())
+        freq, asd = np.loadtxt(asd_fp, unpack=True)
+        psd = asd**2
+        plt.plot(freq, psd, label=f"O5 {detector}")
+    
+
+    plt.xscale('log')
+    plt.yscale('log')
+
+    plt.title('LVK PSD for run O5')
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Strain Noise')
+
+    plt.xlim(10,10**4)
+
+    plt.legend()
+
+    plt.savefig('paper_figures/O5_psd.pdf')
+    plt.show()
+
+def makeBNSRangePlot():
+
+    ligo_range_O4 = get_range('ligo', 'O4')
+    virgo_range_O4 = get_range('virgo', 'O4')
+    kagra_range_O4 = get_range('kagra', 'O4')
+
+    ligo_range_O5 = get_range('ligo', 'O5')
+    virgo_range_O5 = get_range('virgo', 'O5')
+    kagra_range_O5 = get_range('kagra', 'O5')
+
+    masses = np.arange(1, 2.06, 0.05)
+
+    lo4_array = np.zeros((len(masses), len(masses)))
+    vo4_array = np.zeros((len(masses), len(masses)))
+    ko4_array = np.zeros((len(masses), len(masses))) 
+
+    lo5_array = np.zeros((len(masses), len(masses)))
+    vo5_array = np.zeros((len(masses), len(masses)))
+    ko5_array = np.zeros((len(masses), len(masses))) 
+
+    for i, m1 in enumerate(masses):
+        for j, m2 in enumerate(masses):
+
+            lo4_array[i][j] = ligo_range_O4(m1 = m1, m2 = m2)
+            vo4_array[i][j] = virgo_range_O4(m1 = m1, m2 = m2)
+            ko4_array[i][j] = kagra_range_O4(m1 = m1, m2 = m2)
+
+            lo5_array[i][j] = ligo_range_O5(m1 = m1, m2 = m2)
+            vo5_array[i][j] = virgo_range_O5(m1 = m1, m2 = m2)
+            ko5_array[i][j] = kagra_range_O5(m1 = m1, m2 = m2)
+
+
+    plt.imshow(lo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('LIGO range - O4')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Ligo_O4_range.pdf')
+    plt.show()
+
+    plt.imshow(ko4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('Kagra range - O4')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Kagra_O4_range.pdf')
+    plt.show()
+
+    plt.imshow(vo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('Virgo range - O4')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Virgo_O4_range.pdf')
+    plt.show()
+
+    plt.imshow(lo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('LIGO range - O5')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Ligo_O5_range.pdf')
+    plt.show()
+
+    plt.imshow(ko5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('Kagra range - O5')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Kagra_O5_range.pdf')
+    plt.show()
+
+    plt.imshow(vo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower")
+    plt.xlabel(r"$m_{1}$")
+    plt.ylabel(r"$m_{2}$")
+    plt.title('Virgo range - O5')
+    plt.colorbar(label = 'Distance (Mpc)')
+    plt.tight_layout()
+    plt.savefig('paper_figures/Virgo_O5_range.pdf')
+    plt.show()
+
 
 if __name__ == '__main__':
 
@@ -448,12 +646,16 @@ if __name__ == '__main__':
     #makeGW170817SedSurfacePlot()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
-    makeTrialsAvPlot()
+    #makeTrialsAvPlot()
     #makeInterceptSurface()
     #makeSlopeSurface()
     #makeExponentSurface()
     #makeRedKnLc()
     #makeBlueKnLc()
-    #plt.show()
+    #makeGW170817PhotometryPlotVillar()
+    #makeO4PSD()
+    #makeO5PSD()
+    makeBNSRangePlot()
+
 
 
