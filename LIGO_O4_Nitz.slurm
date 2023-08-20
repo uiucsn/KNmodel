@@ -3,7 +3,7 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=vedgs2@illinois.edu
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=6
 #SBATCH --output=Ligo_O4_Abbott.out
 #SBATCH --error=Ligo_O4_Abbott.err
 #SBATCH --partition=test
