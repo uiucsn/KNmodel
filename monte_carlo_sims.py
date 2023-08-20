@@ -181,7 +181,7 @@ def main(argv=None):
         v_duty = 0.54
         k_duty = 0.27
 
-        box_size = 700
+        box_size = 500
 
 
     elif ligo_observing_run == 'O5':
@@ -199,7 +199,7 @@ def main(argv=None):
         v_duty = 0.7
         k_duty = 0.7
 
-        box_size = 1000
+        box_size = 900
 
 
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
