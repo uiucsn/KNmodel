@@ -92,21 +92,20 @@ class SEDDerviedLC():
 
         interpolated_sed = np.zeros((len(phases), len(wavelengths)))
 
-        for i, phase in enumerate(phases):
+        # Get points mesh
+        mesh_grid = np.meshgrid(self.cos_theta, self.nearest_grid_mej_dyn, self.nearest_grid_mej_wind, self.phi, phases, wavelengths)
 
-            # Get points mesh
-            mesh_grid = np.meshgrid(self.cos_theta, self.nearest_grid_mej_dyn, self.nearest_grid_mej_wind, self.phi, phase, wavelengths)
-            points = np.array(mesh_grid).T.reshape(-1, 6)
+        points = np.array(mesh_grid).T.reshape(-1, 6)
 
-            # Interpolate spectral luminosity at all wavelengths
-            spectral_flux_density = self.sed_interpolator.interpolator(points)
+        # Interpolate spectral luminosity at all wavelengths
+        spectral_flux_density = self.sed_interpolator.interpolator(points)
 
-            if remove_negative:
-                spectral_flux_density[spectral_flux_density < 0]  = 0 
+        if remove_negative:
+            spectral_flux_density[spectral_flux_density < 0]  = 0 
 
-            interpolated_sed[i, :] = spectral_flux_density
-
-        return interpolated_sed
+        #interpolated_sed[i, :] = spectral_flux_density
+        spectral_flux_density = spectral_flux_density.reshape((len(wavelengths), len(phases))).T
+        return spectral_flux_density
 
     def _getLinearLawParameters(self):
 

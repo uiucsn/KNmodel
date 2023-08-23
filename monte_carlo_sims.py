@@ -283,11 +283,23 @@ def main(argv=None):
             mej_dyn_arr = np.array([])
             mej_wind_arr = np.array([])
 
+            bns_range_ligo = np.array([])
+            bns_range_virgo = np.array([])
+            bns_range_kagra = np.array([])
+
             for m1, m2 in zip(mass1, mass2):
 
                 mej_dyn, mej_wind = get_ejecta_mass(m1, m2)
                 mej_dyn_arr = np.append(mej_dyn_arr, [mej_dyn])
                 mej_wind_arr = np.append(mej_wind_arr, [mej_wind])
+
+                bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
+                bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
+                bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2)])
+
+            bns_range_ligo = bns_range_ligo*u.Mpc
+            bns_range_virgo = bns_range_virgo*u.Mpc
+            bns_range_kagra = bns_range_kagra*u.Mpc
 
         elif mass_distrib == 'exg':
 
@@ -295,11 +307,23 @@ def main(argv=None):
             mej_dyn_arr = np.array([])
             mej_wind_arr = np.array([])
 
+            bns_range_ligo = np.array([])
+            bns_range_virgo = np.array([])
+            bns_range_kagra = np.array([])
+
             for m1, m2 in zip(mass1, mass2):
 
                 mej_dyn, mej_wind = get_ejecta_mass(m1, m2)
                 mej_dyn_arr = np.append(mej_dyn_arr, [mej_dyn])
                 mej_wind_arr = np.append(mej_wind_arr, [mej_wind])
+
+                bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
+                bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
+                bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2)])
+
+            bns_range_ligo = bns_range_ligo*u.Mpc
+            bns_range_virgo = bns_range_virgo*u.Mpc
+            bns_range_kagra = bns_range_kagra*u.Mpc
 
         elif mass_distrib == 'flat':
 
@@ -311,15 +335,15 @@ def main(argv=None):
             mej_dyn_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['dynamical_ejecta_mass'] for i in range(n_events)])
             mej_wind_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['secular_ejecta_mass'] for i in range(n_events)])
 
-        bns_range_ligo = np.array(
-            [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
-        ) * u.Mpc
-        bns_range_virgo = np.array(
-            [virgo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
-        ) * u.Mpc
-        bns_range_kagra = np.array(
-            [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
-        ) * u.Mpc
+            bns_range_ligo = np.array(
+                [ligo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+            ) * u.Mpc
+            bns_range_virgo = np.array(
+                [virgo_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+            ) * u.Mpc
+            bns_range_kagra = np.array(
+                [kagra_range(m1=m1, m2=m2) for m1, m2 in zip(mass1, mass2)]
+            ) * u.Mpc
 
         # bns_range_ligo = args.bns_ligo_range * u.Mpc
         # bns_range_virgo = args.bns_virgo_range * u.Mpc
