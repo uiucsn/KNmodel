@@ -27,6 +27,7 @@ import schwimmbad
 from scipy.linalg import cholesky
 import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
+from scipy.interpolate import interp1d
 
 from sed_to_lc import SEDDerviedLC
 from dns_mass_distribution import extra_galactic_masses, galactic_masses
@@ -37,15 +38,20 @@ import ligo.em_bright
 import ligo.em_bright.computeDiskMass
 from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
-from gwemlightcurves.EjectaFits import DiUj2017, KrFo2019, CoDi2019
+from gwemlightcurves.EjectaFits import DiUj2017, CoDi2019
 from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
 from kilopop.kilonovae import bns_kilonova as saeev
 
 np.random.RandomState(int(time.time()))
 
-EOSNAME = "APR4_EPP"
-MAX_MASS = 2.05  # specific to EoS model
-MIN_MASS = 1
+EOSNAME_FILE = "data/mr_sfho_full_right.csv"
+EOS_TABLE = pd.read_csv(EOSNAME_FILE)
+
+EOS_interpolator = interp1d(EOS_TABLE['grav_mass'], EOS_TABLE['radius'])
+
+M_TOV = max(EOS_TABLE['grav_mass'])
+MAX_MASS = max(EOS_TABLE['grav_mass'])  # specific to EoS model
+MIN_MASS = min(EOS_TABLE['grav_mass'])
 
 # asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
 detector_asd_links_O4 = dict(
@@ -60,10 +66,85 @@ detector_asd_links_O5 = dict(
     virgo='https://dcc.ligo.org/public/0180/T2200043/003/avirgo_O5low_NEW.txt',
     kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_128Mpc.txt'
 )
-    
-def get_ejecta_mass(m1, m2):
 
-    merger = saeev(mass1=m1, mass2=m2)
+def compute_dyn_ej(m1, c1, m2, c2):
+
+    a = -0.0719
+    b = 0.2116
+    d = -2.42
+    n = -2.905
+
+    mej_dyn = np.power(
+        10.0,
+        (
+            ((a * (1.0 - 2.0 * c1) * m1) / (c1))
+            + b * m2 * np.power((m1 / m2), n)
+            + (d / 2.0)
+        )
+        + (
+            ((a * (1.0 - 2.0 * c2) * m2) / (c2))
+            + b * m1 * np.power((m2 / m1), n)
+            + (d / 2.0)
+        ),
+    )
+    return mej_dyn
+
+
+def compute_wind_ej(m1, m2, zetas):
+
+    a = -31.335
+    b = -0.9760
+    c = 1.0474
+    d = 0.05957
+
+    # make sure these okay
+    M_tov = M_TOV
+    radius_1_dot_6 = EOS_interpolator(1.6)
+
+    M_thresh = (2.38 - 3.606 * (M_tov / radius_1_dot_6)) * M_tov
+
+    remnant_disk_mass = np.power(10.0, 
+                                 a * (1.0 + b * np.tanh(
+                                 (c - ((m1 + m2) /
+                                  M_thresh)) / d)))
+
+    remnant_disk_mass[remnant_disk_mass < 1.0e-3] = 1.0e-3
+    mej_wind = 0.3 * remnant_disk_mass
+    return mej_wind
+
+def compute_compactness(m):
+
+    G = 6.6743 * 10**-11 # m3 kg-1 s-2
+    c = 3 * 10**8       # m s^-1
+    M_sun = 1.9891 * 10**30 # kg
+
+    R = EOS_interpolator(m) * 1000 # from km to m
+
+
+    compactness = (G * m * M_sun) / (c**2 * R)
+    return compactness
+
+def get_ejecta_mass(m1, m2):
+    """Calculate whether the binary has any remnant matter based on
+    Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
+    equation of state.
+    """
+
+    # Different EOS
+    c_ns_1 = compute_compactness(m1)
+    c_ns_2 = compute_compactness(m2)
+
+    n_events = len(m1)
+    zetas = np.random.uniform(low=0.1, high=0.4, size=n_events)
+
+    # treat as BNS
+    #_, m_dyn, m_wind = CoDi2019.calc_meje(m1, c_ns_1, m2, c_ns_2, zeta = zetas, split_mej=True)
+    m_dyn, m_wind = compute_dyn_ej(m1, c_ns_1, m2, c_ns_2),compute_wind_ej(m1, m2, zetas)
+    return m_dyn, m_wind
+
+def get_ejecta_mass1(m1, m2):
+
+    merger = saeev(mass1=m1, mass2=m2, disk_unbinding_efficiency=0.3)
     merger.map_to_kilonova_ejecta()
     return merger.param7, merger.param10
 
@@ -280,8 +361,7 @@ def main(argv=None):
         if mass_distrib == 'mw':
 
             mass1, mass2 = galactic_masses(n_events)
-            mej_dyn_arr = np.array([])
-            mej_wind_arr = np.array([])
+            mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
             bns_range_ligo = np.array([])
             bns_range_virgo = np.array([])
@@ -289,10 +369,6 @@ def main(argv=None):
 
             print('Computing merger parameters...')
             for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
-
-                mej_dyn, mej_wind = get_ejecta_mass(m1, m2)
-                mej_dyn_arr = np.append(mej_dyn_arr, [mej_dyn])
-                mej_wind_arr = np.append(mej_wind_arr, [mej_wind])
 
                 bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
                 bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
@@ -305,8 +381,7 @@ def main(argv=None):
         elif mass_distrib == 'exg':
 
             mass1, mass2 = extra_galactic_masses(n_events)
-            mej_dyn_arr = np.array([])
-            mej_wind_arr = np.array([])
+            mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
             bns_range_ligo = np.array([])
             bns_range_virgo = np.array([])
@@ -314,10 +389,6 @@ def main(argv=None):
 
             print('Computing merger parameters...')
             for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
-
-                mej_dyn, mej_wind = get_ejecta_mass(m1, m2)
-                mej_dyn_arr = np.append(mej_dyn_arr, [mej_dyn])
-                mej_wind_arr = np.append(mej_wind_arr, [mej_wind])
 
                 bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
                 bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
@@ -334,6 +405,7 @@ def main(argv=None):
             mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
             mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
 
+            # For some reason this is really slow. Not using it anyway but idk how to fix it since its not our code
             mej_dyn_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['dynamical_ejecta_mass'] for i in range(n_events)])
             mej_wind_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['secular_ejecta_mass'] for i in range(n_events)])
 
@@ -342,7 +414,6 @@ def main(argv=None):
             bns_range_kagra = np.array([])
 
             print('Computing merger parameters...')
-
             for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
 
                 bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
@@ -414,7 +485,7 @@ def main(argv=None):
 
             coordinates = coord.SkyCoord(ra=ra, dec=dec)
 
-            p = np.arange(0.3, 7.6, 0.2)
+            p = np.arange(0.3, 20.1, 0.2)
 
             obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
             lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
