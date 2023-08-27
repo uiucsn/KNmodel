@@ -9,6 +9,7 @@ from scipy.interpolate import SmoothBivariateSpline
 from astropy import units as u
 from astropy import constants as const
 from astropy.coordinates import Distance, SkyCoord
+from astropy.cosmology import default_cosmology
 from astropy.io import ascii
 from matplotlib import cm
 
@@ -59,6 +60,9 @@ class SEDDerviedLC():
 
         # Compute the SED
         self.sed = self.getSed(phases, lmbd)
+
+        # Cosmology model used.
+        #print(default_cosmology.get())
 
     def _setNearestGridMejPoints(self):
 
