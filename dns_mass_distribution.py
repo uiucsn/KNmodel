@@ -1,9 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from scipy.interpolate import interp1d
 
 # specific to EoS model
-MAX_MASS = 2.05 
-MIN_MASS = 1
+EOSNAME_FILE = "data/mr_sfho_full_right.csv"
+EOS_TABLE = pd.read_csv(EOSNAME_FILE)
+
+EOS_interpolator = interp1d(EOS_TABLE['grav_mass'], EOS_TABLE['radius'])
+
+MAX_MASS = max(EOS_TABLE['grav_mass'])  # specific to EoS model
+MIN_MASS = min(EOS_TABLE['grav_mass'])
+
+M_TOV = MAX_MASS
 
 def extra_galactic_masses(n):
     # https://iopscience.iop.org/article/10.3847/2041-8213/abe7f6/pdf

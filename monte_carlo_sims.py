@@ -27,10 +27,10 @@ import schwimmbad
 from scipy.linalg import cholesky
 import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
-from scipy.interpolate import interp1d
 
 from sed_to_lc import SEDDerviedLC
 from dns_mass_distribution import extra_galactic_masses, galactic_masses
+from dns_mass_distribution import MIN_MASS, MAX_MASS, M_TOV, EOS_interpolator
 from interpolate_bulla_sed import uniq_cos_theta, uniq_phi
 
 import inspiral_range
@@ -43,15 +43,6 @@ from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
 from kilopop.kilonovae import bns_kilonova as saeev
 
 np.random.RandomState(int(time.time()))
-
-EOSNAME_FILE = "data/mr_sfho_full_right.csv"
-EOS_TABLE = pd.read_csv(EOSNAME_FILE)
-
-EOS_interpolator = interp1d(EOS_TABLE['grav_mass'], EOS_TABLE['radius'])
-
-M_TOV = max(EOS_TABLE['grav_mass'])
-MAX_MASS = max(EOS_TABLE['grav_mass'])  # specific to EoS model
-MIN_MASS = min(EOS_TABLE['grav_mass'])
 
 # asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
 detector_asd_links_O4 = dict(
@@ -87,6 +78,7 @@ def compute_dyn_ej(m1, c1, m2, c2):
             + (d / 2.0)
         ),
     )
+
     return mej_dyn
 
 
@@ -98,10 +90,9 @@ def compute_wind_ej(m1, m2, zetas):
     d = 0.05957
 
     # make sure these okay
-    M_tov = M_TOV
-    radius_1_dot_6 = EOS_interpolator(1.6)
+    M_radius_1_dot_6 = EOS_interpolator(1.6)
 
-    M_thresh = (2.38 - 3.606 * (M_tov / radius_1_dot_6)) * M_tov
+    M_thresh = (2.38 - (3.606 * (M_TOV / M_radius_1_dot_6))) * M_TOV
 
     remnant_disk_mass = np.power(10.0, 
                                  a * (1.0 + b * np.tanh(
@@ -109,7 +100,7 @@ def compute_wind_ej(m1, m2, zetas):
                                   M_thresh)) / d)))
 
     remnant_disk_mass[remnant_disk_mass < 1.0e-3] = 1.0e-3
-    mej_wind = 0.3 * remnant_disk_mass
+    mej_wind = zetas * remnant_disk_mass
     return mej_wind
 
 def compute_compactness(m):
@@ -120,15 +111,11 @@ def compute_compactness(m):
 
     R = EOS_interpolator(m) * 1000 # from km to m
 
-
     compactness = (G * m * M_sun) / (c**2 * R)
+
     return compactness
 
 def get_ejecta_mass(m1, m2):
-    """Calculate whether the binary has any remnant matter based on
-    Dietrich & Ujevic (2017) or Foucart et. al. (2018) based on APR4
-    equation of state.
-    """
 
     # Different EOS
     c_ns_1 = compute_compactness(m1)
@@ -138,15 +125,10 @@ def get_ejecta_mass(m1, m2):
     zetas = np.random.uniform(low=0.1, high=0.4, size=n_events)
 
     # treat as BNS
-    #_, m_dyn, m_wind = CoDi2019.calc_meje(m1, c_ns_1, m2, c_ns_2, zeta = zetas, split_mej=True)
-    m_dyn, m_wind = compute_dyn_ej(m1, c_ns_1, m2, c_ns_2),compute_wind_ej(m1, m2, zetas)
+    m_dyn = compute_dyn_ej(m1, c_ns_1, m2, c_ns_2)
+    m_wind = compute_wind_ej(m1, m2, zetas)
     return m_dyn, m_wind
 
-def get_ejecta_mass1(m1, m2):
-
-    merger = saeev(mass1=m1, mass2=m2, disk_unbinding_efficiency=0.3)
-    merger.map_to_kilonova_ejecta()
-    return merger.param7, merger.param10
 
 def get_range(detector, ligo_run):
     if ligo_run == 'O4':
