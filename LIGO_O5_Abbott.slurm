@@ -11,4 +11,4 @@
 module load anaconda/2023-Mar/3
 source activate KN-rates
 
-python monte_carlo_sims.py --trials_dir O5-LSST-r-24mag-Abbott --ligo_run O5 --detection_passband lsstr --detection_threshold 24
+python monte_carlo_sims.py --trials_dir O5-LSST-r-24mag-Abbott --ligo_run O5 --detection_passband lsstr --detection_threshold 24 --ntry 100
