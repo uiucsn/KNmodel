@@ -144,7 +144,7 @@ def get_range(detector, ligo_run):
         asd_fp = io.BytesIO(request.urlopen(psd_url).read())
     freq, asd = np.loadtxt(asd_fp, unpack=True)
     psd = asd**2
-    return partial(inspiral_range.range, freq, psd)
+    return partial(inspiral_range.range, freq, psd, approximant="TaylorF2")
 
 
 def get_correlated_series(n_events, upper_chol):
