@@ -79,6 +79,10 @@ def compute_dyn_ej(m1, c1, m2, c2):
         ),
     )
 
+    # Imposing a maximum value for the dynamical ejecta
+    max_mej_dyn = 0.09
+    mej_dyn[mej_dyn > max_mej_dyn] = max_mej_dyn
+
     return mej_dyn
 
 
