@@ -1,4 +1,5 @@
 #!/bin/bash
+#SBATCH --time=6-15:30:00
 #SBATCH --job-name="Ligo_O4_Nitz"
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=vedgs2@illinois.edu
@@ -11,4 +12,4 @@
 module load anaconda/2023-Mar/3
 source activate KN-rates
 
-python monte_carlo_sims.py --trials_dir O4-DECam-r-23mag-Nitz --rate_model 'Nitz23'
+python monte_carlo_sims.py --trials_dir O4-DECam-r-23mag-Nitz --rate_model 'Nitz23' --ntry 1000
