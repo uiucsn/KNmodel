@@ -248,7 +248,7 @@ def main(argv=None):
         v_duty = 0.54
         k_duty = 0.27
 
-        box_size = 500
+        box_size = 510
 
 
     elif ligo_observing_run == 'O5':
@@ -266,7 +266,7 @@ def main(argv=None):
         v_duty = 0.7
         k_duty = 0.7
 
-        box_size = 900
+        box_size = 910
 
 
     ligo_run  = Range(start=ligo_run_start, end=ligo_run_end)
@@ -324,7 +324,12 @@ def main(argv=None):
 
 
         n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
+        cos_thetas = np.random.uniform(0, 1, size=n_events)
+        phis = np.random.uniform(15, 75, size=n_events)
 
+        thetas = np.rad2deg(np.arccos(cos_thetas))
+        omegas = np.minimum(thetas, 180 - thetas)
+        
         em_bool = np.array([], dtype=bool)
         discovery_mags = np.array([])
         discovery_phases = np.array([])
@@ -349,40 +354,11 @@ def main(argv=None):
             mass1, mass2 = galactic_masses(n_events)
             mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
-            bns_range_ligo = np.array([])
-            bns_range_virgo = np.array([])
-            bns_range_kagra = np.array([])
-
-            print('Computing merger parameters...')
-            for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
-
-                bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
-                bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
-                bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2)])
-
-            bns_range_ligo = bns_range_ligo*u.Mpc
-            bns_range_virgo = bns_range_virgo*u.Mpc
-            bns_range_kagra = bns_range_kagra*u.Mpc
-
         elif mass_distrib == 'exg':
 
             mass1, mass2 = extra_galactic_masses(n_events)
             mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
-            bns_range_ligo = np.array([])
-            bns_range_virgo = np.array([])
-            bns_range_kagra = np.array([])
-
-            print('Computing merger parameters...')
-            for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
-
-                bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
-                bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
-                bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2)])
-
-            bns_range_ligo = bns_range_ligo*u.Mpc
-            bns_range_virgo = bns_range_virgo*u.Mpc
-            bns_range_kagra = bns_range_kagra*u.Mpc
 
         elif mass_distrib == 'flat':
 
@@ -395,20 +371,20 @@ def main(argv=None):
             mej_dyn_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['dynamical_ejecta_mass'] for i in range(n_events)])
             mej_wind_arr = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['secular_ejecta_mass'] for i in range(n_events)])
 
-            bns_range_ligo = np.array([])
-            bns_range_virgo = np.array([])
-            bns_range_kagra = np.array([])
+        bns_range_ligo = np.array([])
+        bns_range_virgo = np.array([])
+        bns_range_kagra = np.array([])
 
-            print('Computing merger parameters...')
-            for m1, m2 in tqdm(zip(mass1, mass2), total=n_events):
+        print('Computing merger parameters...')
+        for m1, m2, o in tqdm(zip(mass1, mass2, omegas), total=n_events):
 
-                bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2)])
-                bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2)])
-                bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2)])
-            
-            bns_range_ligo = bns_range_ligo*u.Mpc
-            bns_range_virgo = bns_range_virgo*u.Mpc
-            bns_range_kagra = bns_range_kagra*u.Mpc
+            bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2, inclination = o)])
+            bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2, inclination = o)])
+            bns_range_kagra = np.append(bns_range_kagra, [kagra_range(m1=m1, m2=m2, inclination = o)])
+
+        bns_range_ligo = bns_range_ligo*u.Mpc
+        bns_range_virgo = bns_range_virgo*u.Mpc
+        bns_range_kagra = bns_range_kagra*u.Mpc
 
         # bns_range_ligo = args.bns_ligo_range * u.Mpc
         # bns_range_virgo = args.bns_virgo_range * u.Mpc
@@ -454,9 +430,6 @@ def main(argv=None):
 
         # decide whether there is a kilonova based on remnant matter
         has_ejecta_bool = tot_ejecta_masses > 0
-
-        cos_thetas = np.random.uniform(0, 1, size=n_events)
-        phis = np.random.uniform(15, 75, size=n_events)
 
         print('Computing synthetic photometry...')
         for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events):
