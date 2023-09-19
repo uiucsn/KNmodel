@@ -348,7 +348,7 @@ def main(argv=None):
 
         scaling_factors = np.array([])
 
-        print(f"### Starting trial = {n}; Num events = {n_events}")
+        print(f"### Starting trial = {n}; Num events = {n_events}", flush=True)
         if mass_distrib == 'mw':
 
             mass1, mass2 = galactic_masses(n_events)
@@ -548,7 +548,7 @@ def main(argv=None):
         trial_df['four_detector_event'] = n4_bool
         trial_df['em_discovery_window'] = discovery_windows
 
-        print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}")
+        print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}", flush=True)
 
         return dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
