@@ -40,9 +40,8 @@ def get_options(argv=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', required=True, help='Directory to store simulation results')
+    parser.add_argument('--obs_run', required=True, choices=['O4','O5'], help='Observing run')
 
-    # TODO: Add argument for overlap between survey and ligo run
-    # duty factor motivation: https://dcc.ligo.org/public/0167/G2000497/002/G2000497_OpenLVEM_02Apr2020_kk_v2.pdf
     args = parser.parse_args(args=argv)
     return args
 
@@ -52,6 +51,7 @@ if __name__=='__main__':
 
     args = get_options(argv=argv)
     trials_dir = args.trials_dir
+    obs_run = args.obs_run
 
     with open(f'{trials_dir}/plotting_data.pickle', 'rb') as f:
         values = pickle.load(f)
@@ -70,7 +70,7 @@ if __name__=='__main__':
 
     #ebins = np.logspace(0, 1.53, 10)
     #ebins = np.insert(ebins, 0, 0)
-    ebins = np.arange(32)
+    ebins = np.arange(np.max(n_detect2))
     norm = np.sum(n_detect3)/np.sum(n_detect2)
     vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', \
             bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
@@ -115,7 +115,7 @@ if __name__=='__main__':
     axes[0].legend(frameon=False, fontsize='medium', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
-    axes[0].set_xlim((0., 31))
+    axes[0].set_xlim((0., np.max(n_detect2)))
     #axes[0].set_ylim((1e-2, 1))
     #######################################################
     ### print out probabilities of greater than 1 event ###
@@ -125,7 +125,7 @@ if __name__=='__main__':
     print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
     print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
 
-    dist_range = np.arange(0, 400., 0.1)
+    dist_range = np.arange(0, 450., 0.1)
     patches = list()
     legend_text = list()
     try:
@@ -173,7 +173,7 @@ if __name__=='__main__':
     except ValueError:
         print("Could not create KDE since no 4-det detection")
 
-    h_range = np.arange(15, 23, 0.1)
+    h_range = np.arange(15, 24, 0.1)
     kde = spstat.gaussian_kde(mag_detect2, bw_method='scott')
     kde_peak =  spstat.gaussian_kde(mag_peak2, bw_method='scott')
     ph = kde(h_range)
@@ -223,10 +223,16 @@ if __name__=='__main__':
 
     ymin, ymax = axes[1].get_ylim()
     axes[1].set_ylim(0, ymax)
-    axes[1].set_xlim(0, 200)
+    if obs_run == 'O4':
+        axes[1].set_xlim(0, 255)
+    elif obs_run == 'O5':
+        axes[1].set_xlim(0, 455)
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)
-    axes[2].set_xlim(16.5, 22.8)
+    if obs_run == 'O4':
+        axes[2].set_xlim(16.5, 23)
+    elif obs_run == 'O5':
+        axes[2].set_xlim(16.5, 24)
 
     fig.legend(patches, legend_text,
                 'upper center', frameon=False, ncol=3, fontsize='medium')
@@ -234,50 +240,93 @@ if __name__=='__main__':
     fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
 
-    # Figure for losses
+    # # Figure for losses
 
-    gw_mean = np.mean(gw_recovered) * 100
-    em_mean = np.mean(em_recovered) * 100
-    single_gw_detection_mean = np.mean(single_gw_detection) * 100
+    # gw_mean = np.mean(gw_recovered) * 100
+    # em_mean = np.mean(em_recovered) * 100
+    # single_gw_detection_mean = np.mean(single_gw_detection) * 100
 
-    plt.hist(np.array(gw_recovered) * 100, density=True, label=r"$F_{GW}$", histtype=u'step', linewidth=3, color='C0')
-    plt.hist(np.array(em_recovered) * 100, density=True, label=r"$F_{EM}$", histtype=u'step', linewidth=3, color='C1')
-    plt.hist(np.array(single_gw_detection) * 100, density=True, label=r"$F_{1GW+EM}$", histtype=u'step', linewidth=3, color='C2')
+    # plt.hist(np.array(gw_recovered) * 100, density=True, label=r"$F_{GW}$", histtype=u'step', linewidth=3, color='C0')
+    # plt.hist(np.array(em_recovered) * 100, density=True, label=r"$F_{EM}$", histtype=u'step', linewidth=3, color='C1')
+    # plt.hist(np.array(single_gw_detection) * 100, density=True, label=r"$F_{1GW+EM}$", histtype=u'step', linewidth=3, color='C2')
 
-    plt.axvline(gw_mean, linestyle='dotted', label=r"$\langle F_{{GW}} \rangle = {:.1f}$".format(gw_mean), color='C0')
-    plt.axvline(em_mean, linestyle='dotted', label=r"$\langle F_{{EM}} \rangle = {:.1f}$".format(em_mean), color='C1')
-    plt.axvline(single_gw_detection_mean, linestyle='dotted', label=r"$\langle F_{{1GW+EM}} \rangle = {:.1f}$".format(single_gw_detection_mean), color='C2')
+    # plt.axvline(gw_mean, linestyle='dotted', label=r"$\langle F_{{GW}} \rangle = {:.1f}$".format(gw_mean), color='C0')
+    # plt.axvline(em_mean, linestyle='dotted', label=r"$\langle F_{{EM}} \rangle = {:.1f}$".format(em_mean), color='C1')
+    # plt.axvline(single_gw_detection_mean, linestyle='dotted', label=r"$\langle F_{{1GW+EM}} \rangle = {:.1f}$".format(single_gw_detection_mean), color='C2')
 
-    plt.xlabel('Percent of events')
-    plt.ylabel('Relative Number of trials')
-    plt.legend()
+    # plt.xlabel('Percent of events')
+    # plt.ylabel('Relative Number of trials')
+    # plt.legend()
 
 
-    plt.savefig(f'{trials_dir}/loss_fractions.pdf')
+    # plt.savefig(f'{trials_dir}/loss_fractions.pdf')
+    # plt.show()
+
+    # # Figure for discovery window 
+
+    # discovery_window2_mean = np.mean(discovery_window2)
+    # discovery_window3_mean = np.mean(discovery_window3)
+    # discovery_window4_mean = np.mean(discovery_window4)
+
+    # discovery_window2_std = np.std(discovery_window2)
+    # discovery_window3_std = np.std(discovery_window3)
+    # discovery_window4_std = np.std(discovery_window4)
+
+    # discovery_window2_median = np.median(discovery_window2)
+    # discovery_window3_median = np.median(discovery_window3)
+    # discovery_window4_median = np.median(discovery_window4)
+
+    # discovery_window2_95 = np.percentile(discovery_window2, 95)
+    # discovery_window3_95 = np.percentile(discovery_window3, 95)
+    # #discovery_window4_95 = np.percentile(discovery_window4, 95)
+
+    # discovery_window2_5 = np.percentile(discovery_window2, 5)
+    # discovery_window3_5 = np.percentile(discovery_window3, 5)
+    # #discovery_window4_5 = np.percentile(discovery_window4, 5)
+
+
+    # plt.hist(discovery_window2, density=True, histtype=u'step', linewidth=3, color='C0', label='2 detector')
+    # plt.hist(discovery_window3, density=True, histtype=u'step', linewidth=3, color='C1', label='3 detector')
+    # plt.hist(discovery_window4, density=True, histtype=u'step', linewidth=3, color='C2', label='4 detector')
+
+    # plt.axvline(discovery_window2_mean, linestyle='dotted', color='C0')
+    # plt.axvline(discovery_window3_mean, linestyle='dotted', color='C1')
+
+    # plt.xlabel('Discovery window (days)')
+    # plt.ylabel('Relative number of events')
+
+
+    # plt.savefig(f'{trials_dir}/discovery_windows.pdf')
+    # plt.show()
+
+    # print(f"Discovery windows:\n2 det mean: {discovery_window2_mean} std: {discovery_window2_std}\n3 det: {discovery_window3_mean} std: {discovery_window3_std}\n4 det: {discovery_window4_mean} std: {discovery_window4_std}")
+    # print(f"Discovery windows:\n2 det 5th: {discovery_window2_5} median: {discovery_window2_median} 95th: {discovery_window2_95}\n3 det 5th: {discovery_window3_5} median: {discovery_window3_median} 95th: {discovery_window3_95}") # \n4 det 5th: {discovery_window4_5} median: {discovery_window4_median} 95th: {discovery_window4_95}\n")
+
+    n_iterations = np.arange(1, len(n_detect2) + 1)
+
+    cumulative_averages2 = np.cumsum(n_detect2) / n_iterations
+    cumulative_averages3 = np.cumsum(n_detect3) / n_iterations
+    cumulative_averages4 = np.cumsum(n_detect4) / n_iterations
+
+    iteration_start = 10
+
+    plt.plot(n_iterations[iteration_start:], cumulative_averages2[iteration_start:])
+    plt.xlabel('Number of iterations')
+    plt.ylabel('Cumulative average of 2 detector events')
+    plt.axhline(y = np.mean(n_detect2), color='red')
+    plt.savefig(f'{trials_dir}/cumulative_avg_2.png')
     plt.show()
 
-    # Figure for discovery window 
-
-    discovery_window2_mean = np.mean(discovery_window2)
-    discovery_window3_mean = np.mean(discovery_window3)
-    discovery_window4_mean = np.mean(discovery_window4)
-
-    discovery_window2_std = np.std(discovery_window2)
-    discovery_window3_std = np.std(discovery_window3)
-    discovery_window4_std = np.std(discovery_window4)
-
-    plt.hist(discovery_window2, density=True, histtype=u'step', linewidth=3, color='C0', label='2 detector')
-    plt.hist(discovery_window3, density=True, histtype=u'step', linewidth=3, color='C1', label='3 detector')
-    plt.hist(discovery_window4, density=True, histtype=u'step', linewidth=3, color='C2', label='4 detector')
-
-    plt.axvline(discovery_window2_mean, linestyle='dotted', color='C0')
-    plt.axvline(discovery_window3_mean, linestyle='dotted', color='C1')
-
-    plt.xlabel('Discovery window (days)')
-    plt.ylabel('Relative number of events')
-
-
-    plt.savefig(f'{trials_dir}/discovery_windows.pdf')
+    plt.plot(n_iterations[iteration_start:], cumulative_averages3[iteration_start:])
+    plt.xlabel('Number of iterations')
+    plt.ylabel('Cumulative average of 3 detector events')
+    plt.axhline(y = np.mean(n_detect3), color='red')
+    plt.savefig(f'{trials_dir}/cumulative_avg_3.png')
     plt.show()
 
-    print(f"Discovery windows:\n2 det mean: {discovery_window2_mean} std: {discovery_window2_std}\n3 det: {discovery_window3_mean} std: {discovery_window3_std}\n4 det: {discovery_window4_mean} std: {discovery_window4_std}")
+    plt.plot(n_iterations[iteration_start:], cumulative_averages4[iteration_start:])
+    plt.xlabel('Number of iterations')
+    plt.ylabel('Cumulative average of 4 detector events')
+    plt.axhline(y = np.mean(n_detect4), color='red')
+    plt.savefig(f'{trials_dir}/cumulative_avg_4.png')
+    plt.show()
