@@ -42,7 +42,8 @@ from gwemlightcurves.EjectaFits import DiUj2017, CoDi2019
 from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
 from kilopop.kilonovae import bns_kilonova as saeev
 
-np.random.RandomState(int(time.time()))
+#np.random.seed(seed=42)
+disable_tqdm = True
 
 # asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
 detector_asd_links_O4 = dict(
@@ -227,7 +228,6 @@ def get_options(argv=None):
 def main(argv=None):
 
     args = get_options(argv=argv)
-    np.random.seed(seed=42)
 
     # LIGO run 
     ligo_observing_run = args.ligo_run 
@@ -348,7 +348,7 @@ def main(argv=None):
 
         scaling_factors = np.array([])
 
-        print(f"### Num trial = {n}; Num events = {n_events}")
+        print(f"### Starting trial = {n}; Num events = {n_events}")
         if mass_distrib == 'mw':
 
             mass1, mass2 = galactic_masses(n_events)
@@ -375,8 +375,7 @@ def main(argv=None):
         bns_range_virgo = np.array([])
         bns_range_kagra = np.array([])
 
-        print('Computing merger parameters...')
-        for m1, m2, o in tqdm(zip(mass1, mass2, omegas), total=n_events):
+        for m1, m2, o in tqdm(zip(mass1, mass2, omegas), total=n_events, disable=disable_tqdm):
 
             bns_range_ligo = np.append(bns_range_ligo, [ligo_range(m1=m1, m2=m2, inclination = o)])
             bns_range_virgo = np.append(bns_range_virgo,[virgo_range(m1=m1, m2=m2, inclination = o)])
@@ -431,8 +430,7 @@ def main(argv=None):
         # decide whether there is a kilonova based on remnant matter
         has_ejecta_bool = tot_ejecta_masses > 0
 
-        print('Computing synthetic photometry...')
-        for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events):
+        for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events, disable=disable_tqdm):
 
             #print(f"Sample parameters: mass1 = {mass1[i]}, mass2 = {mass2[i]}, cos_theta = {cos_theta}, phi = {phi}, ejecta_mass_dyn = {mej_dyn}, ejecta_mass_wind = {mej_wind}, dist = {d}")
 
@@ -521,9 +519,9 @@ def main(argv=None):
         # Events which gw detection on one instrument but also have detectable em counterparts - could've been caught if we had better duty cycles
         single_gw_detection = n1 / n_events
 
-        print("Number of events at each step")
-        print(f"gw_recovered: {gw_recovered} em_recovered: {em_recovered} single gw detection: {single_gw_detection}")
-        print(f"Events that could be caught if LVK duty cycles were more correlated {n1}")
+        # print("Number of events at each step")
+        # print(f"gw_recovered: {gw_recovered} em_recovered: {em_recovered} single gw detection: {single_gw_detection}")
+        # print(f"Events that could be caught if LVK duty cycles were more correlated {n1}")
 
 
         # Create a data frame with all the information
@@ -550,7 +548,7 @@ def main(argv=None):
         trial_df['four_detector_event'] = n4_bool
         trial_df['em_discovery_window'] = discovery_windows
 
-        print(f"Number of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}")
+        print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}")
 
         return dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
@@ -567,7 +565,7 @@ def main(argv=None):
             gw_recovered, em_recovered, single_gw_detection, \
             trial_df
 
-    with schwimmbad.SerialPool() as pool:
+    with schwimmbad.JoblibPool(5) as pool:
         values = list(pool.map(dotry, range(n_try)))
 
     with open(f'{trials_dir}/raw_mc_data.pkl', 'wb') as f:
