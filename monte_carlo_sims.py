@@ -32,6 +32,7 @@ from sed_to_lc import SEDDerviedLC
 from dns_mass_distribution import extra_galactic_masses, galactic_masses
 from dns_mass_distribution import MIN_MASS, MAX_MASS, M_TOV, EOS_interpolator
 from interpolate_bulla_sed import uniq_cos_theta, uniq_phi
+from rates_models import Abbott23Rate, Nitz21Rate
 
 import inspiral_range
 import ligo.em_bright
@@ -149,6 +150,7 @@ def get_range(detector, ligo_run):
         asd_fp = io.BytesIO(request.urlopen(psd_url).read())
     freq, asd = np.loadtxt(asd_fp, unpack=True)
     psd = asd**2
+    # https://lscsoft.docs.ligo.org/lalsuite/lalsimulation/group___l_a_l_sim_inspiral__h.html#ggab955e4603c588fe19b39e47870a7b69cac65622993fd7f475a0ad423f35992906
     return partial(inspiral_range.range, freq, psd, approximant="TaylorF2")
 
 
@@ -317,10 +319,11 @@ def main(argv=None):
         
         trial_df = pd.DataFrame()
 
+        # Sample from rate models
         if rate_model == "Nitz23":
-            rate = np.random.uniform(52, 508)
+            rate = Nitz21Rate(1)[0][0]
         elif rate_model == "Abbott23":
-            rate = np.random.uniform(10, 1700)
+            rate = Abbott23Rate(1)[0][0]
 
 
         n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
