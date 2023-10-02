@@ -10,7 +10,7 @@
 #SBATCH --error=Ligo_O5_Abbott.err
 #SBATCH --partition=caps
 
-export PYTHONHOME='~/.conda/envs/KN-rates/bin/python'
+
 export PYTHONPATH='~/.conda/envs/KN-rates/bin/python'
 
 module load anaconda/2023-Mar/3
