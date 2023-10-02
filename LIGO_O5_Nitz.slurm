@@ -9,6 +9,7 @@
 #SBATCH --error=Ligo_O5_Nitz.err
 #SBATCH --partition=caps
 
+export PYTHONHOME='~/.conda/envs/KN-rates/bin/python'
 module load anaconda/2023-Mar/3
 source activate KN-rates
 
