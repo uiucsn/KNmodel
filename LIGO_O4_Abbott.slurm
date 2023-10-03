@@ -9,8 +9,7 @@
 #SBATCH --error=Ligo_O4_Abbott.err
 #SBATCH --partition=caps
 
-unset PYTHONPATH
-unset PYTHONHOME
+export PYTHONHOME='/projects/caps/uiucsn/ved'
 
 module load anaconda/2023-Mar/3
 source activate KN-rates
