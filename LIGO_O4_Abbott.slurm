@@ -9,9 +9,7 @@
 #SBATCH --error=Ligo_O4_Abbott.err
 #SBATCH --partition=caps
 
-export PYTHONHOME='/projects/caps/uiucsn/ved'
-
 module load anaconda/2023-Mar/3
-source activate KN-rates
+export PYTHONHOME='/projects/caps/uiucsn/ved'
 
 python monte_carlo_sims.py --trials_dir O4-DECam-r-23mag-Abbott  --ntry 1000
