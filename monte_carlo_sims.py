@@ -283,10 +283,10 @@ def main(argv=None):
 
     # the two ligo detectors ahve strongly correlated duty cycles
     # they are both not very correlated with Virgo
-    lvc_cor_matrix = np.array([[1., 0.8, 0.5, 0.1],
-                               [0.8, 1., 0.5, 0.1],
-                               [0.5, 0.5, 1., 0.1],
-                               [0.1, 0.1, 0.1, 1.]])
+    lvc_cor_matrix = np.array([[1., 0.56, 0.56, 0.56],
+                               [0.56, 1., 0.58, 0.58],
+                               [0.56, 0.58, 1., 0.56],
+                               [0.56, 0.58, 0.56, 1.]])
     upper_chol = cholesky(lvc_cor_matrix)
 
     # create the mass distribution of the merging neutron star
