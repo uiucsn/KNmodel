@@ -59,6 +59,7 @@ if __name__=='__main__':
     for key,val in values.items():
         exec(key + '=val')
 
+    n_detect1 = np.array(n_detect1)
     n_detect2 = np.array(n_detect2)
     n_detect3 = np.array(n_detect3)
     n_detect4 = np.array(n_detect4)
@@ -72,8 +73,7 @@ if __name__=='__main__':
     #ebins = np.insert(ebins, 0, 0)
     ebins = np.arange(np.max(n_detect2))
     norm = np.sum(n_detect3)/np.sum(n_detect2)
-    vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', \
-            bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
+    vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
 
     axes[0].hist(n_detect2, histtype='step', \
                     bins=ebins, color='C0', lw=3, density=True, zorder=3)
@@ -84,6 +84,23 @@ if __name__=='__main__':
                     label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
     axes[0].axvline(ninetyfive_percent, color='C0',
                     linestyle='dotted', lw=1)
+    
+    #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
+    mean_nevents = np.mean(n_detect1)
+    #vals*=norm
+    #test = dict(zip(ebins, vals))
+    #print(ebins, vals)
+    #print("Test")
+    #print(test)
+    axes[0].hist(n_detect1, density=True, histtype='stepfilled', color='C4', alpha=0.5, bins=ebins, zorder=1)
+    axes[0].hist(n_detect1, density=True, histtype='step', color='C4', lw=3, bins=ebins, zorder=2)
+    #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='stepfilled', color='C1', alpha=0.5, bins=ebins, zorder=1)
+    #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='step', color='C1', lw=3, bins=ebins, zorder=2)
+    five_percent, ninetyfive_percent = np.percentile(n_detect1, 5), np.percentile(n_detect1, 95)
+    axes[0].axvline(mean_nevents, color='C4', linestyle='--', lw=2,
+                label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+    axes[0].axvline(ninetyfive_percent, color='C4',
+                linestyle='dotted', lw=1)
 
     #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
     mean_nevents = np.mean(n_detect3)
@@ -101,21 +118,22 @@ if __name__=='__main__':
                 label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
     axes[0].axvline(ninetyfive_percent, color='C1',
                 linestyle='dotted', lw=1)
-    #vals, bins = np.histogram(n_detect4, bins=ebins, density=True)
-    mean_nevents = np.mean(n_detect4)
-    # #vals*=nor
-    # #test = dict(zip(ebins, vals))
-    axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
-    axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
-    five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
-    axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
-                    label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-    axes[0].axvline(ninetyfive_percent, color='C2',
-                    linestyle='dotted', lw=1)
+    
+    if obs_run == 'O5':
+        mean_nevents = np.mean(n_detect4)
+        # #vals*=nor
+        # #test = dict(zip(ebins, vals))
+        axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
+        axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
+        five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
+        axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
+                        label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+        axes[0].axvline(ninetyfive_percent, color='C2',
+                        linestyle='dotted', lw=1)
     axes[0].legend(frameon=False, fontsize='medium', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
-    axes[0].set_xlim((0., np.max(n_detect2)))
+
     #axes[0].set_ylim((1e-2, 1))
     #######################################################
     ### print out probabilities of greater than 1 event ###
@@ -124,10 +142,34 @@ if __name__=='__main__':
     print("For two detector", np.sum(n_detect2 > 1)/len(n_detect2))
     print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
     print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
+    print("Number of trials with less than 1 KN",np.sum((n_detect2 + n_detect3 + n_detect4) < 1)*100/len(n_detect2))
+
+    print("Percentiles of events")
+    print(f"two detector | 5th {np.percentile(n_detect2, 5)} | mean {np.mean(n_detect2)} | 95th {np.percentile(n_detect2, 95)}")
+    print(f"three detector | 5th {np.percentile(n_detect3, 5)} | mean {np.mean(n_detect3)} | 95th {np.percentile(n_detect3, 95)}")
+    print(f"four detector | 5th {np.percentile(n_detect4, 5)} | mean {np.mean(n_detect4)} | 95th {np.percentile(n_detect4, 95)}")
 
     dist_range = np.arange(0, 450., 0.1)
     patches = list()
     legend_text = list()
+    try:
+        kde = spstat.gaussian_kde(dist_detect1, bw_method='scott')
+        pdist = kde(dist_range)
+        axes[1].plot(dist_range, pdist, color='C4', linestyle='-', lw=3, zorder=4)
+        patch1 = axes[1].fill_between(dist_range, np.zeros(len(dist_range)), pdist, color='C4', alpha=0.3, zorder=0)
+        patches.append(patch1)
+        legend_text.append('1 Detector Events')
+        mean_dist = np.mean(dist_detect1)
+        axes[1].axvline(mean_dist, color='C4', linestyle='--', lw=1.5, zorder=6, label=r'$\langle D \rangle = {:.0f}$ Mpc'.format(mean_dist))
+        ind0_40 = dist_range <= 40.
+        ind40_80 = (dist_range <= 100.) & (dist_range > 40.)
+        ind80_160 = (dist_range <= 160.) & (dist_range > 100.)
+        p0_40 = scinteg.trapz(pdist[ind0_40], dist_range[ind0_40])
+        p40_80 = scinteg.trapz(pdist[ind40_80], dist_range[ind40_80])
+        p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
+        print(p0_40*5, p40_80*5, p80_160*5)
+    except ValueError:
+        print("Could not create KDE since no 1-det detection")
     try:
         kde = spstat.gaussian_kde(dist_detect2, bw_method='scott')
         pdist = kde(dist_range)
@@ -174,36 +216,52 @@ if __name__=='__main__':
         print("Could not create KDE since no 4-det detection")
 
     h_range = np.arange(15, 24, 0.1)
+    kde = spstat.gaussian_kde(mag_detect1, bw_method='scott')
+    kde_peak =  spstat.gaussian_kde(mag_peak1, bw_method='scott')
+    ph = kde(h_range)
+    peak_ph = kde_peak(h_range)
+
+    axes[2].plot(h_range, ph, color='C4', linestyle='dotted', lw=3, zorder=4)
+    axes[2].plot(h_range, peak_ph, color='C4', linestyle='-', lw=3, zorder=4)
+    axes[2].fill_between(h_range, np.zeros(len(h_range)), peak_ph, color='C4', alpha=0.3, zorder=0)
+    mean_h = np.mean(mag_peak1)
+    axes[2].axvline(mean_h, color='C4', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle_{{peak}} = {:.1f}$ mag'.format(mean_h))
+
+    h_range = np.arange(15, 24, 0.1)
     kde = spstat.gaussian_kde(mag_detect2, bw_method='scott')
     kde_peak =  spstat.gaussian_kde(mag_peak2, bw_method='scott')
     ph = kde(h_range)
     peak_ph = kde_peak(h_range)
 
-    axes[2].plot(h_range, ph, color='C0', linestyle='dotted', lw=3, zorder=4, label='Detection mag')
-    axes[2].plot(h_range, peak_ph, color='C0', linestyle='-', lw=3, zorder=4, label='Peak mag')
+    axes[2].plot(h_range, ph, color='C0', linestyle='dotted', lw=3, zorder=4)
+    axes[2].plot(h_range, peak_ph, color='C0', linestyle='-', lw=3, zorder=4)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), peak_ph, color='C0', alpha=0.3, zorder=0)
     mean_h = np.mean(mag_peak2)
-    axes[2].axvline(mean_h, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle = {:.1f}$ mag'.format(mean_h))
+    axes[2].axvline(mean_h, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle_{{peak}} = {:.1f}$ mag'.format(mean_h))
 
     kde = spstat.gaussian_kde(mag_detect3, bw_method='scott')
     kde_peak =  spstat.gaussian_kde(mag_peak3, bw_method='scott')
     ph = kde(h_range)
     peak_ph = kde_peak(h_range)
 
-    axes[2].plot(h_range, ph, color='C1', linestyle='dotted', lw=3, zorder=2, label='Discovery mag')
-    axes[2].plot(h_range, peak_ph, color='C1', linestyle='-', lw=3, zorder=2, label='Peak mag')
+    axes[2].plot(h_range, ph, color='C1', linestyle='dotted', lw=3, zorder=2)
+    axes[2].plot(h_range, peak_ph, color='C1', linestyle='-', lw=3, zorder=2)
     axes[2].fill_between(h_range, np.zeros(len(h_range)), peak_ph, color='C1', alpha=0.5, zorder=1)
     mean_h = np.mean(mag_peak3)
-    axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle = {:.1f}$ mag'.format(mean_h))
+    axes[2].axvline(mean_h, color='C1', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle_{{peak}} = {:.1f}$ mag'.format(mean_h))
     axes[2].legend(frameon=False, fontsize='medium')
 
     try:
         kde = spstat.gaussian_kde(mag_detect4, bw_method='scott')
+        kde_peak =  spstat.gaussian_kde(mag_peak4, bw_method='scott')
         ph = kde(h_range)
-        axes[2].plot(h_range, ph, color='C2', linestyle='-', lw=3, zorder=2)
-        axes[2].fill_between(h_range, np.zeros(len(h_range)), ph, color='C1', alpha=0.5, zorder=1)
+        peak_ph = kde_peak(h_range)
+
+        axes[2].plot(h_range, ph, color='C2', linestyle='dotted', lw=3, zorder=2)
+        axes[2].plot(h_range, peak_ph, color='C2', linestyle='-', lw=3, zorder=2)
+        axes[2].fill_between(h_range, np.zeros(len(h_range)), peak_ph, color='C2', alpha=0.5, zorder=1)
         mean_h = np.mean(mag_detect4)
-        axes[2].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle H \rangle = {:.1f}$ mag'.format(mean_h))
+        axes[2].axvline(mean_h, color='C2', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle_{{peak}} = {:.1f}$ mag'.format(mean_h))
         axes[2].legend(frameon=False, fontsize='medium')
     except ValueError:
         print("Could not create KDE for h-mag since no 4 detector events found")
@@ -219,13 +277,14 @@ if __name__=='__main__':
 
     axes[2].set_xlabel('Apparent ($r$, AB mag)', fontsize='x-large')
     axes[2].set_ylabel('$P(r)$', fontsize='x-large')
-    axes[0].set_xlim(0, ebins.max())
 
     ymin, ymax = axes[1].get_ylim()
     axes[1].set_ylim(0, ymax)
     if obs_run == 'O4':
+        axes[0].set_xlim(0, 5)
         axes[1].set_xlim(0, 255)
     elif obs_run == 'O5':
+        axes[0].set_xlim(0, 132)
         axes[1].set_xlim(0, 455)
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)

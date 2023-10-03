@@ -327,6 +327,7 @@ def main(argv=None):
 
 
         n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
+        n_events = max(n_events,1)
         cos_thetas = np.random.uniform(0, 1, size=n_events)
         phis = np.random.uniform(15, 75, size=n_events)
 
@@ -548,23 +549,23 @@ def main(argv=None):
         trial_df['scaling_factor'] = scaling_factors
         trial_df['two_detector_event'] = n2_bool
         trial_df['three_detector_event'] = n3_bool
-        trial_df['four_detector_event'] = n4_bool
-        trial_df['em_discovery_window'] = discovery_windows
 
-        print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}", flush=True)
 
-        return dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
+        print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n1 detector events: {n1}\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}", flush=True)
+
+        return dist[n1_good].value.tolist(), tot_mass[n1_good].tolist(),\
+            dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
             dist[n3_good].value.tolist(), tot_mass[n3_good].tolist(),\
             dist[n4_good].value.tolist(), tot_mass[n4_good].tolist(),\
-            discovery_mags[n2_good].tolist(), discovery_mags[n3_good].tolist(),\
-            discovery_mags[n4_good].tolist(),\
-            peak_mags[n2_good].tolist(), peak_mags[n3_good].tolist(),\
-            peak_mags[n4_good].tolist(),\
-            discovery_phases[n2_good].tolist(), discovery_phases[n3_good].tolist(),\
-            discovery_phases[n4_good].tolist(),\
-            discovery_windows[n2_good].tolist(), discovery_windows[n3_good].tolist(),\
-            discovery_windows[n4_good].tolist(),\
-            n2, n3, n4, \
+            discovery_mags[n1_good].tolist(), discovery_mags[n2_good].tolist(), \
+            discovery_mags[n3_good].tolist(), discovery_mags[n4_good].tolist(),\
+            peak_mags[n1_good].tolist(), peak_mags[n2_good].tolist(),\
+            peak_mags[n3_good].tolist(), peak_mags[n4_good].tolist(),\
+            discovery_phases[n1_good].tolist(), discovery_phases[n2_good].tolist(),\
+            discovery_phases[n3_good].tolist(), discovery_phases[n4_good].tolist(),\
+            discovery_windows[n1_good].tolist(), discovery_windows[n2_good].tolist(),\
+            discovery_windows[n3_good].tolist(),discovery_windows[n4_good].tolist(),\
+            n1, n2, n3, n4, \
             gw_recovered, em_recovered, single_gw_detection, \
             trial_df
 
@@ -575,24 +576,31 @@ def main(argv=None):
         pickle.dump(values, f)
     print("Finished computation...")
     data_dump = dict()
+    n_detect1 = []
     n_detect2 = []
     n_detect3 = []
     n_detect4 = []
+    dist_detect1 = []
+    mass_detect1 = []
     dist_detect2 = []
     mass_detect2 = []
     dist_detect3 = []
     mass_detect3 = []
     dist_detect4 = []
     mass_detect4 = []
+    mag_detect1 = []
     mag_detect2 = []
     mag_detect3 = []
     mag_detect4 = []
+    mag_peak1 = []
     mag_peak2 = []
     mag_peak3 = []
     mag_peak4 = []
+    discovery_phase1 = []
     discovery_phase2 = []
     discovery_phase3 = []
     discovery_phase4 = []
+    discovery_window1 = []
     discovery_window2 = []
     discovery_window3 = []
     discovery_window4 = []
@@ -602,16 +610,25 @@ def main(argv=None):
 
     df_list = []
 
-    for idx, (d2, m2, d3, m3, d4, m4, h2, h3, h4, p2, p3, p4, phase2, phase3, phase4,window2, window3, window4, n2, n3, n4, gw_recovered, em_recovered, single_gw_detection, df) in enumerate(values):
+    for idx, (d1, m1, d2, m2, d3, m3, d4, m4, h1, h2, h3, h4, p1, p2, p3, p4, phase1, phase2, phase3, phase4, window1, window2, window3, window4, n1, n2, n3, n4, gw_recovered, em_recovered, single_gw_detection, df) in enumerate(values):
 
         df_list.append(df)
         gw_recovered_arr.append(gw_recovered)
         em_recovered_arr.append(em_recovered)
         single_gw_detection_arr.append(single_gw_detection)
 
+        if n1 >= 0:
+            n_detect1.append(n1)
+            if n1>0:
+                dist_detect1 += d1
+                mass_detect1 += m1
+                mag_detect1 += h1
+                mag_peak1 += p1
+                discovery_phase1 += phase1
+                discovery_window1 += window1
         if n2 >= 0:
             n_detect2.append(n2)
-            if n3>0:
+            if n2>0:
                 dist_detect2 += d2
                 mass_detect2 += m2
                 mag_detect2  += h2
@@ -636,25 +653,27 @@ def main(argv=None):
                 mag_peak4 += p4
                 discovery_phase4 += phase4
                 discovery_window4 += window4
-        data_dump[f"{idx}"] = {"d2": d2, "m2": m2, "d3": d3,
-                               "m3": m3, "d4": d4, "m4": m4,
-                               "h2": h2, "h3": h3, "h4": h4,
-                               "n2": n2, "n3": n3, "n4": n4,
-                               "p2": p2, "p3": p3, "p4": p4,
-                               "phase2": phase2, "phase3": phase3, "phase4": phase4,
-                               "window2": window2, 'window3': window3, 'window4':window4}
+        data_dump[f"{idx}"] = {"d1": d1, "m1": m1, 
+                               "d2": d2, "m2": m2, 
+                               "d3": d3, "m3": m3,
+                               "d4": d4, "m4": m4,
+                               "h1": h1, "h2": h2, "h3": h3, "h4": h4,
+                               "n1": n1, "n2": n2, "n3": n3, "n4": n4,
+                               "p1": p1, "p2": p2, "p3": p3, "p4": p4,
+                               "phase1": phase1, "phase2": phase2, "phase3": phase3, "phase4": phase4,
+                               "window1": window1, "window2": window2, 'window3': window3, 'window4':window4}
         
     with open(f"{trials_dir}/data_dump.pickle", "wb") as f:
         pickle.dump(data_dump, f)
     
     with open(f'{trials_dir}/plotting_data.pickle', 'wb') as f:
-        res = dict(n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
-                    dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
-                    mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
-                    mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
-                    mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4,
-                    discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4, 
-                    discovery_window2=discovery_window2, discovery_window3=discovery_window3, discovery_window4 = discovery_window4,
+        res = dict(n_detect1=n_detect1, n_detect2=n_detect2, n_detect3=n_detect3, n_detect4=n_detect4,
+                    dist_detect1=dist_detect1, dist_detect2=dist_detect2, dist_detect3=dist_detect3, dist_detect4=dist_detect4,
+                    mass_detect1=mass_detect1, mass_detect2=mass_detect2, mass_detect3=mass_detect3, mass_detect4=mass_detect4,
+                    mag_detect1=mag_detect1, mag_detect2=mag_detect2, mag_detect3=mag_detect3, mag_detect4=mag_detect4,
+                    mag_peak1 =mag_peak1, mag_peak2 =mag_peak2, mag_peak3=mag_peak3, mag_peak4=mag_peak4,
+                    discovery_phase1=discovery_phase1, discovery_phase2=discovery_phase2, discovery_phase3=discovery_phase3, discovery_phase4=discovery_phase4, 
+                    discovery_window1=discovery_window1, discovery_window2=discovery_window2, discovery_window3=discovery_window3, discovery_window4 = discovery_window4,
                     gw_recovered=gw_recovered_arr, em_recovered=em_recovered_arr, single_gw_detection=single_gw_detection_arr)
         pickle.dump(res, f)
 
