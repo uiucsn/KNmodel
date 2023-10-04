@@ -11,6 +11,6 @@
 
 
 module load anaconda/2023-Mar/3
-export PYTHONHOME='/projects/caps/uiucsn/ved'
+source activate /projects/caps/uiucsn/ved
 
 python monte_carlo_sims.py --trials_dir O5-LSST-r-24mag-Nitz --ligo_run O5 --detection_passband lsstr --detection_threshold 24 --rate_model Nitz23 --ntry 1000

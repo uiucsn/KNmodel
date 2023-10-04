@@ -10,6 +10,6 @@
 #SBATCH --partition=caps
 
 module load anaconda/2023-Mar/3
-export PYTHONHOME='/projects/caps/uiucsn/ved'
+source activate /projects/caps/uiucsn/ved
 
 python monte_carlo_sims.py --trials_dir O4-DECam-r-23mag-Abbott  --ntry 1000
