@@ -1,54 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate as interpolate
+import scipy.stats as stats
 
-def Abbott23Rate(n):
+def LVK_UG(n):
+    # BNS merger rate for LVK user guide
+    rate_mean = np.log10(210)
+    rate_95 = np.log10(210 + 240)
+    rate_5 = np.log10(210 - 120)
 
-    rate_mean = 105.5
-    rate_95 = rate_mean + 190.2
-    rate_5 = rate_mean - 83.9
+    z_95 = 1.6449
+    z_5 = -1.6449
 
-    z_95 = 1.645
-    z_5 = -1.645
-
-    x = np.arange(-1e5,  1e5, 0.1)
-
-    sigma1 = (rate_95 - rate_mean) / z_95
-    sigma2 = (rate_5 - rate_mean) / z_5
-
-    # Computing PDF
-    A = (2/np.pi)**0.5 * 1/(sigma1 + sigma2)
-
-    f_x_low = A * np.exp(-(x - rate_mean)**2/(2*sigma1**2))
-    f_x_high = A * np.exp(-(x - rate_mean)**2/(2*sigma2**2))
-
-    # Set negative rate probabilities to zero and re normalize to make sure sum of PDF is 1
-    f_x = np.where(x < rate_mean, f_x_low, f_x_high)
-    f_x = np.where(x < 0, 0, f_x)
-    f_x = f_x / np.sum(f_x)
-
-    # Find the CDF and build interpolator
-    cdf = np.cumsum(f_x)
-    inv_cdf = interpolate.interp1d(cdf, x)
-
-    # Generate samples
-    r = np.random.rand(n)
-    rvs = inv_cdf(r)
-
-    return rvs, x, f_x
-    
-def Nitz21Rate(n):
-    
-
-    # Constants needed
-    rate_mean = 200
-    rate_95 = rate_mean + 309
-    rate_5 = rate_mean - 148
-
-    x = np.arange(-1e5,  1e5, 0.1)
-
-    z_95 = 1.645
-    z_5 = -1.645
+    x = np.arange(-100,  100, 0.05)
 
     sigma1 = (rate_95 - rate_mean) / z_95
     sigma2 = (rate_5 - rate_mean) / z_5
@@ -61,8 +25,8 @@ def Nitz21Rate(n):
 
     # Set negative rate probabilities to zero and re normalize to make sure sum of PDF is 1
     f_x = np.where(x < rate_mean, f_x_low, f_x_high)
-    f_x = np.where(x < 0, 0, f_x)
-    f_x = f_x / np.sum(f_x)
+    f_x = f_x/np.sum(f_x)
+
 
     # Find the CDF and build interpolator
     cdf = np.cumsum(f_x)
@@ -70,28 +34,51 @@ def Nitz21Rate(n):
 
     # Generate samples
     r = np.random.rand(n)
-    rvs = inv_cdf(r)
+    rvs = inv_cdf(r) # exponents of the rates
+    sampled_rates = 10**rvs
+    all_rates = 10**x
 
-    return rvs, x, f_x
+    return sampled_rates, all_rates, f_x
+
 
 if __name__ == '__main__':
-    n = 1
-    r1, x1, fx1 = Abbott23Rate(n)
-    r2, x2, fx2 = Nitz21Rate(n)
-    print(r1[0])
 
-    plt.plot(x1, fx1, label=r"Abbott - $105.5^{+190.2}_{-83.9}$")
-    plt.plot(x2, fx2, label=r"Nitz - $200^{+309}_{-148}$")
+    n = 10000
+    r3, x3, fx3 = LVK_UG(n)
+
+
+    plt.plot(x3, fx3, label=r"LVK user guide")
     plt.xlabel(r'Rate (R, $GPc^{-3} yr^{-1}$)')
     plt.ylabel('P(R)')
-    plt.xlim(left = 0, right = 1000)
+    plt.xscale('log')
+    plt.xlim(left = 1, right = 10000)
     plt.legend()
     plt.show()
 
-    bins = np.arange(0, max(max(r1), max(r2)), 10)
-    plt.hist(r1, label=r"Abbott - $105.5^{+190.2}_{-83.9}$", histtype='step', bins=bins)
-    plt.hist(r2, label=r"Nitz - $200^{+309}_{-148}$",  histtype='step',  bins=bins)
+    d = stats.norm(
+    loc=2.322219294733919, 
+    scale= 0.2012239157647422  #  0.2012239157647422 
+    ) 
+    x = np.arange(1e-3, 1e3, 0.01)
+    fx = d.pdf(x)
+    print(10**d.ppf(0.05), 10**d.ppf(0.95))
+
+    plt.plot(10**x, d.cdf(x), label=r"LVK user guide")
     plt.xlabel(r'Rate (R, $GPc^{-3} yr^{-1}$)')
-    plt.ylabel('Count')
+    plt.ylabel('P(R)')
+    plt.xscale('log')
+    plt.xlim(left = 1, right = 10000)
     plt.legend()
     plt.show()
+
+
+    bins = np.arange(0, max(max(r3), max(r3)), 10)
+    plt.hist(r3, label=r"LVK User guide",  histtype='step',  bins=bins)
+    plt.hist(10**d.rvs(size=n), label=r"LVK User guide",  histtype='step',  bins=bins)
+    plt.xlabel(r'Rate (R, $GPc^{-3} yr^{-1}$)')
+    plt.ylabel('Count')
+    plt.xscale('log')
+    plt.legend()
+    plt.show()
+
+    #print(np.percentile(r3, 5), np.percentile(r3, 95))
