@@ -145,6 +145,7 @@ if __name__=='__main__':
     print("Number of trials with less than 1 KN",np.sum((n_detect2 + n_detect3 + n_detect4) < 1)*100/len(n_detect2))
 
     print("Percentiles of events")
+    print(f"one detector | 5th {np.percentile(n_detect1, 5)} | mean {np.mean(n_detect1)} | 95th {np.percentile(n_detect1, 95)}")
     print(f"two detector | 5th {np.percentile(n_detect2, 5)} | mean {np.mean(n_detect2)} | 95th {np.percentile(n_detect2, 95)}")
     print(f"three detector | 5th {np.percentile(n_detect3, 5)} | mean {np.mean(n_detect3)} | 95th {np.percentile(n_detect3, 95)}")
     print(f"four detector | 5th {np.percentile(n_detect4, 5)} | mean {np.mean(n_detect4)} | 95th {np.percentile(n_detect4, 95)}")
@@ -281,10 +282,10 @@ if __name__=='__main__':
     ymin, ymax = axes[1].get_ylim()
     axes[1].set_ylim(0, ymax)
     if obs_run == 'O4':
-        axes[0].set_xlim(0, 5)
+        axes[0].set_xlim(0, 6)
         axes[1].set_xlim(0, 255)
     elif obs_run == 'O5':
-        axes[0].set_xlim(0, 132)
+        axes[0].set_xlim(0, 40)
         axes[1].set_xlim(0, 455)
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)
@@ -294,7 +295,7 @@ if __name__=='__main__':
         axes[2].set_xlim(16.5, 24)
 
     fig.legend(patches, legend_text,
-                'upper center', frameon=False, ncol=3, fontsize='medium')
+                'upper center', frameon=False, ncol=4, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
     fig.savefig(f'{trials_dir}/mc_plot.pdf')
     plt.show()
@@ -361,31 +362,36 @@ if __name__=='__main__':
     # print(f"Discovery windows:\n2 det mean: {discovery_window2_mean} std: {discovery_window2_std}\n3 det: {discovery_window3_mean} std: {discovery_window3_std}\n4 det: {discovery_window4_mean} std: {discovery_window4_std}")
     # print(f"Discovery windows:\n2 det 5th: {discovery_window2_5} median: {discovery_window2_median} 95th: {discovery_window2_95}\n3 det 5th: {discovery_window3_5} median: {discovery_window3_median} 95th: {discovery_window3_95}") # \n4 det 5th: {discovery_window4_5} median: {discovery_window4_median} 95th: {discovery_window4_95}\n")
 
-    n_iterations = np.arange(1, len(n_detect2) + 1)
 
-    cumulative_averages2 = np.cumsum(n_detect2) / n_iterations
-    cumulative_averages3 = np.cumsum(n_detect3) / n_iterations
-    cumulative_averages4 = np.cumsum(n_detect4) / n_iterations
 
-    iteration_start = 10
 
-    plt.plot(n_iterations[iteration_start:], cumulative_averages2[iteration_start:])
-    plt.xlabel('Number of iterations')
-    plt.ylabel('Cumulative average of 2 detector events')
-    plt.axhline(y = np.mean(n_detect2), color='red')
-    plt.savefig(f'{trials_dir}/cumulative_avg_2.png')
-    plt.show()
 
-    plt.plot(n_iterations[iteration_start:], cumulative_averages3[iteration_start:])
-    plt.xlabel('Number of iterations')
-    plt.ylabel('Cumulative average of 3 detector events')
-    plt.axhline(y = np.mean(n_detect3), color='red')
-    plt.savefig(f'{trials_dir}/cumulative_avg_3.png')
-    plt.show()
 
-    plt.plot(n_iterations[iteration_start:], cumulative_averages4[iteration_start:])
-    plt.xlabel('Number of iterations')
-    plt.ylabel('Cumulative average of 4 detector events')
-    plt.axhline(y = np.mean(n_detect4), color='red')
-    plt.savefig(f'{trials_dir}/cumulative_avg_4.png')
-    plt.show()
+    # n_iterations = np.arange(1, len(n_detect2) + 1)
+
+    # cumulative_averages2 = np.cumsum(n_detect2) / n_iterations
+    # cumulative_averages3 = np.cumsum(n_detect3) / n_iterations
+    # cumulative_averages4 = np.cumsum(n_detect4) / n_iterations
+
+    # iteration_start = 10
+
+    # plt.plot(n_iterations[iteration_start:], cumulative_averages2[iteration_start:])
+    # plt.xlabel('Number of iterations')
+    # plt.ylabel('Cumulative average of 2 detector events')
+    # plt.axhline(y = np.mean(n_detect2), color='red')
+    # plt.savefig(f'{trials_dir}/cumulative_avg_2.png')
+    # plt.show()
+
+    # plt.plot(n_iterations[iteration_start:], cumulative_averages3[iteration_start:])
+    # plt.xlabel('Number of iterations')
+    # plt.ylabel('Cumulative average of 3 detector events')
+    # plt.axhline(y = np.mean(n_detect3), color='red')
+    # plt.savefig(f'{trials_dir}/cumulative_avg_3.png')
+    # plt.show()
+
+    # plt.plot(n_iterations[iteration_start:], cumulative_averages4[iteration_start:])
+    # plt.xlabel('Number of iterations')
+    # plt.ylabel('Cumulative average of 4 detector events')
+    # plt.axhline(y = np.mean(n_detect4), color='red')
+    # plt.savefig(f'{trials_dir}/cumulative_avg_4.png')
+    # plt.show()

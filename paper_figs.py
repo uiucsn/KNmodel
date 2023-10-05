@@ -29,6 +29,7 @@ from matplotlib import cm
 from interpolate_bulla_sed import BullaSEDInterpolator
 from interpolate_bulla_sed import uniq_mej_dyn, uniq_mej_wind, phases, lmbd, uniq_cos_theta, uniq_phi
 from sed_to_lc import SEDDerviedLC, lsst_bands
+from rates_models import LVK_UG
 
 np.random.seed(seed=42)
 
@@ -40,41 +41,50 @@ def makeScalingLawsPlot():
 
 def makeDnsMassHistograms():
 
-    n = 100000
+    n = 1000000
 
+    # recycled, slow
     m1_exg, m2_exg = extra_galactic_masses(n)
-    m1_mw, m2_mw = galactic_masses(n)
 
-    bins = np.arange(MIN_MASS, MAX_MASS, 0.05)
+    bins = np.arange(MIN_MASS, MAX_MASS, 0.02)
 
-    plt.hist(m1_exg, histtype=u'step', label=r'Exg $m_{recycled}$', linewidth=3, density=True, bins=bins)
-    plt.hist(m2_exg, histtype=u'step', label=r'Exg $m_{slow}$', linewidth=3,  density=True, bins=bins)
+    plt.hist(m1_exg, histtype=u'step', label=r'$m_{recycled}$', linewidth=3, density=True, bins=bins)
+    plt.hist(m2_exg, histtype=u'step', label=r'$m_{slow}$', linewidth=3,  density=True, bins=bins)
 
-
-    plt.hist(m1_mw, histtype=u'step', label=r'MW $m_{1}$', linewidth=3, linestyle='dashed',  density=True, bins=bins)
-    plt.hist(m2_mw, histtype=u'step', label=r'MW $m_{2}$', linewidth=3, linestyle='dashed',  density=True, bins=bins)
     
     plt.legend()
-    plt.xlabel(r"$\mathrm{M_{sun}}$", fontsize='x-large')
+    plt.xlabel(r"$\mathrm{M_{\odot}}$", fontsize='x-large')
     plt.ylabel("Relative count", fontsize='x-large')
 
     plt.tight_layout()
     plt.savefig(f'paper_figures/dns_mass_dist.pdf')
+    plt.show()
 
-def makeTrialsEjectaScatter():
+    #sns.kdeplot(x=m1_exg, y=m2_exg, fill=True, cmap="Reds", levels=15)
+    plt.hist2d(m1_exg, m2_exg, bins=(100,100), cmap='Reds')
+    #sns.jointplot(x=m1_exg, y=m2_exg, kind="kde")
+
+    
+    plt.xlabel(r"$m_{recycled}$", fontsize='x-large')
+    plt.ylabel(r"$m_{slow}$", fontsize='x-large')
+
+    plt.tight_layout()
+    plt.savefig(f'paper_figures/dns_mass_dist_2D.pdf')
+    plt.show()
+
+def makeEjectaDistribution():
      
-    df = pd.read_csv('O5-LSST-r-24mag-Nitz/trials_df.csv')
+    df = pd.read_csv('O4-DECam-r-23mag-Abbott/trials_df.csv')
 
     mej_wind = df['mej_wind']
     mej_dyn = df['mej_dyn']
 
-    plt.scatter(mej_wind, mej_dyn, marker='.')
+    sns.jointplot(x=mej_wind, y=mej_dyn)
     plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$')
     plt.ylabel(r'$\mathrm{m_{ej}^{dyn}}$')
-    plt.axvspan(mej_wind_grid_low,  mej_wind_grid_high, alpha=0.25, color='orange')
-    plt.axhspan(mej_dyn_grid_low, mej_dyn_grid_high, alpha=0.25, color='orange')
     plt.tight_layout()
     plt.savefig('paper_figures/mej_scatter.pdf')
+    plt.show()
 
 def makeTrialsEjectaHistogram():
      
@@ -83,7 +93,7 @@ def makeTrialsEjectaHistogram():
     mej_wind = df['mej_wind']
     mej_dyn = df['mej_dyn']
 
-    sns.kdeplot(x=mej_wind, y=mej_dyn, cmap="Reds", fill=True, bw_adjust=1.5, x_limit=(0, ), y_limit=(0,))
+    sns.kdeplot(x=mej_wind, y=mej_dyn, fill=True, cmap="Reds", levels=15)
 
 
     plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$', fontsize='x-large')
@@ -94,6 +104,8 @@ def makeTrialsEjectaHistogram():
     plt.axvline(mej_wind_grid_high, color='black', linestyle='dotted')
     plt.axhline(mej_dyn_grid_low, color='black', linestyle='dotted')
     plt.axhline(mej_dyn_grid_high, color='black', linestyle='dotted')
+
+    plt.loglog()
     
     plt.savefig('paper_figures/mej_scatter_hist.pdf')
     plt.tight_layout()
@@ -298,73 +310,128 @@ def makeBNSRangePlot():
     vo5_array = np.zeros((len(masses), len(masses)))
     ko5_array = np.zeros((len(masses), len(masses))) 
 
-    # for i, m1 in enumerate(masses):
-    #     for j, m2 in enumerate(masses):
+    for i, m1 in enumerate(masses):
+        for j, m2 in enumerate(masses):
+            print(m1, m2, ligo_range_O4(m1 = m1, m2 = m2))
+            lo4_array[i][j] = ligo_range_O4(m1 = m1, m2 = m2)
+            vo4_array[i][j] = virgo_range_O4(m1 = m1, m2 = m2)
+            ko4_array[i][j] = kagra_range_O4(m1 = m1, m2 = m2)
 
-    #         lo4_array[i][j] = ligo_range_O4(m1 = m1, m2 = m2)
-    #         vo4_array[i][j] = virgo_range_O4(m1 = m1, m2 = m2)
-    #         ko4_array[i][j] = kagra_range_O4(m1 = m1, m2 = m2)
+            lo5_array[i][j] = ligo_range_O5(m1 = m1, m2 = m2)
+            vo5_array[i][j] = virgo_range_O5(m1 = m1, m2 = m2)
+            ko5_array[i][j] = kagra_range_O5(m1 = m1, m2 = m2)
 
-    #         lo5_array[i][j] = ligo_range_O5(m1 = m1, m2 = m2)
-    #         vo5_array[i][j] = virgo_range_O5(m1 = m1, m2 = m2)
-    #         ko5_array[i][j] = kagra_range_O5(m1 = m1, m2 = m2)
+    cmap=cm.get_cmap('plasma')
+    max_range_O4 = max([np.max(lo4_array), np.max(vo4_array), np.max(ko4_array)])
+    min_range_O4 = min([np.min(lo4_array), np.min(vo4_array), np.min(ko4_array)])
 
-    # cmap=cm.get_cmap('plasma')
-    # max_range_O4 = max([np.max(lo4_array), np.max(vo4_array), np.max(ko4_array)])
-    # min_range_O4 = min([np.min(lo4_array), np.min(vo4_array), np.min(ko4_array)])
+    h, w = 12, 5.5
 
-    # h, w = 12, 5.5
+    fig, axes = plt.subplots(nrows=3, ncols=1)
+    fig.set_size_inches(w, h)
+    normalizer=Normalize(0, max_range_O4)
+    im=cm.ScalarMappable(norm=normalizer, cmap=cmap)
 
-    # fig, axes = plt.subplots(nrows=3, ncols=1)
-    # fig.set_size_inches(w, h)
-    # normalizer=Normalize(0, max_range_O4)
-    # im=cm.ScalarMappable(norm=normalizer, cmap=cmap)
+    axes[0].imshow(lo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
+    axes[0].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[0].set_ylabel("LIGO Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
-    # axes[0].imshow(lo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
-    # axes[0].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[0].set_ylabel("LIGO Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    axes[1].imshow(vo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
+    axes[1].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[1].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
-    # axes[1].imshow(vo4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
-    # axes[1].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[1].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    axes[2].imshow(ko4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
+    axes[2].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[2].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
-    # axes[2].imshow(ko4_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
-    # axes[2].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[2].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    cbar = fig.colorbar(im, ax=axes.ravel().tolist())
+    cbar.set_label('Horizon distances (MPc)', fontsize='x-large')
 
-    # cbar = fig.colorbar(im, ax=axes.ravel().tolist())
-    # cbar.set_label('Horizon distances (MPc)', fontsize='x-large')
+    plt.savefig('paper_figures/O4_range.pdf')
+    plt.show()
 
-    # plt.savefig('paper_figures/O4_range.pdf')
-    # plt.show()
+    max_range_O5 = max([np.max(lo5_array), np.max(vo5_array), np.max(ko5_array)])
+    min_range_O5 = min([np.min(lo5_array), np.min(vo5_array), np.min(ko5_array)])
 
-    # max_range_O5 = max([np.max(lo5_array), np.max(vo5_array), np.max(ko5_array)])
-    # min_range_O5 = min([np.min(lo5_array), np.min(vo5_array), np.min(ko5_array)])
+    fig, axes = plt.subplots(nrows=3, ncols=1)
+    fig.set_size_inches(w, h)
+    normalizer=Normalize(0, max_range_O5)
+    im=cm.ScalarMappable(norm=normalizer,  cmap=cmap)
 
-    # fig, axes = plt.subplots(nrows=3, ncols=1)
-    # fig.set_size_inches(w, h)
-    # normalizer=Normalize(0, max_range_O5)
-    # im=cm.ScalarMappable(norm=normalizer,  cmap=cmap)
+    axes[0].imshow(lo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
+    axes[0].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[0].set_ylabel("LIGO Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
-    # axes[0].imshow(lo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer, cmap=cmap)
-    # axes[0].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[0].set_ylabel("LIGO Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
-
-    # axes[1].imshow(vo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer,  cmap=cmap)
-    # axes[1].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[1].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    axes[1].imshow(vo5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer,  cmap=cmap)
+    axes[1].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[1].set_ylabel("Virgo Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
 
-    # axes[2].imshow(ko5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer,  cmap=cmap)
-    # axes[2].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
-    # axes[2].set_ylabel("KAGRA Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    axes[2].imshow(ko5_array, extent=[min(masses),max(masses),min(masses),max(masses)], origin="lower",norm=normalizer,  cmap=cmap)
+    axes[2].set_xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    axes[2].set_ylabel("KAGRA Range\n\n" + r"$m_{2} (M_{\odot})$", fontsize='x-large')
 
-    # cbar = fig.colorbar(im, ax=axes.ravel().tolist())
-    # cbar.set_label('Horizon distances (MPc)', fontsize='x-large')
+    cbar = fig.colorbar(im, ax=axes.ravel().tolist())
+    cbar.set_label('Horizon distances (MPc)', fontsize='x-large')
 
-    # plt.savefig('paper_figures/O5_range.pdf')
-    # plt.show()
+    plt.savefig('paper_figures/O5_range.pdf')
+    plt.show()
 
+def makeBNSMergerRateHist():
+
+    n = 100000
+
+    samples, d = LVK_UG(n)
+
+    s_5 = np.percentile(samples, 5)
+    s_95 = np.percentile(samples, 95)
+    bins = np.arange(0, max(samples), 10)
+
+    plt.hist(samples,  histtype='step',  bins=bins)
+
+    plt.axvline(x=s_5, label=r'$\langle R \rangle_{5} = %.2f$' % (s_5), c ='black', linestyle='--')
+    plt.axvline(x=s_95, label=r"$\langle R \rangle_{95} = %.2f$" % (s_95), c ='black', linestyle='--')
+
+    plt.xlabel(r'Rate (R, $GPc^{-3} yr^{-1}$)', fontsize='x-large')
+    plt.ylabel('Count', fontsize='x-large')
+    plt.legend()
+
+    plt.xscale('log')
+    plt.tight_layout()
+
+    plt.savefig('paper_figures/bns_rates.pdf')
+    plt.show()
+
+def flatMassDistEjecta():
+
+    n_events = 1000
+    stars = s22p(population_size=n_events, only_draw_parameters=True)
+
+    mass1 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass1'] for i in range(n_events)])
+    mass2 = np.array([stars.compute_lightcurve_properties_per_kilonova(i)['mass2'] for i in range(n_events)])
+
+  
+    mej_dyn,  mej_wind  = get_ejecta_mass(mass1, mass2)
+    print(mej_dyn,  mej_wind )
+
+    sns.kdeplot(x=mej_wind, y=mej_dyn, fill=True, cmap="Reds", levels=15)
+
+
+    plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$', fontsize='x-large')
+    plt.ylabel(r'$\mathrm{m_{ej}^{dyn}}$', fontsize='x-large')
+
+
+    plt.axvline(mej_wind_grid_low, color='black', linestyle='dotted')
+    plt.axvline(mej_wind_grid_high, color='black', linestyle='dotted')
+    plt.axhline(mej_dyn_grid_low, color='black', linestyle='dotted')
+    plt.axhline(mej_dyn_grid_high, color='black', linestyle='dotted')
+
+    plt.loglog()
+    
+    plt.savefig('paper_figures/mej_uniform_scatter_hist.pdf')
+    plt.tight_layout()
+
+    plt.show()
 
 if __name__ == '__main__':
 
@@ -372,12 +439,14 @@ if __name__ == '__main__':
     #makeDnsMassHistograms()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
-    makeTrialsAvPlot()
+    #makeTrialsAvPlot()
     #makeInterceptSurface()
     #makeSlopeSurface()
     #makeExponentSurface()
     #makeGW170817PhotometryPlotVillar()
     #makeBNSRangePlot()
+    makeBNSMergerRateHist()
+    #flatMassDistEjecta()
 
 
 
