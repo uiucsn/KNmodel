@@ -32,7 +32,7 @@ from sed_to_lc import SEDDerviedLC
 from dns_mass_distribution import extra_galactic_masses, galactic_masses
 from dns_mass_distribution import MIN_MASS, MAX_MASS, M_TOV, EOS_interpolator
 from interpolate_bulla_sed import uniq_cos_theta, uniq_phi
-from rates_models import Abbott23Rate, Nitz21Rate
+from rates_models import LVK_UG
 
 import inspiral_range
 import ligo.em_bright
@@ -212,7 +212,7 @@ def get_options(argv=None):
     parser.add_argument('--trials_dir', default='trial-exg-100', help='Directory to store simulation results')
     parser.add_argument('--ligo_run', choices=['O4','O5'], default='O4', help='Pick LIGO observing run')
     parser.add_argument('--mass_distrib', choices=['mw','flat', 'exg'], default='exg', help='Pick BNS mass distribution')
-    parser.add_argument('--rate_model', choices=['Nitz23','Abbott23'], default='Abbott23', help='Pick BNS merger rate model')
+    parser.add_argument('--rate_model', choices=['LVK_UG_O4'], default='LVK_UG_O4', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=500, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='desr', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
     parser.add_argument('--detection_threshold', default=23, type=float, help='Pick detection threshold in detection passband.')
@@ -320,10 +320,8 @@ def main(argv=None):
         trial_df = pd.DataFrame()
 
         # Sample from rate models
-        if rate_model == "Nitz23":
-            rate = Nitz21Rate(1)[0][0]
-        elif rate_model == "Abbott23":
-            rate = Abbott23Rate(1)[0][0]
+        if rate_model == "LVK_UG_O4":
+            rate = LVK_UG(1)[0][0]
 
 
         n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
@@ -349,6 +347,11 @@ def main(argv=None):
         n2_bool = np.array(([False] * n_events))
         n3_bool = np.array(([False] * n_events))
         n4_bool = np.array(([False] * n_events))
+
+        gw1_bool = np.array(([False] * n_events))
+        gw2_bool = np.array(([False] * n_events))
+        gw3_bool = np.array(([False] * n_events))
+        gw4_bool = np.array(([False] * n_events))
 
         scaling_factors = np.array([])
 
@@ -483,6 +486,7 @@ def main(argv=None):
 
         n1_gw_only = np.where(one_det_obs)[0]
         n1_gw = len(n1_gw_only)
+        gw1_bool[n1_gw_only] = True
         n1_good = np.where(one_det_obs & em_bool & has_ejecta_bool)[0]
         n1 = len(n1_good)
         n1_bool[n1_good] = True
@@ -491,6 +495,7 @@ def main(argv=None):
 
         n2_gw_only = np.where(two_det_obs)[0]
         n2_gw = len(n2_gw_only)
+        gw2_bool[n2_gw_only] = True
         n2_good = np.where(two_det_obs & em_bool & has_ejecta_bool)[0]
         n2 = len(n2_good)
         n2_bool[n2_good] = True
@@ -499,6 +504,7 @@ def main(argv=None):
 
         n3_gw_only = np.where(three_det_obs)[0]
         n3_gw = len(n3_gw_only)
+        gw3_bool[n3_gw_only] = True
         n3_good = np.where(three_det_obs & em_bool & has_ejecta_bool)[0]
         n3 = len(n3_good)
         n3_bool[n3_good] = True
@@ -507,6 +513,7 @@ def main(argv=None):
 
         n4_gw_only = np.where(four_det_obs)[0]
         n4_gw = len(n4_gw_only)
+        gw4_bool[n4_gw_only] = True
         n4_good = np.where(four_det_obs & em_bool & has_ejecta_bool)[0]
         n4 = len(n4_good)
         n4_bool[n4_good] = True
@@ -547,11 +554,17 @@ def main(argv=None):
         trial_df['discovery_mag'] = discovery_mags
         trial_df['discovery_phase'] = discovery_phases
         trial_df['scaling_factor'] = scaling_factors
+        trial_df['one_detector_event'] = n1_bool
         trial_df['two_detector_event'] = n2_bool
         trial_df['three_detector_event'] = n3_bool
-
+        trial_df['four_detector_event'] = n4_bool
+        trial_df['gw1'] = gw1_bool
+        trial_df['gw2'] = gw2_bool
+        trial_df['gw3'] = gw3_bool
+        trial_df['gw4'] = gw4_bool
 
         print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n1 detector events: {n1}\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}", flush=True)
+        print(f"GW Detections:\n1 detector events: {n1_gw}\n2 detector events: {n2_gw}\n3 detector events: {n3_gw}\n4 detector events: {n4_gw}", flush=True)
 
         return dist[n1_good].value.tolist(), tot_mass[n1_good].tolist(),\
             dist[n2_good].value.tolist(), tot_mass[n2_good].tolist(),\
