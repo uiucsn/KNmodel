@@ -282,11 +282,10 @@ if __name__=='__main__':
     ymin, ymax = axes[1].get_ylim()
     axes[1].set_ylim(0, ymax)
     if obs_run == 'O4':
-        axes[0].set_xlim(0, 6)
         axes[1].set_xlim(0, 255)
     elif obs_run == 'O5':
-        axes[0].set_xlim(0, 40)
         axes[1].set_xlim(0, 455)
+    axes[0].set_xlim(0, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)
     if obs_run == 'O4':
