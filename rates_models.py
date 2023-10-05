@@ -15,7 +15,7 @@ def LVK_UG(n):
     sigma1 = (rate_95 - rate_mean) / z_95
     sigma2 = (rate_5 - rate_mean) / z_5
 
-    d = stats.norm(loc=rate_mean, scale=sigma2) 
+    d = stats.norm(loc=rate_mean, scale=sigma1) 
     sample_exponents = d.rvs(size=n)
 
     sample_rates = 10**sample_exponents
