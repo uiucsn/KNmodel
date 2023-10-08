@@ -256,7 +256,7 @@ def main(argv=None):
         # setup duty cycles
         h_duty = 0.7
         l_duty = 0.7
-        v_duty = 0.54
+        v_duty = 0.47
         k_duty = 0.27
 
         box_size = 510
