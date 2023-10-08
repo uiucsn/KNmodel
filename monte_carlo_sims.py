@@ -237,7 +237,6 @@ def get_options(argv=None):
 
 
 def main(argv=None):
-    print(get_ejecta_mass(np.array([1.78]), np.array([1.78])))
 
     args = get_options(argv=argv)
 
