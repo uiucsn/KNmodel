@@ -133,6 +133,15 @@ def get_ejecta_mass(m1, m2):
     # treat as BNS
     m_dyn = compute_dyn_ej(m1, c_ns_1, m2, c_ns_2)
     m_wind = compute_wind_ej(m1, m2, zetas)
+
+    # Check for prompt collapse to a BH
+    M_radius_1_dot_6 = EOS_interpolator(1.6)
+    M_thresh = (2.38 - (3.606 * (M_TOV / M_radius_1_dot_6))) * M_TOV
+
+    m_total = m1 + m2
+    m_dyn = np.where(m_total < M_thresh, m_dyn, 0)
+    m_wind = np.where(m_total < M_thresh, m_wind, 0)
+
     return m_dyn, m_wind
 
 
@@ -228,6 +237,7 @@ def get_options(argv=None):
 
 
 def main(argv=None):
+    print(get_ejecta_mass(np.array([1.78]), np.array([1.78])))
 
     args = get_options(argv=argv)
 
