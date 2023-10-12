@@ -63,6 +63,7 @@ if __name__=='__main__':
     n_detect2 = np.array(n_detect2)
     n_detect3 = np.array(n_detect3)
     n_detect4 = np.array(n_detect4)
+    n_all = n_detect1 + n_detect2 + n_detect3 + n_detect4
 
     #print(f"2 det: {n_detect2};\n3 det: {n_detect3};\n4 det: {n_detect4}")
     #print(f"2 det mean: {np.mean(n_detect2)};\n3 det mean: {np.mean(n_detect3)};\n4 det mean: {np.mean(n_detect4)}")
@@ -71,7 +72,7 @@ if __name__=='__main__':
 
     #ebins = np.logspace(0, 1.53, 10)
     #ebins = np.insert(ebins, 0, 0)
-    ebins = np.arange(np.max(n_detect2))
+    ebins = np.arange(-0.5, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
     norm = np.sum(n_detect3)/np.sum(n_detect2)
     vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
 
@@ -82,8 +83,7 @@ if __name__=='__main__':
     five_percent, ninetyfive_percent = np.percentile(n_detect2, 5), np.percentile(n_detect2, 95) 
     axes[0].axvline(mean_nevents, color='C0', linestyle='--', lw=2,
                     label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-    axes[0].axvline(ninetyfive_percent, color='C0',
-                    linestyle='dotted', lw=1)
+    #axes[0].axvline(ninetyfive_percent, color='C0',linestyle='dotted', lw=1)
     
     #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
     mean_nevents = np.mean(n_detect1)
@@ -99,8 +99,7 @@ if __name__=='__main__':
     five_percent, ninetyfive_percent = np.percentile(n_detect1, 5), np.percentile(n_detect1, 95)
     axes[0].axvline(mean_nevents, color='C4', linestyle='--', lw=2,
                 label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-    axes[0].axvline(ninetyfive_percent, color='C4',
-                linestyle='dotted', lw=1)
+    #axes[0].axvline(ninetyfive_percent, color='C4',linestyle='dotted', lw=1)
 
     #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
     mean_nevents = np.mean(n_detect3)
@@ -116,8 +115,7 @@ if __name__=='__main__':
     five_percent, ninetyfive_percent = np.percentile(n_detect3, 5), np.percentile(n_detect3, 95)
     axes[0].axvline(mean_nevents, color='C1', linestyle='--', lw=2,
                 label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-    axes[0].axvline(ninetyfive_percent, color='C1',
-                linestyle='dotted', lw=1)
+    #axes[0].axvline(ninetyfive_percent, color='C1', linestyle='dotted', lw=1)
     
     if obs_run == 'O5':
         mean_nevents = np.mean(n_detect4)
@@ -128,8 +126,7 @@ if __name__=='__main__':
         five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
         axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
                         label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-        axes[0].axvline(ninetyfive_percent, color='C2',
-                        linestyle='dotted', lw=1)
+        #axes[0].axvline(ninetyfive_percent, color='C2',linestyle='dotted', lw=1)
     axes[0].legend(frameon=False, fontsize='medium', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
@@ -138,17 +135,26 @@ if __name__=='__main__':
     #######################################################
     ### print out probabilities of greater than 1 event ###
     #######################################################
-    print("P(N > 1 event detected)")
-    print("For two detector", np.sum(n_detect2 > 1)/len(n_detect2))
-    print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
-    print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
-    print("Number of trials with less than 1 KN",np.sum((n_detect2 + n_detect3 + n_detect4) < 1)*100/len(n_detect2))
+    # print("P(N > 1 event detected)")
+    # print("For two detector", np.sum(n_detect2 > 1)/len(n_detect2))
+    # print("For three detector", np.sum(n_detect3 > 1)/len(n_detect2))
+    # print("For four detector", np.sum(n_detect4 > 1)/len(n_detect2))
+    # print("Number of trials with less than 1 KN",np.sum((n_detect2 + n_detect3 + n_detect4) < 1)*100/len(n_detect2))
 
     print("Percentiles of events")
     print(f"one detector | 5th {np.percentile(n_detect1, 5)} | mean {np.mean(n_detect1)} | 95th {np.percentile(n_detect1, 95)}")
     print(f"two detector | 5th {np.percentile(n_detect2, 5)} | mean {np.mean(n_detect2)} | 95th {np.percentile(n_detect2, 95)}")
     print(f"three detector | 5th {np.percentile(n_detect3, 5)} | mean {np.mean(n_detect3)} | 95th {np.percentile(n_detect3, 95)}")
     print(f"four detector | 5th {np.percentile(n_detect4, 5)} | mean {np.mean(n_detect4)} | 95th {np.percentile(n_detect4, 95)}")
+    print(f"Total | 5th {np.percentile(n_all, 5)} | mean {np.mean(n_all)} | 95th {np.percentile(n_all, 95)}")
+
+
+
+    print("one detector  ${", np.mean(n_detect1), "}_{-", np.mean(n_detect1) - np.percentile(n_detect1, 5) ,"}^{+", np.percentile(n_detect1, 95) - np.mean(n_detect1), "}$")
+    print("two detector  ${", np.mean(n_detect2), "}_{-", np.mean(n_detect2) - np.percentile(n_detect2, 5) ,"}^{+", np.percentile(n_detect2, 95) - np.mean(n_detect2), "}$")
+    print("three detector  ${", np.mean(n_detect3), "}_{-", np.mean(n_detect3) - np.percentile(n_detect3, 5) ,"}^{+", np.percentile(n_detect3, 95) - np.mean(n_detect3), "}$")
+    print("four detector  ${", np.mean(n_detect4), "}_{-", np.mean(n_detect4) - np.percentile(n_detect4, 5) ,"}^{+", np.percentile(n_detect4, 95) - np.mean(n_detect4), "}$")
+    print("total  ${", np.mean(n_all), "}_{-", np.mean(n_all) - np.percentile(n_all, 5) ,"}^{+", np.percentile(n_all, 95) - np.mean(n_all), "}$")
 
     dist_range = np.arange(0, 450., 0.1)
     patches = list()
@@ -285,7 +291,7 @@ if __name__=='__main__':
         axes[1].set_xlim(0, 255)
     elif obs_run == 'O5':
         axes[1].set_xlim(0, 455)
-    axes[0].set_xlim(0, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
+    axes[0].set_xlim(-1, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)
     if obs_run == 'O4':
@@ -323,25 +329,35 @@ if __name__=='__main__':
 
     # # Figure for discovery window 
 
-    # discovery_window2_mean = np.mean(discovery_window2)
-    # discovery_window3_mean = np.mean(discovery_window3)
-    # discovery_window4_mean = np.mean(discovery_window4)
+    discovery_window1_mean = np.mean(discovery_window1)
+    discovery_window2_mean = np.mean(discovery_window2)
+    discovery_window3_mean = np.mean(discovery_window3)
+    discovery_window4_mean = np.mean(discovery_window4)
 
-    # discovery_window2_std = np.std(discovery_window2)
-    # discovery_window3_std = np.std(discovery_window3)
-    # discovery_window4_std = np.std(discovery_window4)
+    discovery_window2_std = np.std(discovery_window2)
+    discovery_window3_std = np.std(discovery_window3)
+    discovery_window4_std = np.std(discovery_window4)
 
-    # discovery_window2_median = np.median(discovery_window2)
-    # discovery_window3_median = np.median(discovery_window3)
-    # discovery_window4_median = np.median(discovery_window4)
+    discovery_window2_median = np.median(discovery_window2)
+    discovery_window3_median = np.median(discovery_window3)
+    discovery_window4_median = np.median(discovery_window4)
 
-    # discovery_window2_95 = np.percentile(discovery_window2, 95)
-    # discovery_window3_95 = np.percentile(discovery_window3, 95)
-    # #discovery_window4_95 = np.percentile(discovery_window4, 95)
+    discovery_window1_95 = np.percentile(discovery_window1, 95)
+    discovery_window2_95 = np.percentile(discovery_window2, 95)
+    discovery_window3_95 = np.percentile(discovery_window3, 95)
+    #discovery_window4_95 = np.percentile(discovery_window4, 95)
 
-    # discovery_window2_5 = np.percentile(discovery_window2, 5)
-    # discovery_window3_5 = np.percentile(discovery_window3, 5)
-    # #discovery_window4_5 = np.percentile(discovery_window4, 5)
+    discovery_window1_5 = np.percentile(discovery_window1, 5)
+    discovery_window2_5 = np.percentile(discovery_window2, 5)
+    discovery_window3_5 = np.percentile(discovery_window3, 5)
+    #discovery_window4_5 = np.percentile(discovery_window4, 5)
+
+    print("Discovery windows")
+    print(f"one detector | 5th {np.percentile(discovery_window1, 5)} | mean {np.mean(discovery_window1)} | 95th {np.percentile(discovery_window1, 95)}")
+    print(f"two detector | 5th {np.percentile(discovery_window2, 5)} | mean {np.mean(discovery_window2)} | 95th {np.percentile(discovery_window2, 95)}")
+    print(f"three detector | 5th {np.percentile(discovery_window3, 5)} | mean {np.mean(discovery_window3)} | 95th {np.percentile(discovery_window3, 95)}")
+
+
 
 
     # plt.hist(discovery_window2, density=True, histtype=u'step', linewidth=3, color='C0', label='2 detector')
@@ -355,7 +371,7 @@ if __name__=='__main__':
     # plt.ylabel('Relative number of events')
 
 
-    # plt.savefig(f'{trials_dir}/discovery_windows.pdf')
+    # # plt.savefig(f'{trials_dir}/discovery_windows.pdf')
     # plt.show()
 
     # print(f"Discovery windows:\n2 det mean: {discovery_window2_mean} std: {discovery_window2_std}\n3 det: {discovery_window3_mean} std: {discovery_window3_std}\n4 det: {discovery_window4_mean} std: {discovery_window4_std}")

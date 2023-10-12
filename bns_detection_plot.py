@@ -43,6 +43,8 @@ if __name__=='__main__':
     gw_5 = np.percentile(gw_mergers, 5)
     gw_95 = np.percentile(gw_mergers, 95)
 
+    print('BNS mergers detected: ${',  gw_mean, "}_{-", gw_mean - gw_5, "}^{+", gw_95 - gw_mean, "}$")
+
     bins = np.arange(0, np.max(gw_mergers))
 
 
