@@ -263,6 +263,16 @@ class SEDDerviedLC():
             lcs[passband] += self.distance.distmod.value
 
         return lcs
+    
+    def getPeakAppMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = True):
+
+        lcs = self.getAppMagsInPassbands(passbands, lc_phases=lc_phases, apply_extinction=apply_extinction, apply_redshift=apply_redshift)
+        peak_mags = {}
+
+        for passband in passbands:
+            peak_mags[passband] = np.min(lcs[passband])
+
+        return peak_mags
 
 if __name__ == '__main__':
 

@@ -446,6 +446,14 @@ def main(argv=None):
         # decide whether there is a kilonova based on remnant matter
         has_ejecta_bool = tot_ejecta_masses > 0
 
+        # arrays to store peaks mags in different pbs
+        peak_u = []
+        peak_g = []
+        peak_r = []
+        peak_i = []
+        peak_z = []
+        peak_y = []
+            
         for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events, disable=disable_tqdm):
 
             #print(f"Sample parameters: mass1 = {mass1[i]}, mass2 = {mass2[i]}, cos_theta = {cos_theta}, phi = {phi}, ejecta_mass_dyn = {mej_dyn}, ejecta_mass_wind = {mej_wind}, dist = {d}")
@@ -463,6 +471,14 @@ def main(argv=None):
             obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
             lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
 
+            # Add peaks to data
+            peaks = obj.getPeakAppMagsInPassbands(['lsstu','lsstg','lsstr','lssti','lsstz','lssty'])
+            peak_u.append(peaks['lsstu'])
+            peak_g.append(peaks['lsstg'])
+            peak_r.append(peaks['lsstr'])
+            peak_i.append(peaks['lssti'])
+            peak_z.append(peaks['lsstz'])
+            peak_y.append(peaks['lssty'])
 
             scaling_factors = np.append(scaling_factors, [obj.scaling_factor])
 
@@ -571,6 +587,13 @@ def main(argv=None):
         trial_df['gw2'] = gw2_bool
         trial_df['gw3'] = gw3_bool
         trial_df['gw4'] = gw4_bool
+        trial_df['peak_u'] = peak_u
+        trial_df['peak_g'] = peak_g
+        trial_df['peak_r'] = peak_r
+        trial_df['peak_i'] = peak_i
+        trial_df['peak_z'] = peak_z
+        trial_df['peak_y'] = peak_y
+
 
         print(f"Finished Trial = {n}; Num events = {n_events}\nNumber of:\n1 detector events: {n1}\n2 detector events: {n2}\n3 detector events: {n3}\n4 detector events: {n4}", flush=True)
         print(f"GW Detections:\n1 detector events: {n1_gw}\n2 detector events: {n2_gw}\n3 detector events: {n3_gw}\n4 detector events: {n4_gw}", flush=True)

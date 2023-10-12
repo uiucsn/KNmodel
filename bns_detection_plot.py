@@ -131,4 +131,53 @@ if __name__=='__main__':
     plt.savefig(f'{trials_dir}/chirp_distance.pdf')
     plt.show()
 
+    # Figure 5 - ejecta mass histogram
+    no_mej = df.groupby('trial_number')
+    no_mej_fracs = []
 
+    for i in range(len(no_mej)):
+
+        temp = df[df['trial_number'] == i]
+
+        N = len(temp)
+        M = len(temp.loc[(temp['mej_wind']==0) & (temp['mej_dyn']==0)])
+        f = M/N * 100
+        no_mej_fracs.append(f)
+
+    print(r"%","of mergers producing zero ejecta ${", np.mean(no_mej_fracs), "}_{-", np.mean(no_mej_fracs) - np.percentile(no_mej_fracs, 5) ,"}^{+", np.percentile(no_mej_fracs, 95) - np.mean(no_mej_fracs), "}$" )
+        
+    peak_u = df['peak_u'].to_numpy()
+    peak_g = df['peak_g'].to_numpy()
+    peak_r = df['peak_r'].to_numpy()
+    peak_i = df['peak_i'].to_numpy()
+    peak_z = df['peak_z'].to_numpy()
+    peak_y = df['peak_y'].to_numpy()
+
+    peak_u[peak_u==np.inf] = np.nan
+    peak_g[peak_g==np.inf] = np.nan
+    peak_r[peak_r==np.inf] = np.nan
+    peak_i[peak_i==np.inf] = np.nan
+    peak_z[peak_z==np.inf] = np.nan
+    peak_y[peak_y==np.inf] = np.nan
+
+    bins = np.arange(1, max(peak_u), 1)
+    plt.hist(peak_u, label = 'LSST u', histtype='step', color='C1', lw=3, bins=bins)
+    #plt.hist(peak_g, label = 'LSST g', histtype='step', color='C2', lw=3, bins=bins)
+    plt.hist(peak_r, label = 'LSST r', histtype='step', color='C3', lw=3, bins=bins)
+    plt.hist(peak_i, label = 'LSST i', histtype='step', color='C4', lw=3, bins=bins)
+    #plt.hist(peak_z, label = 'LSST z', histtype='step', color='C5', lw=3, bins=bins)
+    plt.hist(peak_y, label = 'LSST y', histtype='step', color='C6', lw=3, bins=bins)
+
+    plt.hist(peak_u, histtype='stepfilled', color='C1', alpha=0.3, bins=bins)
+    #plt.hist(peak_g, histtype='stepfilled', color='C2', alpha=0.5, bins=bins)
+    plt.hist(peak_r, histtype='stepfilled', color='C3', alpha=0.3, bins=bins)
+    plt.hist(peak_i, histtype='stepfilled', color='C4', alpha=0.3, bins=bins)
+    #plt.hist(peak_z, histtype='stepfilled', color='C5', alpha=0.5, bins=bins)
+    plt.hist(peak_y, histtype='stepfilled', color='C6', alpha=0.3, bins=bins)
+
+    plt.xlabel("Peak mag (AB)", fontsize='x-large')
+    plt.ylabel("Count",fontsize='x-large')
+
+    plt.yscale('log')
+    plt.legend()
+    plt.show()
