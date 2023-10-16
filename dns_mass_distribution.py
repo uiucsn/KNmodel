@@ -14,7 +14,7 @@ MIN_MASS = min(EOS_TABLE['grav_mass'])
 
 M_TOV = MAX_MASS
 
-def extra_galactic_masses(n):
+def Galaudage21(n):
     # https://iopscience.iop.org/article/10.3847/2041-8213/abe7f6/pdf
 
     # Stats for double gaussian distribution of Recycled stars
@@ -52,6 +52,33 @@ def extra_galactic_masses(n):
     m_recycled[m_recycled < MIN_MASS] = MIN_MASS
     m_slow[m_slow > MAX_MASS] = MAX_MASS
     m_slow[m_slow < MIN_MASS] = MIN_MASS
+
+    return m_recycled, m_slow
+
+def Farrow19(n):
+    # https://iopscience.iop.org/article/10.3847/2041-8213/abe7f6/pdf
+
+    # Stats for double gaussian distribution of Recycled stars
+    m1_recycled = 1.34
+    sd1_recycled = 0.02
+
+    m2_recycled = 1.47
+    sd2_recycled = 0.15
+
+    f_recycled = 0.68
+
+
+    # Sampling from the two gaussian for recycled stars according to the weight fraction
+    m_recycled_1 = np.random.normal(loc=m1_recycled, scale=sd1_recycled, size = int(f_recycled * n))
+    m_recycled_2 = np.random.normal(loc=m2_recycled, scale=sd2_recycled, size = n - int(f_recycled * n))
+    m_recycled = np.concatenate((m_recycled_1, m_recycled_2))
+    np.random.shuffle(m_recycled)
+
+    m_slow = np.random.uniform(low = 1.16, high=1.42, size=n)
+
+    m_recycled[m_recycled > MAX_MASS] = MAX_MASS
+    m_recycled[m_recycled < MIN_MASS] = MIN_MASS
+
 
     return m_recycled, m_slow
 

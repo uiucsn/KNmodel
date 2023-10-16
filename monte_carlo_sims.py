@@ -29,7 +29,7 @@ import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
 
 from sed_to_lc import SEDDerviedLC
-from dns_mass_distribution import extra_galactic_masses, galactic_masses
+from dns_mass_distribution import Galaudage21, Farrow19
 from dns_mass_distribution import MIN_MASS, MAX_MASS, M_TOV, EOS_interpolator
 from interpolate_bulla_sed import uniq_cos_theta, uniq_phi
 from rates_models import LVK_UG
@@ -220,7 +220,7 @@ def get_options(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', default='trial-exg-100', help='Directory to store simulation results')
     parser.add_argument('--ligo_run', choices=['O4','O5'], default='O4', help='Pick LIGO observing run')
-    parser.add_argument('--mass_distrib', choices=['mw','flat', 'exg'], default='exg', help='Pick BNS mass distribution')
+    parser.add_argument('--mass_distrib', choices=['Galaudage21','Farrow19','flat'], default='Galaudage21', help='Pick BNS mass distribution')
     parser.add_argument('--rate_model', choices=['LVK_UG_O4'], default='LVK_UG_O4', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=500, type=int, action=MinZeroAction, help='Set the number of MC samples')
     parser.add_argument('--detection_passband', default='desr', help='Pick detection passband. Should be from https://sncosmo.readthedocs.io/en/stable/bandpass-list.html')
@@ -365,14 +365,14 @@ def main(argv=None):
         scaling_factors = np.array([])
 
         print(f"### Starting trial = {n}; Num events = {n_events}", flush=True)
-        if mass_distrib == 'mw':
+        if mass_distrib == 'Galaudage21':
 
-            mass1, mass2 = galactic_masses(n_events)
+            mass1, mass2 = Galaudage21(n_events)
             mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
-        elif mass_distrib == 'exg':
+        elif mass_distrib == 'Farrow19':
 
-            mass1, mass2 = extra_galactic_masses(n_events)
+            mass1, mass2 = Farrow19(n_events)
             mej_dyn_arr, mej_wind_arr = get_ejecta_mass(mass1, mass2)
 
 
@@ -472,7 +472,7 @@ def main(argv=None):
             lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
 
             # Add peaks to data
-            peaks = obj.getPeakAppMagsInPassbands(['lsstu','lsstg','lsstr','lssti','lsstz','lssty'])
+            peaks = obj.getPeakAppMagsInPassbands(['lsstu','lsstg','lsstr','lssti','lsstz','lssty'],lc_phases=p)
             peak_u.append(peaks['lsstu'])
             peak_g.append(peaks['lsstg'])
             peak_r.append(peaks['lsstr'])
