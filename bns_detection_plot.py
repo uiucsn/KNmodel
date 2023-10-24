@@ -5,6 +5,9 @@ import argparse
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+GW170817_chirp = 1.1977
+GW170817_dist = 43
+
 def get_options(argv=None):
     '''
     Get commandline options
@@ -40,10 +43,11 @@ if __name__=='__main__':
 
     gw_mergers = gw1 + gw2 + gw3 + gw4
     gw_mean = np.mean(gw_mergers)
+    gw_median = np.median(gw_mergers)
     gw_5 = np.percentile(gw_mergers, 5)
     gw_95 = np.percentile(gw_mergers, 95)
 
-    print('BNS mergers detected: ${',  gw_mean, "}_{-", gw_mean - gw_5, "}^{+", gw_95 - gw_mean, "}$")
+    print('BNS mergers detected: ${',  gw_median, "}_{-", gw_median - gw_5, "}^{+", gw_95 - gw_median, "}$")
 
     bins = np.arange(0, np.max(gw_mergers))
 
@@ -103,7 +107,7 @@ if __name__=='__main__':
     thetas = np.rad2deg(np.arccos(cos_theta))
     omegas = np.minimum(thetas, 180 - thetas)
 
-    sns.kdeplot(chirp_masses, omegas , fill=True, cmap="Reds", levels=15)
+    sns.kdeplot(chirp_masses, omegas ,  cmap="Reds", levels=15)
 
 
     plt.xlabel(r'$M_{chirp} ({M}_{\odot})$', fontsize='x-large')
@@ -122,11 +126,14 @@ if __name__=='__main__':
 
     dist = np.concatenate((dist1, dist2, dist3, dist4))
 
-    sns.kdeplot(chirp_masses, dist, fill=True, cmap="Reds", levels=15)
+    sns.kdeplot(chirp_masses, dist, cmap="Reds", levels=15)
+    plt.scatter(GW170817_chirp, GW170817_dist, marker='*',c='black', label='GW170817')
+
 
     plt.xlabel(r'$M_{chirp} ({M}_{\odot})$', fontsize='x-large')
     plt.ylabel(r'Distance (Mpc)',fontsize='x-large')
 
+    plt.legend()
     plt.tight_layout()
     plt.savefig(f'{trials_dir}/chirp_distance.pdf')
     plt.show()
@@ -145,7 +152,7 @@ if __name__=='__main__':
         no_mej_fracs.append(f)
 
     print(r"%","of mergers producing zero ejecta ${", np.mean(no_mej_fracs), "}_{-", np.mean(no_mej_fracs) - np.percentile(no_mej_fracs, 5) ,"}^{+", np.percentile(no_mej_fracs, 95) - np.mean(no_mej_fracs), "}$" )
-        
+
     peak_u = df['peak_u'].to_numpy()
     peak_g = df['peak_g'].to_numpy()
     peak_r = df['peak_r'].to_numpy()
@@ -160,17 +167,18 @@ if __name__=='__main__':
     peak_z[peak_z==np.inf] = np.nan
     peak_y[peak_y==np.inf] = np.nan
 
-    bins = np.arange(1, max(peak_u), 1)
+    print(max(peak_u),max(peak_i), max(peak_y))
+    bins = np.arange(min(min(peak_u),min(peak_i), min(peak_z), min(peak_y)) - 1, max(max(peak_u),max(peak_g),max(peak_r),max(peak_i), max(peak_z), max(peak_y)) + 1, 0.5)
     plt.hist(peak_u, label = 'LSST u', histtype='step', color='C1', lw=3, bins=bins)
     #plt.hist(peak_g, label = 'LSST g', histtype='step', color='C2', lw=3, bins=bins)
-    plt.hist(peak_r, label = 'LSST r', histtype='step', color='C3', lw=3, bins=bins)
+    #plt.hist(peak_r, label = 'LSST r', histtype='step', color='C3', lw=3, bins=bins)
     plt.hist(peak_i, label = 'LSST i', histtype='step', color='C4', lw=3, bins=bins)
     #plt.hist(peak_z, label = 'LSST z', histtype='step', color='C5', lw=3, bins=bins)
     plt.hist(peak_y, label = 'LSST y', histtype='step', color='C6', lw=3, bins=bins)
 
     plt.hist(peak_u, histtype='stepfilled', color='C1', alpha=0.3, bins=bins)
     #plt.hist(peak_g, histtype='stepfilled', color='C2', alpha=0.5, bins=bins)
-    plt.hist(peak_r, histtype='stepfilled', color='C3', alpha=0.3, bins=bins)
+    #plt.hist(peak_r, histtype='stepfilled', color='C3', alpha=0.3, bins=bins)
     plt.hist(peak_i, histtype='stepfilled', color='C4', alpha=0.3, bins=bins)
     #plt.hist(peak_z, histtype='stepfilled', color='C5', alpha=0.5, bins=bins)
     plt.hist(peak_y, histtype='stepfilled', color='C6', alpha=0.3, bins=bins)
@@ -179,5 +187,10 @@ if __name__=='__main__':
     plt.ylabel("Count",fontsize='x-large')
 
     plt.yscale('log')
+    plt.xlim(12, 40)
+
     plt.legend()
+    plt.tight_layout()
+
+    plt.savefig(f'{trials_dir}/peak_mags.pdf')
     plt.show()

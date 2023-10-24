@@ -24,7 +24,7 @@ import scipy.integrate as scinteg
 from sklearn.preprocessing import MinMaxScaler
 
 from sed_to_lc import SEDDerviedLC
-from dns_mass_distribution import extra_galactic_masses, galactic_masses
+from dns_mass_distribution import Galaudage21, Farrow19
 
 import inspiral_range
 import ligo.em_bright
@@ -59,6 +59,13 @@ if __name__=='__main__':
     for key,val in values.items():
         exec(key + '=val')
 
+    if obs_run == 'O4':
+        h_range = np.arange(15, 23, 0.1)
+        dist_range = np.arange(0, 260., 0.1)
+    elif obs_run == 'O5':
+        h_range = np.arange(15, 24, 0.1)
+        dist_range = np.arange(0, 460., 0.1)
+
     n_detect1 = np.array(n_detect1)
     n_detect2 = np.array(n_detect2)
     n_detect3 = np.array(n_detect3)
@@ -67,25 +74,12 @@ if __name__=='__main__':
 
     #print(f"2 det: {n_detect2};\n3 det: {n_detect3};\n4 det: {n_detect4}")
     #print(f"2 det mean: {np.mean(n_detect2)};\n3 det mean: {np.mean(n_detect3)};\n4 det mean: {np.mean(n_detect4)}")
-    fig_kw = {'figsize':(9.5/0.7, 3.5)}
+    fig_kw = {'figsize':(9.5/0.7, 4)}
     fig, axes = plt.subplots(nrows=1, ncols=3, **fig_kw)
 
-    #ebins = np.logspace(0, 1.53, 10)
-    #ebins = np.insert(ebins, 0, 0)
     ebins = np.arange(-0.5, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
     norm = np.sum(n_detect3)/np.sum(n_detect2)
-    vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
 
-    axes[0].hist(n_detect2, histtype='step', \
-                    bins=ebins, color='C0', lw=3, density=True, zorder=3)
-    bin_centers = (ebins[0:-1] + ebins[1:])/2.
-    mean_nevents = np.mean(n_detect2)
-    five_percent, ninetyfive_percent = np.percentile(n_detect2, 5), np.percentile(n_detect2, 95) 
-    axes[0].axvline(mean_nevents, color='C0', linestyle='--', lw=2,
-                    label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
-    #axes[0].axvline(ninetyfive_percent, color='C0',linestyle='dotted', lw=1)
-    
-    #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
     mean_nevents = np.mean(n_detect1)
     #vals*=norm
     #test = dict(zip(ebins, vals))
@@ -93,13 +87,30 @@ if __name__=='__main__':
     #print("Test")
     #print(test)
     axes[0].hist(n_detect1, density=True, histtype='stepfilled', color='C4', alpha=0.5, bins=ebins, zorder=1)
-    axes[0].hist(n_detect1, density=True, histtype='step', color='C4', lw=3, bins=ebins, zorder=2)
+    axes[0].hist(n_detect1, density=True, histtype='step', color='C4', lw=1, bins=ebins, zorder=2)
     #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='stepfilled', color='C1', alpha=0.5, bins=ebins, zorder=1)
     #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='step', color='C1', lw=3, bins=ebins, zorder=2)
     five_percent, ninetyfive_percent = np.percentile(n_detect1, 5), np.percentile(n_detect1, 95)
-    axes[0].axvline(mean_nevents, color='C4', linestyle='--', lw=2,
-                label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+    axes[0].axvline(mean_nevents, color='C4', linestyle='--', lw=1,
+                label=r'$\langle N\rangle = %.1f ;~ N_{95} = %.0f$' % (mean_nevents, ninetyfive_percent))
     #axes[0].axvline(ninetyfive_percent, color='C4',linestyle='dotted', lw=1)
+
+    #ebins = np.logspace(0, 1.53, 10)
+    #ebins = np.insert(ebins, 0, 0)
+
+    vals, _, _ = axes[0].hist(n_detect2, histtype='stepfilled', bins=ebins, color='C0', alpha=0.3, density=True, zorder=0)
+
+    axes[0].hist(n_detect2, histtype='step', \
+                    bins=ebins, color='C0', lw=1, density=True, zorder=3)
+    bin_centers = (ebins[0:-1] + ebins[1:])/2.
+    mean_nevents = np.mean(n_detect2)
+    five_percent, ninetyfive_percent = np.percentile(n_detect2, 5), np.percentile(n_detect2, 95) 
+    axes[0].axvline(mean_nevents, color='C0', linestyle='--', lw=1,
+                    label=r'$\langle N\rangle = %.1f ;~ N_{95} = %.0f$' % (mean_nevents, ninetyfive_percent))
+    #axes[0].axvline(ninetyfive_percent, color='C0',linestyle='dotted', lw=1)
+    
+    #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
+
 
     #vals, bins = np.histogram(n_detect3, bins=ebins, density=True)
     mean_nevents = np.mean(n_detect3)
@@ -109,12 +120,12 @@ if __name__=='__main__':
     #print("Test")
     #print(test)
     axes[0].hist(n_detect3, density=True, histtype='stepfilled', color='C1', alpha=0.5, bins=ebins, zorder=1)
-    axes[0].hist(n_detect3, density=True, histtype='step', color='C1', lw=3, bins=ebins, zorder=2)
+    #axes[0].hist(n_detect3, density=True, histtype='step', color='C1', lw=1, bins=ebins, zorder=2)
     #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='stepfilled', color='C1', alpha=0.5, bins=ebins, zorder=1)
     #axes[0].hist(list(test.keys()), weights=list(test.values()), histtype='step', color='C1', lw=3, bins=ebins, zorder=2)
     five_percent, ninetyfive_percent = np.percentile(n_detect3, 5), np.percentile(n_detect3, 95)
-    axes[0].axvline(mean_nevents, color='C1', linestyle='--', lw=2,
-                label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+    axes[0].axvline(mean_nevents, color='C1', linestyle='--', lw=1,
+                label=r'$\langle N\rangle = %.1f ;~ N_{95} = %.0f$' % (mean_nevents, ninetyfive_percent))
     #axes[0].axvline(ninetyfive_percent, color='C1', linestyle='dotted', lw=1)
     
     if obs_run == 'O5':
@@ -122,14 +133,20 @@ if __name__=='__main__':
         # #vals*=nor
         # #test = dict(zip(ebins, vals))
         axes[0].hist(n_detect4, density=True, histtype='stepfilled', color='C2', alpha=0.5, bins=ebins, zorder=1)
-        axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=3, bins=ebins, zorder=2)
+        axes[0].hist(n_detect4, density=True, histtype='step', color='C2', lw=1, bins=ebins, zorder=2)
         five_percent, ninetyfive_percent = np.percentile(n_detect4, 5), np.percentile(n_detect4, 95)
-        axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=2,
-                        label=r'$\langle N\rangle = %.2f ;~ N_{95} = %.2f$' % (mean_nevents, ninetyfive_percent))
+        axes[0].axvline(round(mean_nevents), color='C2', linestyle='--', lw=1,
+                        label=r'$\langle N\rangle = %.1f ;~ N_{95} = %.0f$' % (mean_nevents, ninetyfive_percent))
         #axes[0].axvline(ninetyfive_percent, color='C2',linestyle='dotted', lw=1)
+    
+
+    axes[0].hist(n_all, color = 'black', histtype='step', density=True, bins = ebins, lw=2, label=r'$\langle N\rangle = %.1f ;~ N_{95} = %.0f$' % (np.mean(n_all), np.percentile(n_all, 95)))
     axes[0].legend(frameon=False, fontsize='medium', loc='upper right')
     #axes[0].set_xscale('log')
     axes[0].set_yscale('log')
+
+
+
 
     #axes[0].set_ylim((1e-2, 1))
     #######################################################
@@ -142,21 +159,21 @@ if __name__=='__main__':
     # print("Number of trials with less than 1 KN",np.sum((n_detect2 + n_detect3 + n_detect4) < 1)*100/len(n_detect2))
 
     print("Percentiles of events")
-    print(f"one detector | 5th {np.percentile(n_detect1, 5)} | mean {np.mean(n_detect1)} | 95th {np.percentile(n_detect1, 95)}")
-    print(f"two detector | 5th {np.percentile(n_detect2, 5)} | mean {np.mean(n_detect2)} | 95th {np.percentile(n_detect2, 95)}")
-    print(f"three detector | 5th {np.percentile(n_detect3, 5)} | mean {np.mean(n_detect3)} | 95th {np.percentile(n_detect3, 95)}")
-    print(f"four detector | 5th {np.percentile(n_detect4, 5)} | mean {np.mean(n_detect4)} | 95th {np.percentile(n_detect4, 95)}")
+    print(f"one detector | 5th {np.percentile(n_detect1, 5)} | median {np.median(n_detect1)} | 95th {np.percentile(n_detect1, 95)}")
+    print(f"two detector | 5th {np.percentile(n_detect2, 5)} | median {np.median(n_detect2)} | 95th {np.percentile(n_detect2, 95)}")
+    print(f"three detector | 5th {np.percentile(n_detect3, 5)} | median {np.median(n_detect3)} | 95th {np.percentile(n_detect3, 95)}")
+    print(f"four detector | 5th {np.percentile(n_detect4, 5)} | median {np.median(n_detect4)} | 95th {np.percentile(n_detect4, 95)}")
     print(f"Total | 5th {np.percentile(n_all, 5)} | mean {np.mean(n_all)} | 95th {np.percentile(n_all, 95)}")
 
 
 
-    print("one detector  ${", np.mean(n_detect1), "}_{-", np.mean(n_detect1) - np.percentile(n_detect1, 5) ,"}^{+", np.percentile(n_detect1, 95) - np.mean(n_detect1), "}$")
-    print("two detector  ${", np.mean(n_detect2), "}_{-", np.mean(n_detect2) - np.percentile(n_detect2, 5) ,"}^{+", np.percentile(n_detect2, 95) - np.mean(n_detect2), "}$")
-    print("three detector  ${", np.mean(n_detect3), "}_{-", np.mean(n_detect3) - np.percentile(n_detect3, 5) ,"}^{+", np.percentile(n_detect3, 95) - np.mean(n_detect3), "}$")
-    print("four detector  ${", np.mean(n_detect4), "}_{-", np.mean(n_detect4) - np.percentile(n_detect4, 5) ,"}^{+", np.percentile(n_detect4, 95) - np.mean(n_detect4), "}$")
-    print("total  ${", np.mean(n_all), "}_{-", np.mean(n_all) - np.percentile(n_all, 5) ,"}^{+", np.percentile(n_all, 95) - np.mean(n_all), "}$")
+    print("one detector  ${", np.median(n_detect1), "}_{-", np.median(n_detect1) - np.percentile(n_detect1, 5) ,"}^{+", np.percentile(n_detect1, 95) - np.median(n_detect1), "}$")
+    print("two detector  ${", np.median(n_detect2), "}_{-", np.median(n_detect2) - np.percentile(n_detect2, 5) ,"}^{+", np.percentile(n_detect2, 95) - np.median(n_detect2), "}$")
+    print("three detector  ${", np.median(n_detect3), "}_{-", np.median(n_detect3) - np.percentile(n_detect3, 5) ,"}^{+", np.percentile(n_detect3, 95) - np.median(n_detect3), "}$")
+    print("four detector  ${", np.median(n_detect4), "}_{-", np.median(n_detect4) - np.percentile(n_detect4, 5) ,"}^{+", np.percentile(n_detect4, 95) - np.median(n_detect4), "}$")
+    print("total  ${", np.median(n_all), "}_{-", np.median(n_all) - np.percentile(n_all, 5) ,"}^{+", np.percentile(n_all, 95) - np.median(n_all), "}$")
 
-    dist_range = np.arange(0, 450., 0.1)
+
     patches = list()
     legend_text = list()
     try:
@@ -168,13 +185,13 @@ if __name__=='__main__':
         legend_text.append('1 Detector Events')
         mean_dist = np.mean(dist_detect1)
         axes[1].axvline(mean_dist, color='C4', linestyle='--', lw=1.5, zorder=6, label=r'$\langle D \rangle = {:.0f}$ Mpc'.format(mean_dist))
-        ind0_40 = dist_range <= 40.
-        ind40_80 = (dist_range <= 100.) & (dist_range > 40.)
-        ind80_160 = (dist_range <= 160.) & (dist_range > 100.)
-        p0_40 = scinteg.trapz(pdist[ind0_40], dist_range[ind0_40])
-        p40_80 = scinteg.trapz(pdist[ind40_80], dist_range[ind40_80])
-        p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
-        print(p0_40*5, p40_80*5, p80_160*5)
+        # ind0_40 = dist_range <= 40.
+        # ind40_80 = (dist_range <= 100.) & (dist_range > 40.)
+        # ind80_160 = (dist_range <= 160.) & (dist_range > 100.)
+        # p0_40 = scinteg.trapz(pdist[ind0_40], dist_range[ind0_40])
+        # p40_80 = scinteg.trapz(pdist[ind40_80], dist_range[ind40_80])
+        # p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
+        # print(p0_40*5, p40_80*5, p80_160*5)
     except ValueError:
         print("Could not create KDE since no 1-det detection")
     try:
@@ -186,13 +203,13 @@ if __name__=='__main__':
         legend_text.append('2 Detector Events')
         mean_dist = np.mean(dist_detect2)
         axes[1].axvline(mean_dist, color='C0', linestyle='--', lw=1.5, zorder=6, label=r'$\langle D \rangle = {:.0f}$ Mpc'.format(mean_dist))
-        ind0_40 = dist_range <= 40.
-        ind40_80 = (dist_range <= 100.) & (dist_range > 40.)
-        ind80_160 = (dist_range <= 160.) & (dist_range > 100.)
-        p0_40 = scinteg.trapz(pdist[ind0_40], dist_range[ind0_40])
-        p40_80 = scinteg.trapz(pdist[ind40_80], dist_range[ind40_80])
-        p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
-        print(p0_40*5, p40_80*5, p80_160*5)
+        # ind0_40 = dist_range <= 40.
+        # ind40_80 = (dist_range <= 100.) & (dist_range > 40.)
+        # ind80_160 = (dist_range <= 160.) & (dist_range > 100.)
+        # p0_40 = scinteg.trapz(pdist[ind0_40], dist_range[ind0_40])
+        # p40_80 = scinteg.trapz(pdist[ind40_80], dist_range[ind40_80])
+        # p80_160 = scinteg.trapz(pdist[ind80_160], dist_range[ind80_160])
+        # print(p0_40*5, p40_80*5, p80_160*5)
     except ValueError:
         print("Could not create KDE since no 2-det detection")
 
@@ -222,7 +239,7 @@ if __name__=='__main__':
     except ValueError:
         print("Could not create KDE since no 4-det detection")
 
-    h_range = np.arange(15, 24, 0.1)
+
     kde = spstat.gaussian_kde(mag_detect1, bw_method='scott')
     kde_peak =  spstat.gaussian_kde(mag_peak1, bw_method='scott')
     ph = kde(h_range)
@@ -234,7 +251,6 @@ if __name__=='__main__':
     mean_h = np.mean(mag_peak1)
     axes[2].axvline(mean_h, color='C4', linestyle='--', lw=1.5, zorder=6, label=r'$\langle r \rangle_{{peak}} = {:.1f}$ mag'.format(mean_h))
 
-    h_range = np.arange(15, 24, 0.1)
     kde = spstat.gaussian_kde(mag_detect2, bw_method='scott')
     kde_peak =  spstat.gaussian_kde(mag_peak2, bw_method='scott')
     ph = kde(h_range)
@@ -288,10 +304,10 @@ if __name__=='__main__':
     ymin, ymax = axes[1].get_ylim()
     axes[1].set_ylim(0, ymax)
     if obs_run == 'O4':
-        axes[1].set_xlim(0, 255)
+        axes[1].set_xlim(0, 260)
     elif obs_run == 'O5':
-        axes[1].set_xlim(0, 455)
-    axes[0].set_xlim(-1, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4)))
+        axes[1].set_xlim(0, 460)
+    axes[0].set_xlim(-1, 1 + max(max(n_detect1), max(n_detect2), max(n_detect3), max(n_detect4), max(n_all)))
     ymin, ymax = axes[2].get_ylim()
     axes[2].set_ylim(0, ymax)
     if obs_run == 'O4':
@@ -302,7 +318,7 @@ if __name__=='__main__':
     fig.legend(patches, legend_text,
                 'upper center', frameon=False, ncol=4, fontsize='medium')
     fig.tight_layout(rect=[0, 0, 1, 0.97], pad=1.05)
-    fig.savefig(f'{trials_dir}/mc_plot.pdf')
+    fig.savefig(f'{trials_dir}/{obs_run}-sims.pdf')
     plt.show()
 
     # # Figure for losses
@@ -353,9 +369,9 @@ if __name__=='__main__':
     #discovery_window4_5 = np.percentile(discovery_window4, 5)
 
     print("Discovery windows")
-    print(f"one detector | 5th {np.percentile(discovery_window1, 5)} | mean {np.mean(discovery_window1)} | 95th {np.percentile(discovery_window1, 95)}")
-    print(f"two detector | 5th {np.percentile(discovery_window2, 5)} | mean {np.mean(discovery_window2)} | 95th {np.percentile(discovery_window2, 95)}")
-    print(f"three detector | 5th {np.percentile(discovery_window3, 5)} | mean {np.mean(discovery_window3)} | 95th {np.percentile(discovery_window3, 95)}")
+    print(f"one detector | 5th {np.percentile(discovery_window1, 5)} | mean {np.mean(discovery_window1)} | 95th {np.percentile(discovery_window1, 95)} | median {np.median(discovery_window1)}")
+    print(f"two detector | 5th {np.percentile(discovery_window2, 5)} | mean {np.mean(discovery_window2)} | 95th {np.percentile(discovery_window2, 95)} | median {np.median(discovery_window2)}")
+    print(f"three detector | 5th {np.percentile(discovery_window3, 5)} | mean {np.mean(discovery_window3)} | 95th {np.percentile(discovery_window3, 95)} | median {np.median(discovery_window3)}")
 
 
 

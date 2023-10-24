@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.lines import Line2D
 
 import seaborn as sns
 import numpy as np
@@ -16,7 +17,7 @@ from tqdm import tqdm
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 from scipy.interpolate import SmoothBivariateSpline
-from dns_mass_distribution import extra_galactic_masses, galactic_masses
+from dns_mass_distribution import Galaudage21, Farrow19
 from monte_carlo_sims import get_ejecta_mass, get_range, MAX_MASS, MIN_MASS
 from sed_to_lc import mej_dyn_grid_high, mej_dyn_grid_low, mej_wind_grid_high, mej_wind_grid_low
 
@@ -41,35 +42,28 @@ def makeScalingLawsPlot():
 
 def makeDnsMassHistograms():
 
-    n = 1000000
+    n = 10000
 
     # recycled, slow
-    m1_exg, m2_exg = extra_galactic_masses(n)
+    m1_Galaudage21, m2_Galaudage21 = Galaudage21(n)
+    m1_Golomb21, m2_Golomb21 = Farrow19(n)
 
-    bins = np.arange(MIN_MASS, MAX_MASS, 0.02)
+    bins = np.arange(MIN_MASS, MAX_MASS, 0.01)
 
-    plt.hist(m1_exg, histtype=u'step', label=r'$m_{recycled}$', linewidth=3, density=True, bins=bins)
-    plt.hist(m2_exg, histtype=u'step', label=r'$m_{slow}$', linewidth=3,  density=True, bins=bins)
+    np.random.normal()
 
+    plt.hist(m1_Galaudage21, histtype=u'step', label=r'$m_{recycled}$', linewidth=2, density=True, bins=bins)
     
+    plt.hist(m2_Galaudage21, histtype=u'step', label=r'$m_{slow}$ - Galaudage et al.', linewidth=2,  density=True, bins=bins)
+    plt.hist(m2_Golomb21, histtype=u'step', label=r'$m_{slow}$ - Farrow et al.', linewidth=2,  density=True, bins=bins)
+
+
     plt.legend()
     plt.xlabel(r"$\mathrm{M_{\odot}}$", fontsize='x-large')
     plt.ylabel("Relative count", fontsize='x-large')
 
     plt.tight_layout()
-    plt.savefig(f'paper_figures/dns_mass_dist.pdf')
-    plt.show()
-
-    #sns.kdeplot(x=m1_exg, y=m2_exg, fill=True, cmap="Reds", levels=15)
-    plt.hist2d(m1_exg, m2_exg, bins=(100,100), cmap='Reds')
-    #sns.jointplot(x=m1_exg, y=m2_exg, kind="kde")
-
-    
-    plt.xlabel(r"$m_{recycled}$", fontsize='x-large')
-    plt.ylabel(r"$m_{slow}$", fontsize='x-large')
-
-    plt.tight_layout()
-    plt.savefig(f'paper_figures/dns_mass_dist_2D.pdf')
+    #plt.savefig(f'paper_figures/dns_mass_dist.pdf')
     plt.show()
 
 def makeEjectaDistribution():
@@ -87,28 +81,46 @@ def makeEjectaDistribution():
     plt.show()
 
 def makeTrialsEjectaHistogram():
-     
-    df = pd.read_csv('O4-DECam-r-23mag-Abbott/trials_df.csv')
 
-    mej_wind = df['mej_wind']
-    mej_dyn = df['mej_dyn']
+    # 170817 params
+    GW170817_mej_wind = 10**-1.28 
+    GW170817_mej_wind_errors = [[10**-1.28 - 10**-1.63],[10**-0.86 - 10**-1.28]]
+    GW170817_mej_dyn = 10**-2.27
+    GW170817_mej_dyn_errors = [[10**-2.27 - 10**-2.81],[10**-1.26 - 10**-2.27]]
 
-    sns.kdeplot(x=mej_wind, y=mej_dyn, fill=True, cmap="Reds", levels=15)
+    df_Galaudage = pd.read_csv('O4-DECam-r-23mag-Galaudage/trials_df.csv')
+    df_Farrow = pd.read_csv('O4-DECam-r-23mag-Farrow/trials_df.csv')
 
+    mej_wind = df_Farrow['mej_wind']
+    mej_dyn = df_Farrow['mej_dyn']
 
-    plt.xlabel(r'$\mathrm{m_{ej}^{wind}}$', fontsize='x-large')
-    plt.ylabel(r'$\mathrm{m_{ej}^{dyn}}$', fontsize='x-large')
+    sns.kdeplot(x=mej_wind, y=mej_dyn, levels=[0.2, 0.5, 0.8])
 
+    mej_wind = df_Galaudage['mej_wind']
+    mej_dyn = df_Galaudage['mej_dyn']
 
-    plt.axvline(mej_wind_grid_low, color='black', linestyle='dotted')
-    plt.axvline(mej_wind_grid_high, color='black', linestyle='dotted')
-    plt.axhline(mej_dyn_grid_low, color='black', linestyle='dotted')
-    plt.axhline(mej_dyn_grid_high, color='black', linestyle='dotted')
+    sns.kdeplot(x=mej_wind, y=mej_dyn, levels=[0.2, 0.5, 0.8])
+
+    plt.xlabel(r'$\mathrm{m_{ej}^{wind}} (M_{\odot})$', fontsize='x-large')
+    plt.ylabel(r'$\mathrm{m_{ej}^{dyn}} (M_{\odot})$', fontsize='x-large')
+
+    colors = ['C0', 'C1']
+    lines = [Line2D([0], [0], color=colors[0]), Line2D([0], [0], color=colors[1])]
+    labels = ['Farrow et al.', 'Galaudage et al.']
+    plt.legend(lines, labels, loc='upper left')
+
+    plt.vlines(mej_wind_grid_low, ymin=mej_dyn_grid_low, ymax=mej_dyn_grid_high, color='black', linestyle='dotted')
+    plt.vlines(mej_wind_grid_high,  ymin=mej_dyn_grid_low, ymax=mej_dyn_grid_high, color='black', linestyle='dotted')
+    plt.hlines(mej_dyn_grid_low, xmin = mej_wind_grid_low, xmax= mej_wind_grid_high, color='black', linestyle='dotted')
+    plt.hlines(mej_dyn_grid_high, xmin = mej_wind_grid_low, xmax= mej_wind_grid_high, color='black', linestyle='dotted')
+    
+    plt.errorbar(GW170817_mej_wind, GW170817_mej_dyn, xerr= GW170817_mej_wind_errors, yerr=GW170817_mej_dyn_errors, marker='*', c='black',ecolor='black', markersize= 15)
+    plt.text(0.06 , 0.006 ,'SSS17a', c='black')
 
     plt.loglog()
     
     plt.savefig('paper_figures/mej_scatter_hist.pdf')
-    plt.tight_layout()
+
 
     plt.show()
 
@@ -154,9 +166,11 @@ def makeInterceptSurface():
 
     ax1.plot_surface(xx, yy, z_grid, cmap=cm.plasma,rstride=1, cstride=1,  edgecolor='none')
 
-    ax1.set_xlabel(r'$\Phi$', fontsize='x-large')
+    ax1.set_xlabel(r'$\Phi$ (degrees)', fontsize='x-large')
     ax1.set_ylabel(r'cos $\Theta$', fontsize='x-large')
-    #ax1.set_zlabel('c', fontsize='x-large', labelpad=15)
+    ax1.set_zlabel('c', fontsize='x-large')
+    ax1.dist = 13
+    plt.locator_params(nbins=4)
 
     fig.savefig('paper_figures/c_surface.pdf', bbox_inches='tight')
 
@@ -189,9 +203,11 @@ def makeSlopeSurface():
 
     ax1.plot_surface(xx, yy, z_grid, cmap=cm.plasma,rstride=1, cstride=1,  edgecolor='none')
 
-    ax1.set_xlabel(r'$\Phi$', fontsize='x-large')
+    ax1.set_xlabel(r'$\Phi (degrees)$', fontsize='x-large')
     ax1.set_ylabel(r'cos $\Theta$', fontsize='x-large')
-    #ax1.set_zlabel('m', fontsize='x-large', labelpad=15)
+    ax1.set_zlabel('m', fontsize='x-large', labelpad = 5)
+    ax1.dist = 13
+    plt.locator_params(nbins=4)
 
     fig.savefig('paper_figures/m_surface.pdf', bbox_inches='tight')
 
@@ -222,10 +238,12 @@ def makeExponentSurface():
 
     ax1.plot_surface(xx, yy, z_grid, cmap=cm.plasma,rstride=1, cstride=1,  edgecolor='none')
 
-    ax1.set_xlabel(r'$\Phi$', fontsize='x-large')
+    ax1.set_xlabel(r'$\Phi (degrees)$', fontsize='x-large')
     ax1.set_ylabel(r'cos $\Theta$', fontsize='x-large')
     ax1.zaxis.set_major_formatter('{x:2<2.3f}')
-    #ax1.set_zlabel('n', fontsize='x-large', labelpad=15)
+    ax1.set_zlabel('n', fontsize='x-large', labelpad = 5)
+    plt.locator_params(nbins=4)
+    ax1.dist = 13
 
     fig.savefig('paper_figures/n_surface.pdf', bbox_inches='tight')
 
@@ -237,8 +255,8 @@ def makeGW170817PhotometryPlotVillar():
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
 
     # Best fit parameters for GW 170817 - https://iopscience.iop.org/article/10.3847/1538-4357/ab5799
-    mej_wind = 10**-2.27
-    mej_dyn = 10**-1.28
+    mej_wind = 10**-1.28
+    mej_dyn = 10**-2.27
     phi = 49.5
     cos_theta = 0.7337298645
 
@@ -385,7 +403,9 @@ def makeBNSMergerRateHist():
 
     s_5 = np.percentile(samples, 5)
     s_95 = np.percentile(samples, 95)
-    bins = np.arange(0, max(samples), 10)
+                         
+                         
+    bins = 10 ** np.linspace(np.log10(min(samples)), np.log10(max(samples)), 200)
 
     plt.hist(samples,  histtype='step',  bins=bins)
 
@@ -433,20 +453,56 @@ def flatMassDistEjecta():
 
     plt.show()
 
+def makeComparisonPlot():
+
+    fig, ax = plt.subplots()
+
+
+    # Frostig et al
+    plt.errorbar(0, 1, yerr=[[1], [2]], marker='o', c='purple', ecolor='purple', label = 'J band')
+
+    # Colombo et all
+    plt.errorbar(1, 2.4, yerr=[[1.8], [3.6]], marker='o', c='purple', ecolor='purple')
+
+    # Weizmann et al
+    plt.errorbar(2, 0.43, yerr=[[0.26], [0.48]], marker='o', c='red', ecolor='red', label = 'r band')
+
+    # Colombo et all
+    plt.errorbar(3, 5.1, yerr=[[3.8], [7.8]], marker='o', c='red', ecolor='red')
+
+    # This work - best case 
+    plt.errorbar(4, 2, yerr=[[2], [3]], marker='*', c='red', ecolor='red', markersize='12')
+
+    # This work - worst case 
+    plt.errorbar(5, 1, yerr=[[1], [4]], marker='*', c='red', ecolor='red',  markersize='12')
+
+    plt.ylabel('KN Detections', fontsize='x-large')
+
+    labels = [item.get_text() for item in ax.get_xticklabels()]
+    labels = ['','Frostig et al.\n(over LVK O4)', 'Colombo et al.\n(per year)', 'Weizmann \nKiendrebeogo \net al. (per year)', 'Colombo et al.\n(per year)', 'This work - MM 1\n(over LVK O4)',  'This work - MM2\n(over LVK O4)']
+
+    ax.set_xticklabels(labels, rotation=50)
+
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig('paper_figures/result_comparison.pdf')
+    plt.show()
+
 if __name__ == '__main__':
 
     #makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeTrialsEjectaScatter()
-    #makeTrialsEjectaHistogram()
+    makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
     #makeInterceptSurface()
     #makeSlopeSurface()
     #makeExponentSurface()
     #makeGW170817PhotometryPlotVillar()
     #makeBNSRangePlot()
-    makeBNSMergerRateHist()
+    #makeBNSMergerRateHist()
     #flatMassDistEjecta()
+    #makeComparisonPlot()
 
 
 
