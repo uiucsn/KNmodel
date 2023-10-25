@@ -107,7 +107,7 @@ def makeTrialsEjectaHistogram():
     colors = ['C0', 'C1']
     lines = [Line2D([0], [0], color=colors[0]), Line2D([0], [0], color=colors[1])]
     labels = ['Farrow et al.', 'Galaudage et al.']
-    plt.legend(lines, labels, loc='upper left')
+    plt.legend(lines, labels, loc='upper left', prop={'size': 13})
 
     plt.vlines(mej_wind_grid_low, ymin=mej_dyn_grid_low, ymax=mej_dyn_grid_high, color='black', linestyle='dotted')
     plt.vlines(mej_wind_grid_high,  ymin=mej_dyn_grid_low, ymax=mej_dyn_grid_high, color='black', linestyle='dotted')
@@ -173,7 +173,7 @@ def makeInterceptSurface():
     plt.locator_params(nbins=4)
 
     fig.savefig('paper_figures/c_surface.pdf', bbox_inches='tight')
-
+    fig.savefig('paper_figures/c_surface.png', bbox_inches='tight')
 
 
 def makeSlopeSurface():
@@ -210,6 +210,7 @@ def makeSlopeSurface():
     plt.locator_params(nbins=4)
 
     fig.savefig('paper_figures/m_surface.pdf', bbox_inches='tight')
+    fig.savefig('paper_figures/m_surface.png', bbox_inches='tight')
 
 def makeExponentSurface():
 
@@ -246,6 +247,7 @@ def makeExponentSurface():
     ax1.dist = 13
 
     fig.savefig('paper_figures/n_surface.pdf', bbox_inches='tight')
+    fig.savefig('paper_figures/n_surface.png', bbox_inches='tight')
 
 def makeGW170817PhotometryPlotVillar():
 
@@ -493,11 +495,11 @@ if __name__ == '__main__':
     #makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeTrialsEjectaScatter()
-    makeTrialsEjectaHistogram()
+    #makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
-    #makeInterceptSurface()
-    #makeSlopeSurface()
-    #makeExponentSurface()
+    makeInterceptSurface()
+    makeSlopeSurface()
+    makeExponentSurface()
     #makeGW170817PhotometryPlotVillar()
     #makeBNSRangePlot()
     #makeBNSMergerRateHist()

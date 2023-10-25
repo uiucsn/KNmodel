@@ -466,7 +466,7 @@ def main(argv=None):
 
             coordinates = coord.SkyCoord(ra=ra, dec=dec)
 
-            p = np.arange(0.3, 20.1, 0.2)
+            p = np.arange(0.3, 20.1, 0.2) 
 
             obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
             lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
