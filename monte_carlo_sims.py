@@ -46,6 +46,18 @@ from kilopop.kilonovae import bns_kilonova as saeev
 #np.random.seed(seed=42)
 disable_tqdm = True
 
+detector_asd_links_O2 = dict(
+    ligo='https://dcc.ligo.org/public/0156/G1801952/001/2017-08-06_DCH_C02_L1_O2_Sensitivity_strain_asd.txt',
+    virgo='https://dcc.ligo.org/public/0157/P1800374/001/Hrec_hoft_V1O2Repro2A_16384Hz.txt',
+    kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_10Mpc.txt' # This is ignored due to 0 duty cycle
+)
+
+detector_asd_links_O3 = dict(
+    ligo='https://dcc.ligo.org/public/0169/P2000251/001/O3-L1-C01_CLEAN_SUB60HZ-1240573680.0_sensitivity_strain_asd.txt',
+    virgo='https://dcc.ligo.org/public/0169/P2000251/001/O3-V1_sensitivity_strain_asd.txt',
+    kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_10Mpc.txt' # This is ignored due to 0 duty cycle
+)
+
 # asd from https://emfollow.docs.ligo.org/userguide/capabilities.html
 detector_asd_links_O4 = dict(
     ligo='https://dcc.ligo.org/public/0180/T2200043/003/aligo_O4high.txt',
@@ -150,6 +162,10 @@ def get_range(detector, ligo_run):
         psd_url = detector_asd_links_O4[detector]
     elif ligo_run == 'O5':
         psd_url = detector_asd_links_O5[detector]
+    elif ligo_run == 'O2':
+        psd_url = detector_asd_links_O2[detector]
+    elif ligo_run == 'O3':
+        psd_url = detector_asd_links_O3[detector]
     print(psd_url)
     try:
         # if downloaded locally
@@ -219,7 +235,7 @@ def get_options(argv=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', default='trial-exg-100', help='Directory to store simulation results')
-    parser.add_argument('--ligo_run', choices=['O4','O5'], default='O4', help='Pick LIGO observing run')
+    parser.add_argument('--ligo_run', choices=['O2','O3','O4','O5'], default='O4', help='Pick LIGO observing run')
     parser.add_argument('--mass_distrib', choices=['Galaudage21','Farrow19','flat'], default='Galaudage21', help='Pick BNS mass distribution')
     parser.add_argument('--rate_model', choices=['LVK_UG_O4'], default='LVK_UG_O4', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=500, type=int, action=MinZeroAction, help='Set the number of MC samples')
@@ -258,6 +274,44 @@ def main(argv=None):
         l_duty = 0.7
         v_duty = 0.47
         k_duty = 0.27
+
+        box_size = 510
+
+    elif ligo_observing_run == 'O3':
+        
+        print("Configuring parameters for O3...")
+        # setup time-ranges
+        Range = namedtuple('Range', ['start', 'end'])
+        ligo_run_start = Time('2019-04-1T00:00:00.0')
+        ligo_run_end   = Time('2020-03-27T00:00:00.0')
+        survey_cyc_start = Time('2019-04-1T00:00:00.0')
+        survey_cyc_end = Time('2020-03-27T00:00:00.0')
+        eng_time       = 2.*u.week
+
+        # setup duty cycles
+        h_duty = 0.7
+        l_duty = 0.7
+        v_duty = 0.47
+        k_duty = 0.0
+
+        box_size = 510
+
+    elif ligo_observing_run == 'O2':
+
+        print("Configuring parameters for O2...")
+        # setup time-ranges
+        Range = namedtuple('Range', ['start', 'end'])
+        ligo_run_start = Time('2016-11-30T00:00:00.0')
+        ligo_run_end   = Time('2017-08-25T00:00:00.0')
+        survey_cyc_start = Time('2016-11-30T00:00:00.0')
+        survey_cyc_end = Time('2017-08-25T00:00:00.0')
+        eng_time       = 2.*u.week
+
+        # setup duty cycles
+        h_duty = 0.7
+        l_duty = 0.7
+        v_duty = 0.47
+        k_duty = 0.0
 
         box_size = 510
 
