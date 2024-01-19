@@ -1,0 +1,27 @@
+name: KN-rates
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - extinction 
+  - matplotlib
+  - matplotlib-base
+  - pandas
+  - pip
+  - python=3.11.4
+  - schwimmbad
+  - scipy
+  - seaborn
+  - sncosmo
+  - tqdm
+  - pip:
+      - astropy
+      - gwemlightcurves
+      - inspiral-range
+      - ligo-em-bright
+      - numpy
+      - penquins
+      - scikit-learn
+      - sfdmap
+
