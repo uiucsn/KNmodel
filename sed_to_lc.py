@@ -219,7 +219,7 @@ class SEDDerviedLC():
         return ax
 
     
-    def getAbsMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = True):
+    def getAbsMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = False):
 
         lcs = {}
         
@@ -228,7 +228,7 @@ class SEDDerviedLC():
 
             interpolated_sed = self.sed
 
-            source = sncosmo.TimeSeriesSource(phase=phases, wave=lmbd, flux = interpolated_sed, name=source_name, zero_before=True)
+            source = sncosmo.TimeSeriesSource(phase=lc_phases, wave=lmbd, flux = interpolated_sed, name=source_name, zero_before=True)
 
             model = sncosmo.Model(source)
 
@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
         # LC from sed
         GW170817 = SEDDerviedLC(mej_dyn=mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=c, av = av)
-        lcs = GW170817.getAppMagsInPassbands(lsst_bands)
+        lcs = GW170817.getAppMagsInPassbands(lsst_bands, apply_extinction=False, apply_redshift=False)
         GW170817.makeSedPlot()
         plt.show()
         

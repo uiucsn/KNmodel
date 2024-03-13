@@ -40,8 +40,8 @@ import ligo.em_bright.computeDiskMass
 from ligo.em_bright.computeDiskMass import computeCompactness, computeDiskMass
 import lalsimulation as lalsim
 from gwemlightcurves.EjectaFits import DiUj2017, CoDi2019
-from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
-from kilopop.kilonovae import bns_kilonova as saeev
+#from kilopop.kilonovae import bns_kilonovae_population_distribution as s22p
+#from kilopop.kilonovae import bns_kilonova as saeev
 
 #np.random.seed(seed=42)
 disable_tqdm = True

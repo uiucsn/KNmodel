@@ -99,3 +99,14 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# folders/files of junk
+SEDs/**
+sfddata-master/**
+data/**
+img/**
+SEDs.zip
+add*.txt
+*.err
+*.out
+.DS_Store

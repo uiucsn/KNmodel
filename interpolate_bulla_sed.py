@@ -335,7 +335,7 @@ class BullaSEDInterpolator():
         return interpolator
     
 if __name__ == '__main__':
-    i1 = BullaSEDInterpolator(from_source=True)
+    i1 = BullaSEDInterpolator(from_source=False)
     i1.computeFluxScalingLaws()
 
 
