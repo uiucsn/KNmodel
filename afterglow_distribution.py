@@ -31,7 +31,7 @@ phases_10 = phases[:idx_10]
 
 # common band from uv to ir in sncosmo
 sncosmo_bands = ['uvot::uvw2', 'uvot::uvw1', 'lsstu', 'lsstg', 'lsstr', 'lssti', 'lsstz', 'lssty', 'f125w', 'f160w', 'f200w']
-labels = ["uv2", "uv1", "u", "g", "r", "i", "z", "y", "J", "H", "K"]
+labels = ["uv2", "uv1", r"$u$-band", r"$g$-band", "r", "i", "z", "y", "J", "H", "K"]
 labels_idx = np.arange(len(labels))
 
 
@@ -64,7 +64,7 @@ def get_params(n, save=False, filename=''):
         # a, b = (np.rad2deg(0.01) - loc) / scale , (90 - loc) / scale
         # thetaCores = sts.truncnorm.rvs(a, b, loc=loc, scale=scale, size=n) # deg, Fong et al 2015
         thetaCores = np.deg2rad(get_opening_angle(n, distr='RE23'))
-        cos_thetas = np.random.uniform(np.cos(thetaCores), 1, size=n)
+        cos_thetas = np.random.uniform(np.cos(2*thetaCores), 1, size=n)
         # cos_thetas = np.random.uniform(0, thetaCores, size=n)
         # thetaCores = np.deg2rad(thetaCores)
         # cos_thetas = np.cos(np.deg2rad(cos_thetas))
@@ -196,7 +196,7 @@ def plot(n, save, filename=''):
     # values is a 3d array each entry is an 2d grid of enhancements
     distr = np.percentile(values[:,0], [16, 50, 84], axis=0)
 
-    fig, axs = plt.subplots(int(len(sncosmo_bands)/2)+1, 2, figsize=(12, 16))
+    fig, axs = plt.subplots(int(len(sncosmo_bands)/2), 2, figsize=(12, 16))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
@@ -212,21 +212,21 @@ def plot(n, save, filename=''):
         ax.invert_yaxis()
         ax.set_title(labels[idx])
 
-    ax = axs[-1]
+    # ax = axs[-1]
     
-    event = values[6]
-    for idx in labels_idx[:3]:
-        ax.plot(phases, event[1][idx, :], linestyle='-')
-        ax.plot(phases, event[2][idx, :], linestyle='--')   
+    # event = values[6]
+    # for idx in labels_idx[:3]:
+    #     ax.plot(phases, event[1][idx, :], linestyle='-')
+    #     ax.plot(phases, event[2][idx, :], linestyle='--')   
 
-        ax.set_xlabel('time (days)')    
-        ax.set_ylabel(r'$\Delta M$')
-        ax.invert_yaxis()
-        ax.set_xscale('log')
-        ax.set_title(labels[idx])
+    #     ax.set_xlabel('time (days)')    
+    #     ax.set_ylabel(r'$\Delta M$')
+    #     ax.invert_yaxis()
+    #     ax.set_xscale('log')
+    #     ax.set_title(labels[idx])
 
+    fig.tight_layout()
     fig.savefig(f'img/{n}_events_{filename}.png')
-    fig.suptitle(filename)
     plt.show()
 
 def plot_avglc(n, save, filename=''):
@@ -243,7 +243,7 @@ def plot_avglc(n, save, filename=''):
         # 
     #distr_justAft = -2.5*(np.log10(10**(-0.4*distr) - 10**(-0.4*distr_KN)))
 
-    fig, axs = plt.subplots(int(len(sncosmo_bands)/2)+1, 2, figsize=(12, 16))
+    fig, axs = plt.subplots(int(len(sncosmo_bands)/2), 2, figsize=(12, 16))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
@@ -253,10 +253,10 @@ def plot_avglc(n, save, filename=''):
         # fill btwn distr 0 and 2
             # aft + KN
         ax.fill_between(phases, smooth_out_Nans(distr[0][idx, :]), smooth_out_Nans(distr[2][idx, :]), alpha=0.3, color='b')
-        ax.plot(phases, smooth_out_Nans(distr[1][idx, :]), color='b')
+        ax.plot(phases, smooth_out_Nans(distr[1][idx, :]), color='b', label='Afterglow + KN')
             # just KN
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
-        ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange')
+        ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
         if idx == 2:
             print(distr_KN[1][idx, :], flush=True)
@@ -265,7 +265,9 @@ def plot_avglc(n, save, filename=''):
         ax.set_ylabel(r'$M$')
         ax.invert_yaxis()
         ax.set_title(labels[idx])
+        ax.legend()
 
+    fig.tight_layout()
     fig.savefig(f'img/{n}_events_{filename}_lc_interp.png')
     plt.show()
 
@@ -313,11 +315,11 @@ def plot_distance(n, save, filename, limiting_mags):
     idx_b = 0
 
     def max_distance(M, limiting_mag):
-        mu = limiting_mag - M
+        mu = limiting_mag - smooth_out_Nans(M)
         return 10**(1 + (mu/5)) / 1e6
     
     # lsst bands
-    fig, axs = plt.subplots(int(len(limiting_mags)/2)+1, 2, figsize=(12, 16))
+    fig, axs = plt.subplots(int(len(limiting_mags)/2), 2, figsize=(12, 16))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.ravel()
 
@@ -340,6 +342,7 @@ def plot_distance(n, save, filename, limiting_mags):
         ax.set_yscale('log')
         ax.set_xlabel(r'phase [day]')
     
+    fig.tight_layout()
     fig.savefig(f'img/{n}_events_{filename}_dist.png')
     plt.show() 
 
@@ -352,24 +355,26 @@ if __name__ == '__main__':
         # u, g, r, i, z, y
     #limiting_mags = [23.8, 24.5, 24.03, 23.41, 22.74, 22.96]
 
-    fname = 'fong15'
+    fname = 're23_offa'
     UV_bands = ['UVEX::FUV', 'UVEX::NUV']
     UV_labels = ['UVEX FUV', 'UVEX NUV']
     #labels_idx = np.arange(len(labels))
 
-    sncosmo_bands = UV_bands + sncosmo_bands
-    labels = UV_labels + labels
+    sncosmo_bands = UV_bands + sncosmo_bands[:4]
+    labels = UV_labels + labels[:4]
     labels_idx = np.arange(len(labels))
 
     # STAR-X: http://star-x.xraydeep.org/observatory/
     # UVEX: https://www.uvex.caltech.edu/page/about
     # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
     # LSST: https://www.lsst.org/scientists/keynumbers
-    UV_limiting_mags = [25.8, 25.8, 22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
-    #plot(500, save=True, filename=fname)
-    plot_avglc(500, save=False, filename=fname) # use the data gen'd in the previous plotting
-    #plot_color(500, save=False, filename=fname)
-    #plot_distance(500, save=False, filename=fname, limiting_mags=UV_limiting_mags)
+    UV_limiting_mags = [24.5, 24.5, 22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
+
+    n = 500  
+    plot(n, save=True, filename=fname)
+    plot_avglc(n, save=False, filename=fname) # use the data gen'd in the previous plotting
+    #plot_color(n, save=False, filename=fname)
+    plot_distance(n, save=False, filename=fname, limiting_mags=UV_limiting_mags[:6])
     # params = get_params(500, False, filename=fname)
     # values = gen_events(500, False, filename=fname)
 

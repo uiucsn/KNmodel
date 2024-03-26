@@ -110,3 +110,4 @@ add*.txt
 *.err
 *.out
 .DS_Store
+kn_params.py

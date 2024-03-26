@@ -106,10 +106,8 @@ def get_p(n, distr='Fong15'):
 #         theta = sts.truncnorm.rvs(a=(theta_min - mean)/std, b=(theta_max - mean)/std, loc=16, scale = 10, size=n)
 
 #     return theta
-
-
-if __name__ == '__main__':
-
+    
+def check_params():
     # double check that the interpolators capture the original data
 
     n = 100000
@@ -151,6 +149,21 @@ if __name__ == '__main__':
 
     fig.savefig(f'img/params_check.png')
     plt.show()
+
+
+if __name__ == '__main__':
+
+    def f(theta):
+        return 0.5*(1-np.cos(theta))
+    
+    thetas = get_opening_angle(50000)
+    median = np.median(thetas)
+
+    print(f"with values: {np.mean(np.round(f(thetas), 3))} \n with median: {np.round(f(median), 3)}", 
+        flush=True)    
+
+    #pass
+    #check_params()
 
 
 
