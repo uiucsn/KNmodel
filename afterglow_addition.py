@@ -38,7 +38,7 @@ sncosmo.register(sncosmo.Bandpass([2030., 2700.], [1., 1.], name='uvex::nuv', wa
 class AfterglowAddition():
 
     # add all parameters
-    def __init__(self, KN, E0=10**52.9, thetaCore=0.07, n0=10**-2.7, p=2.17, epsilon_e=10**-1.4, 
+    def __init__(self, KN, E0=10**52.96, thetaCore=0.066, n0=10**-2.7, p=2.17, epsilon_e=10**-1.4, 
                  epsilon_B=10**-4, time = phases, wav = lmbd, addKN = True):
         
         # initialize with either KN object or sed file
@@ -70,7 +70,7 @@ class AfterglowAddition():
             'thetaObs':    theta_v,            # Viewing angle in radians
             'E0':          E0,                 # Isotropic-equivalent energy in erg
             'thetaCore':   thetaCore,               # Half-opening angle in radians
-            'thetaWing':   min(10*thetaCore, np.pi/2),               # Wing angle in radians
+            'thetaWing':  0.47,               # Wing angle in radians,  min(10*thetaCore, np.pi/2)
             'n0':          n0,                 # circumburst density in cm^{-3}
             'p':           p,               # electron energy distribution index
             'epsilon_e':   epsilon_e,           # epsilon_e
@@ -102,7 +102,7 @@ class AfterglowAddition():
 
     # from ved, adapted to use the afterglow SED
         # remove False extinction part
-    def getAbsMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = True, apply_redshift = False):
+    def getAbsMagsInPassbands(self, passbands, apply_extinction = True, apply_redshift = False):
 
         lcs = {}
         
@@ -110,7 +110,7 @@ class AfterglowAddition():
             source_name = f"test_{passband}"
 
             #print(lc_phases.shape, lmbd.shape, self.sed.shape, flush=True)
-            source = sncosmo.TimeSeriesSource(phase=lc_phases, wave=lmbd, flux = self.sed, name=source_name, zero_before=True)
+            source = sncosmo.TimeSeriesSource(phase=self.phases, wave=self.lmbd, flux = self.sed, name=source_name, zero_before=True)
 
             model = sncosmo.Model(source)
 
@@ -130,16 +130,16 @@ class AfterglowAddition():
                 z = self.distance.z
                 model.set(z=z)
 
-            abs_mags = model.bandmag(band=passband, time = lc_phases, magsys="ab")
+            abs_mags = model.bandmag(band=passband, time = self.phases, magsys="ab")
             lcs[passband] = abs_mags
 
         return lcs
     
         # same as sed_to_lc
-    def getAppMagsInPassbands(self, passbands, lc_phases = phases, apply_extinction = False, apply_redshift = False):
+    def getAppMagsInPassbands(self, passbands, apply_extinction = False, apply_redshift = False):
 
         # Get abs mags first
-        lcs = self.getAbsMagsInPassbands(passbands, lc_phases=lc_phases, apply_extinction = apply_extinction, apply_redshift= apply_redshift)
+        lcs = self.getAbsMagsInPassbands(passbands, apply_extinction = apply_extinction, apply_redshift= apply_redshift)
 
         # Add the distance modulus using the KN dist
         for passband in passbands:

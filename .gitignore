@@ -111,3 +111,6 @@ add*.txt
 *.out
 .DS_Store
 kn_params.py
+finesstplot.py
+addition*.sbatch
+afterglow_gw17.py

@@ -42,7 +42,7 @@ t_day = np.arange(start=0.1, stop=22, step=0.2) # note finesst_iuv2 used 0.01 se
 #   'luminosity_distance': 40}
 
 # band = ztfi
-save = False
+save = True
 if save == True:
     params_grb = { # from Troja 2020
         'E0': 10**52.9,
@@ -59,6 +59,7 @@ if save == True:
     phi = 49.5
 
     theta = 4
+    #theta = 42.8
     ct = np.cos(theta*u.deg.to(u.rad))
     c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
     d = 40*u.Mpc
@@ -69,26 +70,29 @@ if save == True:
     print(KN.sed.shape, flush=True)
     print(t_day.shape, lmbd.shape, flush=True)   
     afterglow = AfterglowAddition(KN, **params_grb, time = t_day, addKN=False) # use typical values
-    tot = afterglow = AfterglowAddition(KN, **params_grb, time = t_day, addKN=True)
+    #tot = AfterglowAddition(KN, **params_grb, time = t_day, addKN=True)
 
 
-    with open(f'data/sims/finesst_22d.pkl', 'wb') as f:
-        pickle.dump((KN, afterglow, tot), f)
+    with open(f'data/sims/caps_4ztfsw.pkl', 'wb') as f:
+        pickle.dump((KN, afterglow), f)
 else:
-    with open(f'data/sims/finesst_22d.pkl', 'rb') as f:
-        KN, afterglow, tot = pickle.load(f)
+    with open(f'data/sims/caps_4ztfsw.pkl', 'rb') as f:
+        KN, afterglow = pickle.load(f)
 
 bands = ['ztfi', 'uvot::uvw2']
+#bands = ['lssti', 'lsstu']
 labels = [r'$i$-band', 'UV']
+#labels = [r'$i$-band', r'$u$-band']
 color = ['red', 'purple']
 
 # note: default figsize is (6.4, 4.8)
 fig, axs = plt.subplots(1, 2, figsize=(14, 6))
 
 ax = axs[0]
-mag = KN.getAbsMagsInPassbands(bands, lc_phases=t_day, apply_extinction=False)
-mag_grb = afterglow.getAbsMagsInPassbands(bands, lc_phases=t_day, apply_extinction=False)
-mag_tot = tot.getAbsMagsInPassbands(bands, lc_phases=t_day, apply_extinction=False)
+mag = KN.getAbsMagsInPassbands(bands, lc_phases=t_day, apply_extinction=False) # needs the phases specified
+mag_grb = afterglow.getAbsMagsInPassbands(bands, apply_extinction=False) # should use the ones given in the object gen
+afterglow.sed += KN.sed
+mag_tot = afterglow.getAbsMagsInPassbands(bands, apply_extinction=False)
 
 for i, b in enumerate(bands):
     ax.plot(t_day, mag[b], label=labels[i]+' KN', color=color[i], linestyle='--')
@@ -118,6 +122,7 @@ idx_21d = np.where(np.isclose(t_day, 21.1))[0][0]
 
 labels = ['+1.5 days', '+14 days', '+21 days']
 colors = ['blue', 'red', 'green']
+tot = afterglow
 scale = 1/max(tot.sed[idx_1d][25:100])
 print(np.argmax(tot.sed[idx_1d]), flush=True)
 for i, idx in enumerate([idx_1d, idx_14d, idx_21d]):
@@ -140,4 +145,4 @@ ax.legend(loc="upper right", fontsize=16)
 
 
 plt.subplots_adjust(wspace=0.3)
-fig.savefig('img/finesst_22d.png')
+fig.savefig('img/caps/gw170817_4ztfswift.png')

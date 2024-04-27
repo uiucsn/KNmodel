@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
 from matplotlib import colormaps as cm
 import astropy.units as u
 import astropy.constants as const
@@ -13,6 +14,8 @@ import schwimmbad
 import pickle
 import scipy.stats as sts
 from scipy.interpolate import interp1d
+import sys
+import argparse
 
 
 from interpolate_bulla_sed import BullaSEDInterpolator
@@ -22,8 +25,6 @@ from afterglow_addition import AfterglowAddition
 from dns_mass_distribution import Galaudage21, Farrow19
 from monte_carlo_sims import get_ejecta_mass
 from afterglow_params import get_logn0, get_opening_angle, get_loge0, get_p
-
-np.random.seed(1674)
 
 # 10 days out
 idx_10 = np.where(np.isclose(phases, 10.1))[0][0]
@@ -64,7 +65,8 @@ def get_params(n, save=False, filename=''):
         # a, b = (np.rad2deg(0.01) - loc) / scale , (90 - loc) / scale
         # thetaCores = sts.truncnorm.rvs(a, b, loc=loc, scale=scale, size=n) # deg, Fong et al 2015
         thetaCores = np.deg2rad(get_opening_angle(n, distr='RE23'))
-        cos_thetas = np.random.uniform(np.cos(2*thetaCores), 1, size=n)
+        # previously was np.cos(thetacore), 1
+        cos_thetas = np.random.uniform(np.cos(np.deg2rad(30)), 1, size=n)
         # cos_thetas = np.random.uniform(0, thetaCores, size=n)
         # thetaCores = np.deg2rad(thetaCores)
         # cos_thetas = np.cos(np.deg2rad(cos_thetas))
@@ -76,7 +78,7 @@ def get_params(n, save=False, filename=''):
         param_names = ["mej_dyn", "mej_wind", "phi", "cos_theta", "dist", "coord", "av", "rv"]
         params_array = np.array([mej_dyns, mej_winds, phis, cos_thetas, dists, coords, avs, rvs]).T
         kn_params = [{param_names[i]: value for i, value in enumerate(row)} for row in params_array]
-
+        print(f'done KN params {filename}', flush=True)
         # loop over aft params
         # self.grb_params = { # use the same params I used for nsf fig
         #         'jetType':     grb.jet.Gaussian,   # Gaussian jet!! - not flat
@@ -106,7 +108,7 @@ def get_params(n, save=False, filename=''):
         # logees = np.random.normal(-1, 0.3**2, n)
         # logebs = np.random.normal(-2, 0.4**2, n)
 
-        logE0s = get_loge0(n, distr='Zhu22')
+        logE0s = get_loge0(n, distr='Fong15')
         ps = get_p(n, distr='Fong15')
         logn0s = get_logn0(n, distr='Fong15') #sts.norm.rvs(-2, 0.4**2, size=n)
         # fix ee and eb and use n0 distribution
@@ -118,12 +120,13 @@ def get_params(n, save=False, filename=''):
         aft_array = np.array([10**logE0s, thetaCores, 10**logn0s, ps, 10**logees, 10**logebs]).T
         aft_names = ["E0", "thetaCore", "n0", "p", "epsilon_e", "epsilon_B"]
         aft_params = [{aft_names[i]: value for i, value in enumerate(row)} for row in aft_array]
-
+        print(f'done aft params {filename}', flush=True)
         params = list(np.array([kn_params, aft_params]).T)
         #print(params, flush=True)
 
         # save them
         with open(f'data/sims/{n}_params_{filename}.pkl', 'wb') as f:
+            print(f'done params {filename}', flush=True)
             pickle.dump(params, f)
         #np.savetxt(f"{n}_events.csv", params, delimiter=",")
     else:
@@ -134,12 +137,17 @@ def get_params(n, save=False, filename=''):
     # list of dicts
     return params
 
+# note: changed to afterglow curves not Z
 def gen_event(params):
 
     kn_params, aft_params = params
 
     KN = SEDDerviedLC(**kn_params)
-    afterglow = AfterglowAddition(KN, **aft_params, addKN=True)
+    afterglow = AfterglowAddition(KN, **aft_params, addKN=False)
+
+    mag_band_aft = afterglow.getAbsMagsInPassbands(sncosmo_bands)
+    mag_band_aft = np.array([list(item) for item in mag_band_aft.values()])
+    afterglow.sed += afterglow.KNsed # add the KN on top
 
     # get the diff and save those
     # abs mag of KN+afterglow
@@ -153,8 +161,8 @@ def gen_event(params):
     # TODO smooth any holes
 
     # since each band is a row in the mag array, the y values are the bands (param help const thru row = y val)
-    Z = mag_band_aftKN - mag_band_KN # magnitude enhancement, (11, 50)
-    return np.array([Z, mag_band_aftKN, mag_band_KN]) # ()
+    #Z = mag_band_aftKN - mag_band_KN # magnitude enhancement, (11, 50)
+    return np.array([mag_band_aft, mag_band_aftKN, mag_band_KN]) # ()
 
 
 # issue with NaNs in UV: check and interpolate over them
@@ -229,46 +237,71 @@ def plot(n, save, filename=''):
     fig.savefig(f'img/{n}_events_{filename}.png')
     plt.show()
 
-def plot_avglc(n, save, filename=''):
+def plot_avglc(n, save, filename='', log=False):
 
     # load them in
     values = gen_events(n, save, filename) # shape 11, 50 (each row is an LC)
         # 10 events each with a Z, mag aftKN and KN
+    
+    # overlay GW170817 like event
+        # at: Dietrich fit Fig 
+    # ang = 0.03 # core = 0.07
+    # at2017gfo = SEDDerviedLC(mej_dyn=10**-2.27, mej_wind=10**-1.28, phi=49.5, cos_theta=np.cos(ang), 
+    #                          coord=SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec"), dist = 40*u.Mpc, av=0.0)
+    #     # afterglow: Table 3 (default in afterglow addition)
+    # gw170817 = AfterglowAddition(at2017gfo, addKN=False)
+    # lcs = gw170817.getAbsMagsInPassbands(sncosmo_bands)
 
     # values is a 3d array each entry is an 2d grid of enhancements
     #distr = np.percentile(values[:,0], [16, 50, 84], axis=0) # get Z
+    distr_aft = np.percentile(values[:,0], [16, 50, 84], axis=0)
     distr = np.percentile(values[:,1], [16, 50, 84], axis=0) # get magAftKN
     distr_KN = np.percentile(values[:,2], [16, 50, 84], axis=0)
-    #mag_tot = -2.5*np.log10(10**(-0.4*mag['ztfi']) + 10**(-0.4*mag_grb['i']))
-        # 
-    #distr_justAft = -2.5*(np.log10(10**(-0.4*distr) - 10**(-0.4*distr_KN)))
 
-    fig, axs = plt.subplots(int(len(sncosmo_bands)/2), 2, figsize=(12, 16))
-    plt.subplots_adjust(wspace=0.2, hspace=0.6)
+    n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 8))
+    plt.subplots_adjust(wspace=0.15, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
-    for idx in labels_idx:
-        ax = axs[idx]
+
+    idx5 = np.where(np.isclose(phases, 5.1))[0][0]
+    axs[0].set_ylabel(r'$M$')
+    for i, idx in enumerate(labels_idx):
+        ax = axs[i]
         # plot distr 1 - median
         # fill btwn distr 0 and 2
             # aft + KN
         ax.fill_between(phases, smooth_out_Nans(distr[0][idx, :]), smooth_out_Nans(distr[2][idx, :]), alpha=0.3, color='b')
         ax.plot(phases, smooth_out_Nans(distr[1][idx, :]), color='b', label='Afterglow + KN')
+        #ax.plot(phases, lcs[sncosmo_bands[idx]], color='k', linestyle='--', label='GW170817 @ 2deg')
             # just KN
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
-        if idx == 2:
-            print(distr_KN[1][idx, :], flush=True)
+        # ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
+        # ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
+
+        print(labels[idx], phases[idx5], flush=True)
+        print(distr[1][idx, idx5] - distr_KN[1][idx, idx5], flush=True)
+
+        # if idx == 2:
+        #     print(distr_KN[1][idx, :], flush=True)
 
         ax.set_xlabel('time (days)')    
-        ax.set_ylabel(r'$M$')
         ax.invert_yaxis()
+
+        if log:
+            ax.set_xscale('log')
+        #ax.set_ylabel(r'$M$')
         ax.set_title(labels[idx])
         ax.legend()
 
     fig.tight_layout()
-    fig.savefig(f'img/{n}_events_{filename}_lc_interp.png')
+    if log:
+        filename += 'log'
+
+    #fig.savefig(f'img/{n}_events_{filename}_lc_lsst_noaft.png')
+    fig.savefig(f'img/caps/lsst.png')
     plt.show()
 
 def plot_color(n, save, filename):
@@ -311,70 +344,216 @@ def plot_distance(n, save, filename, limiting_mags):
     distr = np.percentile(values[:,1], [16, 50, 84], axis=0) # get magAftKN
     distr_KN = np.percentile(values[:,2], [16, 50, 84], axis=0)
 
-    # bands: 'lsstu', 'lsstg', 'lsstr', 'lssti', 'lsstz', 'lssty'
-    idx_b = 0
-
     def max_distance(M, limiting_mag):
         mu = limiting_mag - smooth_out_Nans(M)
         return 10**(1 + (mu/5)) / 1e6
     
     # lsst bands
-    fig, axs = plt.subplots(int(len(limiting_mags)/2), 2, figsize=(12, 16))
+    n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 16))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.ravel()
 
-    for idx, lim_mag in enumerate(limiting_mags):
-        ax = axs[idx]
+    for i, idx in enumerate(labels_idx):
+        lim_mag = limiting_mags[idx]
+        ax = axs[i]
 
         # plot distr 1 - median
         # fill btwn distr 0 and 2
             # aft + KN
-        band = idx + idx_b
-        ax.fill_between(phases, max_distance(distr[0][band, :], lim_mag), max_distance(distr[2][band, :], lim_mag), alpha=0.3, color='b')
-        ax.plot(phases, max_distance(distr[1][band, :], lim_mag), color='b')
+        ax.fill_between(phases, max_distance(distr[0][idx, :], lim_mag), max_distance(distr[2][idx, :], lim_mag), alpha=0.3, color='b')
+        ax.plot(phases, max_distance(distr[1][idx, :], lim_mag), color='b')
             # just KN
-        ax.fill_between(phases, max_distance(distr_KN[2][band, :], lim_mag), max_distance(distr_KN[0][band, :], lim_mag), alpha=0.3, color='orange')
-        ax.plot(phases, max_distance(distr_KN[1][band, :], lim_mag), color='orange')
+        ax.fill_between(phases, max_distance(distr_KN[2][idx, :], lim_mag), max_distance(distr_KN[0][idx, :], lim_mag), alpha=0.3, color='orange')
+        ax.plot(phases, max_distance(distr_KN[1][idx, :], lim_mag), color='orange')
 
-        ax.set_title(labels[band] + ' Limiting Magnitude: '+str(lim_mag))
+        ax.set_title(labels[idx] + ' Limiting Magnitude: '+str(lim_mag))
 
         ax.set_ylabel(r'distance [Mpc]')
         ax.set_yscale('log')
         ax.set_xlabel(r'phase [day]')
     
     fig.tight_layout()
-    fig.savefig(f'img/{n}_events_{filename}_dist.png')
+    fig.savefig(f'img/{n}_events_{filename}_distlsst.png')
     plt.show() 
 
 
+def merge(n, n_files, fname):
+
+
+    # join the value arrays
+    values_arr = []
+    for i in range(1, 11):
+        with open(f'data/sims/{n}_events_{fname}{i}.pkl', 'rb') as f:
+            values = pickle.load(f)
+            values_arr.append(values)
+
+    values = np.vstack(values_arr)
+    print(values.shape, flush=True)
+    with open(f'data/sims/{n*n_files}_events_{fname}.pkl', 'wb') as f:
+            pickle.dump(values, f)
+
+    # join the parameter arrays
+    params_arr = []
+    for i in range(1, 11):
+        with open(f'data/sims/{n}_params_{fname}{i}.pkl', 'rb') as f:
+                params = pickle.load(f)
+                params_arr.append(params)
+            
+    params = np.vstack(params_arr)
+    print(params.shape, flush=True)
+    with open(f'data/sims/{n*n_files}_params_{fname}.pkl', 'wb') as f:
+            pickle.dump(params, f)
+
+
+def compare_GW170817():
+    ang = 0.03 # core = 0.07
+    at2017gfo = SEDDerviedLC(mej_dyn=10**-2.27, mej_wind=10**-1.28, phi=49.5, cos_theta=np.cos(ang), 
+                             coord=SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec"), dist = 40*u.Mpc, av=0.0)
+        # afterglow: Table 3 (default in afterglow addition)
+    gw170817 = AfterglowAddition(at2017gfo, addKN=False)
+    lcs = gw170817.getAbsMagsInPassbands(sncosmo_bands)
+
+    theta_c = np.deg2rad(6) # 6 is ~ peak of RE
+    mean_p = {"E0": 10**(49.3) * (1/(1-np.cos(theta_c))), 
+              "thetaCore": theta_c, 
+              "n0": 1e-2, 
+              "p": 2.3, 
+              "epsilon_e": 0.1, 
+              "epsilon_B": 0.01}
+    mean = AfterglowAddition(at2017gfo, **mean_p, addKN=False)
+    mean_lcs = mean.getAbsMagsInPassbands(sncosmo_bands)
+    mean.sed += mean.KNsed # then get combined curve
+    comb_lcs = mean.getAbsMagsInPassbands(sncosmo_bands)
+
+    fig, axs = plt.subplots(int(len(sncosmo_bands)/2)+1, 2, figsize=(12, 16))
+    plt.subplots_adjust(wspace=0.2, hspace=0.6)
+    axs = axs.flatten().T
+
+    for idx, band in enumerate(sncosmo_bands):
+
+        ax=axs[idx]
+
+        ax.plot(phases, lcs[band], color='k', linestyle='--', label='GW170817')
+        ax.plot(phases, mean_lcs[band], color='g', linestyle='-', label='mean aft')
+        ax.plot(phases, comb_lcs[band], color='b', linestyle='-', label='mean aft')
+        ax.set_title(band)
+
+        ax.set_ylabel(r'M')
+        ax.invert_yaxis()
+        ax.set_xlabel(r'phase [day]')
+
+    fig.tight_layout()
+    fig.savefig(f'img/mean_lc.png')
+    plt.show()
+
+def afterglows(n, save, filename='', log=False):
+
+    # load them in
+    params = get_params(n, save, filename)
+    values = gen_events(n, save, filename) # shape 11, 50 (each row is an LC)
+
+    # get just afterglows
+    afterglows = values[:,0]
+
+    n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 16))
+    plt.subplots_adjust(wspace=0.2, hspace=0.6)
+    axs = axs.flatten().T
+    #axs[-1].set_axis_off() # dont need the last one
+    for i, idx in enumerate(labels_idx):
+        ax = axs[i]
+
+        for j in range(n):
+            ax.plot(phases, smooth_out_Nans(afterglows[j][idx, :]), color='gray', 
+                    alpha=0.1, linewidth=0.5)
+
+            if afterglows[j][idx, 0] > 80:
+                print(np.arccos(params[j][0]['cos_theta']), params[j][1], params[j][0], flush = True)
+
+
+        # if idx == 2:
+        #     print(distr_KN[1][idx, :], flush=True)
+
+        ax.set_xlabel('time (days)')    
+        ax.set_ylabel(r'$M$')
+        ax.invert_yaxis()
+
+        if log:
+            ax.set_xscale('log')
+
+        ax.set_title(labels[idx])
+
+    fig.tight_layout()
+    if log:
+        filename += 'log'
+    fig.savefig(f'img/{n}_events_{filename}_afts_lsst.png')
+    plt.show()
 
 
 if __name__ == '__main__':
+
+    argv = sys.argv[1:]
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--n_events', default=500, type=int, required=False, help='number of events')
+    parser.add_argument('--iter', type=int, required=False, help='Filename of simulation results')
+    parser.add_argument('--plot', help='If true, plot else iter', action='store_true')
+
+    args = parser.parse_args(args=argv)
+
+    #dir = args.dir
+
+    #np.random.seed(1674 % i) # each i will be different
 
     # https://www.lsst.org/scientists/keynumbers
         # u, g, r, i, z, y
     #limiting_mags = [23.8, 24.5, 24.03, 23.41, 22.74, 22.96]
 
-    fname = 're23_offa'
+
     UV_bands = ['UVEX::FUV', 'UVEX::NUV']
     UV_labels = ['UVEX FUV', 'UVEX NUV']
     #labels_idx = np.arange(len(labels))
 
-    sncosmo_bands = UV_bands + sncosmo_bands[:4]
-    labels = UV_labels + labels[:4]
+    sncosmo_bands = UV_bands + sncosmo_bands
+    labels = UV_labels + labels
     labels_idx = np.arange(len(labels))
 
     # STAR-X: http://star-x.xraydeep.org/observatory/
     # UVEX: https://www.uvex.caltech.edu/page/about
     # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
     # LSST: https://www.lsst.org/scientists/keynumbers
-    UV_limiting_mags = [24.5, 24.5, 22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
+    UV_limiting_mags = [24.5, 24.5]
+    sncosmo_lim_mags = [22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
+    UV_limiting_mags += sncosmo_lim_mags
 
-    n = 500  
-    plot(n, save=True, filename=fname)
-    plot_avglc(n, save=False, filename=fname) # use the data gen'd in the previous plotting
-    #plot_color(n, save=False, filename=fname)
-    plot_distance(n, save=False, filename=fname, limiting_mags=UV_limiting_mags[:6])
+    n = args.n_events
+    n_files = 10
+    fname = 'EK_aft'
+    if not args.plot:
+        i = args.iter
+        print(i, flush=True)
+        np.random.seed(1644 % i)
+        fname += str(i)
+        gen_events(n, save=True, filename=fname)
+
+    if args.plot:
+        #merge(n, n_files=n_files, fname=fname)
+        print('now plotting', flush=True)
+
+        # select bands for plotting
+        #labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
+        labels_idx = np.array([4, 5])
+        font = {'family' : 'normal',
+                'size'   : 20}
+        matplotlib.rc('font', **font)
+
+        #compare_GW170817()
+        #plot(n, save=False, filename=fname)
+        #afterglows(n*n_files, save=False, filename=fname)
+        plot_avglc(n*n_files, save=False, filename=fname) # use the data gen'd in the previous plotting
+        #plot_color(n, save=False, filename=fname)
+        #plot_distance(n*n_files, save=False, filename=fname, limiting_mags=UV_limiting_mags)
     # params = get_params(500, False, filename=fname)
     # values = gen_events(500, False, filename=fname)
 
