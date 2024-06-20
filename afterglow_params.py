@@ -2,16 +2,18 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
+
 import astropy.units as u
 import astropy.constants as const
-from astropy.coordinates import Distance, SkyCoord
 import astropy.coordinates as coord
 import afterglowpy as grb
 from astropy.table import Table
 import scipy.stats as sts
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
 import pickle
 import corner
+from matplotlib import gridspec
 
 #from afterglow_distribution import get_params
 
@@ -24,6 +26,8 @@ N0_CDF['logn'] = np.log10(N0_CDF['n'])
 CDF_interpolator_N0 = interp1d(N0_CDF['cdf'], N0_CDF['logn'], kind='linear', fill_value='extrapolate')
 
 # repeat for EK
+    # nature paper:https://www.nature.com/articles/s41550-021-01428-7
+    # claims afterglowpy is param'd with E_k,iso
 FONG15_EK_FILE = 'data/fong15_ek_eb0.01.csv'
 EK_CDF = Table.read(FONG15_EK_FILE, format='csv')
 EK_CDF['logek'] = np.log10(EK_CDF['ek'])
@@ -44,7 +48,7 @@ THETA_interpolator = interp1d(np.cumsum(pdf_norm*np.diff(THETA_PDF['theta'])), T
 FONG15_P_FILE = 'data/fong15_p.csv'
 P_CDF = Table.read(FONG15_P_FILE, format='csv')
 
-CDF_interpolator_P = interp1d(P_CDF['cdf'][1:], P_CDF['p'][1:], kind='linear', fill_value='extrapolate')
+CDF_interpolator_P = interp1d(P_CDF['cdf'], P_CDF['p'], kind='linear', fill_value='extrapolate')
 
 
 def get_opening_angle(n, distr='RE23'):
@@ -148,12 +152,12 @@ def check_params():
     axs[1].set_title(r'$E_{\rm K}$')
 
     # Fong et al p distribution
-    axs[2].plot(P_CDF['p'][1:], P_CDF['cdf'][1:], label='CDF from F15')
+    axs[2].plot(P_CDF['p'], P_CDF['cdf'], label='CDF from F15')
     ps = [2.31, 2.29, 2.24, 2.24, 2.03, 2.39, 2.35, 2.30, 2.24, 2.12, 1.92, 2.29, 2.06, 2.97, 2.40, 2.27, 2.13, 2.65, 2.40, 2.64, 2.40, 2.36, 2.73, 2.49, 2.08, 2.27, 2.87, 2.08, 2.50, 2.7, 2.49, 2.57, 3.0, 2.4, 2.1, 2.27, 2.67, 2.4]
-    axs[2].hist(ps, bins=10, color='b', label='sGRBs', density=True, edgecolor='black', alpha=0.7)
+    _, edges_og, _ = axs[2].hist(ps, bins=10, color='b', label='sGRBs', density=True, edgecolor='black', alpha=0.7)
 
     samples = get_p(n)
-    height, edges, _ = axs[2].hist(samples, density=True, bins=P_CDF['p'], alpha=0.5) # make bins the same
+    height, edges, _ = axs[2].hist(samples, density=True, bins=edges_og[1:], alpha=0.5) # make bins the same
     axs[2].plot(edges[1:], np.cumsum(height*np.diff(edges)), 'g--', label='CDF from samples')
     axs[2].set_title(r'$p$')
 
@@ -188,7 +192,7 @@ def get_fbeam(n, filename):
 
 def cornerplots(n, filename):
 
-    with open(f'data/sims/{n}_params_{filename}.pkl', 'rb') as f:
+    with open(f'data/sims/{n}_params_{filename}_merg.pkl', 'rb') as f:
             params = pickle.load(f)
 
     kn_p, aft_p = params.T # [ [kn, aft], [kn, aft]] -> [[kn, kn], [aft, aft]]
@@ -233,6 +237,85 @@ def cornerplots(n, filename):
     fig = corner.corner(aft_params, plot_countours=True, show_titles=True, smooth=2)
     fig.savefig(f'img/corner_aft_{filename}.png')
 
+    fig, axs = plt.subplots(2, 2, figsize=(16,16))
+    axs = axs.ravel()
+    for i, (param, value) in enumerate(aft_params.items()):
+        axs[i].hist(value, bins=100, density=True)
+        axs[i].set_title(param)
+
+        if param == 'p':
+            axs[i].hist(get_p(5000), bins=P_CDF['p'], alpha=0.5, density=True)
+
+        if param == 'thetaCore':
+            axs[i].hist(np.deg2rad(get_opening_angle(5000, distr='RE23')), alpha=0.5, bins=np.deg2rad(THETA_PDF['theta']), density=True)
+    fig.savefig(f'img/corner_aft_{filename}_hist.png')
+
+    fig, axs = plt.subplots(3, 2, figsize=(16,16))
+    axs = axs.ravel()
+    for i, (param, value) in enumerate(kn_params.items()):
+        axs[i].hist(value, bins=100, density=True)
+        axs[i].set_title(param)
+
+    i = 5
+    axs[i].hist(np.random.uniform(np.cos(np.deg2rad(30)), 1, size=n), bins=100, density=True)
+    
+
+    fig.savefig(f'img/corner_kn_{filename}_hist.png')
+
+
+def beaming(n, filename):
+
+    with open(f'data/sims/{n}_params_{filename}.pkl', 'rb') as f:
+            params = pickle.load(f)
+
+
+    fig = plt.figure(figsize=(16, 16))
+    plt.subplots_adjust(hspace=0.4)
+    gs = gridspec.GridSpec(2, 3)
+    axs = [gs[:, 0], gs[:, 1], gs[0, 2], gs[1, 2]]
+    
+    # fig, axs = plt.subplots(1, 2, figsize=(16,16))
+    # axs = axs.ravel()
+
+    openingAngles = [d['thetaCore'] for d in params.T[1]]
+    viewAngles = np.arccos([d['cos_theta'] for d in params.T[0]])
+    #print(openingAngles, flush=True)
+
+    # integrate over the beam
+    def gauss(x, sigma):
+        return 1/(sigma*np.sqrt(2*np.pi)) * np.exp((x/sigma)**2)
+
+    def solidangle(x, sigma):
+        return gauss(x, sigma)*2*np.pi*np.sin(x)
+    
+    fbeam = []
+    for ang in openingAngles:
+        f = quad(solidangle, 0, ang, args=(ang,))[0]/4*np.pi
+        print(f, flush=True)
+        fbeam.append(f)
+
+    # histogram of beams
+    ax = fig.add_subplot(axs[0])
+    ax.hist(fbeam, bins=50)
+    ax.set_title(r"Beaming Fraction: $\langle f \rangle = {}$".format(np.round(np.median(fbeam), 2)))
+
+    # histogram of thetav/thetac
+    ax = fig.add_subplot(axs[1])
+    ax.hist(viewAngles/openingAngles, bins=50)
+    ax.set_title(r"$\theta_{\rm view} / \theta_{\rm core}$")
+
+    ax = fig.add_subplot(axs[2])
+    ax.hist(np.rad2deg(viewAngles), bins=50)
+    ax.set_title(r"$\theta_{\rm view}$")
+
+    ax = fig.add_subplot(axs[3])
+    ax.hist(np.rad2deg(openingAngles), bins=50)
+    ax.set_title(r"$\theta_{\rm core}$")
+    
+
+    fig.savefig(f'img/caps/{n}_events_{filename}_opening.png')
+
+    plt.show()
 
 def viewable(n, i):
 
@@ -271,11 +354,12 @@ def median_view():
 
 if __name__ == '__main__':
     #pass
-    #check_params()
+    check_params()
 
     #print(get_fbeam(5000, 'e0'), flush=True)
-    #cornerplots(500, 'E0_30d')
-    median_view()
+    #cornerplots(5000, 'EK_aft2')
+    #median_view()
+    beaming(5000, 'EK_aft2')
 
 
 

@@ -7,4 +7,7 @@
 #SBATCH --output=add-f.txt
 #SBATCH --error=add-f-e.txt
 #SBATCH --partition=caps
-srun python finesstplot.py
+
+###srun python finesstplot.py
+srun python afterglow_detection.py
+###srun python afterglow_params.py

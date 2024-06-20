@@ -16,6 +16,7 @@ import scipy.stats as sts
 from scipy.interpolate import interp1d
 import sys
 import argparse
+import os
 
 
 from interpolate_bulla_sed import BullaSEDInterpolator
@@ -43,6 +44,7 @@ def get_params(n, save=False, filename=''):
         # loop over kn params - stolen from Ved unless otherwise noted
             # mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av steal from ved
         mass1, mass2 = Galaudage21(n)
+        masses = np.array([mass1, mass2]).T
         mej_dyns, mej_winds = get_ejecta_mass(mass1, mass2)
         
         # simulate coordinates. Additional term ensures minimum distance of 0.05 Mpc
@@ -50,7 +52,7 @@ def get_params(n, save=False, filename=''):
         x = np.random.uniform(-box_size/2., box_size/2., n)*u.Mpc
         y = np.random.uniform(-box_size/2., box_size/2., n)*u.Mpc
         z = np.random.uniform(-box_size/2., box_size/2., n)*u.Mpc
-        dists = (x**2. + y**2. + z**2.)**0.5 + (0.05*u.Mpc)
+        #dists = (x**2. + y**2. + z**2.)**0.5 + (0.05*u.Mpc)
         
     
         coords = np.empty(n, dtype=object)
@@ -60,16 +62,10 @@ def get_params(n, save=False, filename=''):
             coords[i] = coord.SkyCoord(ra=ra, dec=dec)
             dists[i] = r
         
-        # loc = 16
-        # scale = 10
-        # a, b = (np.rad2deg(0.01) - loc) / scale , (90 - loc) / scale
-        # thetaCores = sts.truncnorm.rvs(a, b, loc=loc, scale=scale, size=n) # deg, Fong et al 2015
         thetaCores = np.deg2rad(get_opening_angle(n, distr='RE23'))
-        # previously was np.cos(thetacore), 1
-        cos_thetas = np.random.uniform(np.cos(np.deg2rad(30)), 1, size=n)
-        # cos_thetas = np.random.uniform(0, thetaCores, size=n)
-        # thetaCores = np.deg2rad(thetaCores)
-        # cos_thetas = np.cos(np.deg2rad(cos_thetas))
+        cos_thetas = np.random.uniform(np.cos(np.deg2rad(30)), 1, size=n) # for EK_aft
+        #cos_thetas = np.cos(thetaCores/2) # for EK_aft0tc
+        #cos_thetas = np.cos(np.deg2rad(cos_thetas))
         #cos_thetas = np.full((n,), 1) # on-axis for all 
         phis = np.random.uniform(15, 75, size=n)
         avs = np.random.exponential(0.334, size=n)*0.334
@@ -97,12 +93,6 @@ def get_params(n, save=False, filename=''):
         
         # from Zhu et al 2022 I unless otherwise specified
         #logE0s = np.random.normal(49.3, 0.4**2, n) # ergs
-
-        # cannot have cores below like 0.01 rad and 2 pi rad
-        # loc = 16
-        # scale = 10
-        # a, b = (np.rad2deg(0.01) - loc) / scale , (90 - loc) / scale
-        # thetaCores = np.deg2rad(sts.truncnorm.rvs(a, b, loc=loc, scale=scale, size=n)) # deg, Fong et al 2015
         #logn0s = np.random.normal(-2, 0.4**2, n) # cm^-2
         #ps = np.random.normal(2.25, 0.1**2, n)   # spectral index
         # logees = np.random.normal(-1, 0.3**2, n)
@@ -129,6 +119,9 @@ def get_params(n, save=False, filename=''):
             print(f'done params {filename}', flush=True)
             pickle.dump(params, f)
         #np.savetxt(f"{n}_events.csv", params, delimiter=",")
+        with open(f'data/sims/{n}_masses_{filename}.pkl', 'wb') as f:
+            print(f'done masses {filename}', flush=True)
+            pickle.dump(masses, f)
     else:
         # load in the values
         with open(f'data/sims/{n}_params_{filename}.pkl', 'rb') as f:
@@ -158,8 +151,6 @@ def gen_event(params):
     mag_band_KN = KN.getAbsMagsInPassbands(sncosmo_bands)
     mag_band_KN = np.array([list(item) for item in mag_band_KN.values()])
 
-    # TODO smooth any holes
-
     # since each band is a row in the mag array, the y values are the bands (param help const thru row = y val)
     #Z = mag_band_aftKN - mag_band_KN # magnitude enhancement, (11, 50)
     return np.array([mag_band_aft, mag_band_aftKN, mag_band_KN]) # ()
@@ -176,17 +167,17 @@ def smooth_out_Nans(lc):
         return lc
 
 
-def gen_events(n, save=True, filename=''):
+def gen_events(n, save=False, filename=''):
 
     if save: 
 
         params = get_params(n, save, filename)
 
         with schwimmbad.JoblibPool(5) as pool:
-            values = np.array(pool.map(gen_event, params))
+             values = np.array(pool.map(gen_event, params))
 
         with open(f'data/sims/{n}_events_{filename}.pkl', 'wb') as f:
-            pickle.dump(values, f)
+             pickle.dump(values, f)
 
     else:
         # load in the values
@@ -259,7 +250,7 @@ def plot_avglc(n, save, filename='', log=False):
     distr_KN = np.percentile(values[:,2], [16, 50, 84], axis=0)
 
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 8))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(18, 18))
     plt.subplots_adjust(wspace=0.15, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
@@ -278,8 +269,8 @@ def plot_avglc(n, save, filename='', log=False):
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
-        # ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
-        # ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
+        ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
+        ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
 
         print(labels[idx], phases[idx5], flush=True)
         print(distr[1][idx, idx5] - distr_KN[1][idx, idx5], flush=True)
@@ -300,8 +291,9 @@ def plot_avglc(n, save, filename='', log=False):
     if log:
         filename += 'log'
 
+    fig.savefig(f'img/caps/{n}_events_{filename}_lc.png')
     #fig.savefig(f'img/{n}_events_{filename}_lc_lsst_noaft.png')
-    fig.savefig(f'img/caps/lsst.png')
+    #fig.savefig(f'img/caps/lsst.png')
     plt.show()
 
 def plot_color(n, save, filename):
@@ -377,26 +369,13 @@ def plot_distance(n, save, filename, limiting_mags):
     fig.savefig(f'img/{n}_events_{filename}_distlsst.png')
     plt.show() 
 
-
 def merge(n, n_files, fname):
-
-
-    # join the value arrays
-    values_arr = []
-    for i in range(1, 11):
-        with open(f'data/sims/{n}_events_{fname}{i}.pkl', 'rb') as f:
-            values = pickle.load(f)
-            values_arr.append(values)
-
-    values = np.vstack(values_arr)
-    print(values.shape, flush=True)
-    with open(f'data/sims/{n*n_files}_events_{fname}.pkl', 'wb') as f:
-            pickle.dump(values, f)
 
     # join the parameter arrays
     params_arr = []
-    for i in range(1, 11):
-        with open(f'data/sims/{n}_params_{fname}{i}.pkl', 'rb') as f:
+    param_files = [f'data/sims/{n}_params_{fname}{i}.pkl' for i in range(1,11)]
+    for f in param_files:
+        with open(f, 'rb') as f:
                 params = pickle.load(f)
                 params_arr.append(params)
             
@@ -405,6 +384,35 @@ def merge(n, n_files, fname):
     with open(f'data/sims/{n*n_files}_params_{fname}.pkl', 'wb') as f:
             pickle.dump(params, f)
 
+    # join the value arrays
+    values_arr = []
+    val_files = [f'data/sims/{n}_events_{fname}{i}.pkl' for i in range(1,11)]
+    for f in val_files:
+        with open(f, 'rb') as f:
+            values = pickle.load(f)
+            values_arr.append(values)
+
+    values = np.vstack(values_arr)
+    print(values.shape, flush=True)
+    with open(f'data/sims/{n*n_files}_events_{fname}.pkl', 'wb') as f:
+            pickle.dump(values, f)
+
+    # join the mass arrays
+    mass_arr = []
+    mass_files = [f'data/sims/{n}_masses_{fname}{i}.pkl' for i in range(1,11)]
+    for f in mass_files:
+        with open(f, 'rb') as f:
+            params = pickle.load(f)
+            mass_arr.append(params)
+            
+    masses = np.vstack(mass_arr)
+    print(masses.shape, flush=True)
+    with open(f'data/sims/{n*n_files}_masses_{fname}.pkl', 'wb') as f:
+            pickle.dump(masses, f)
+
+    # clean up
+    for f in param_files+val_files+mass_files:
+        os.remove(f)
 
 def compare_GW170817():
     ang = 0.03 # core = 0.07
@@ -529,21 +537,27 @@ if __name__ == '__main__':
 
     n = args.n_events
     n_files = 10
-    fname = 'EK_aft'
+    fname = 'EK_aft2' #EK_aft_0tc'
     if not args.plot:
         i = args.iter
         print(i, flush=True)
-        np.random.seed(1644 % i)
+        np.random.seed(1647 % i)
         fname += str(i)
         gen_events(n, save=True, filename=fname)
 
+        # TODO: re-run param gen for Ek_aft
+            # if params are the same, 
+            # then do again but just save the m1,m2
+        #get_params(n, save=True, filename=fname)
+        # done - now check that these are the correct ones, then save the masses
+
     if args.plot:
         #merge(n, n_files=n_files, fname=fname)
-        print('now plotting', flush=True)
+        #print('now plotting', flush=True)
 
         # select bands for plotting
-        #labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
-        labels_idx = np.array([4, 5])
+        labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
+        #labels_idx = np.array([0,1])
         font = {'family' : 'normal',
                 'size'   : 20}
         matplotlib.rc('font', **font)
@@ -551,7 +565,7 @@ if __name__ == '__main__':
         #compare_GW170817()
         #plot(n, save=False, filename=fname)
         #afterglows(n*n_files, save=False, filename=fname)
-        plot_avglc(n*n_files, save=False, filename=fname) # use the data gen'd in the previous plotting
+        plot_avglc(n*n_files, save=False, filename=fname)
         #plot_color(n, save=False, filename=fname)
         #plot_distance(n*n_files, save=False, filename=fname, limiting_mags=UV_limiting_mags)
     # params = get_params(500, False, filename=fname)

@@ -49,6 +49,8 @@ class AfterglowAddition():
             self.host_ebv = KN.host_ebv
             self.mw_ebv = KN.mw_ebv
 
+        # TODO: allow initialization without KN
+
 
         elif isinstance(KN, str):
             # get the viewing angle from the file name
