@@ -6,9 +6,12 @@ from matplotlib import colormaps as cm
 import astropy.units as u
 import astropy.constants as const
 from astropy.coordinates import SkyCoord, Distance
+from astropy.table import Table
 import afterglowpy as grb
 import sncosmo
+import sfdmap
 from tqdm import tqdm
+
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 from interpolate_bulla_sed import uniq_cos_theta, uniq_mej_dyn, uniq_mej_wind, uniq_phi, phases, lmbd
@@ -26,20 +29,26 @@ sncosmo.register(sncosmo.Bandpass([165., 300.], [1., 1.], name='starx::total', w
 sncosmo.register(sncosmo.Bandpass([1390., 1900.], [1., 1.], name='uvex::fuv', wave_unit=u.AA), 'uvex::fuv')
 sncosmo.register(sncosmo.Bandpass([2030., 2700.], [1., 1.], name='uvex::nuv', wave_unit=u.AA), 'uvex::nuv')
 
-# for checking the early time enhancement in IR
-# phases = np.linspace(0.1, 5, 100)
-# lmbd = np.linspace(1000, 2300, 131)*u.nm.to(u.AA)
+# get AXIS sensitivities
+AXIS_THRU_TABLE = Table.read('data/axis_thru.csv', format='csv')
+energy, thru = AXIS_THRU_TABLE['energy'], AXIS_THRU_TABLE['throughput']
 
-# take the lmbd and phases from the KN grid and use it in afterglowpy
-#t_s = phases*u.d.to(u.s)
-#nu = (const.c / (lmbd*u.AA)).to(u.Hz)
+sncosmo.register(sncosmo.Bandpass(energy, thru, name='axis::total', wave_unit=u.keV), force=True)
+
+soft = np.where((energy >= 0.2) & (energy < 2.0))
+med = np.where((energy >= 2.0) & (energy < 5.0))
+high = np.where((energy >= 5.0) & (energy <= 10.0))
+sncosmo.register(sncosmo.Bandpass(energy[soft], thru[soft], name='axis::soft', wave_unit=u.keV))
+sncosmo.register(sncosmo.Bandpass(energy[med], thru[med], name='axis::medium', wave_unit=u.keV))
+sncosmo.register(sncosmo.Bandpass(energy[high], thru[high], name='axis::hard', wave_unit=u.keV))
 
 # goal: take in a KN object + afterglow params and get the new combined SED
 class AfterglowAddition():
 
-    # add all parameters
-    def __init__(self, KN, E0=10**52.96, thetaCore=0.066, n0=10**-2.7, p=2.17, epsilon_e=10**-1.4, 
-                 epsilon_B=10**-4, time = phases, wav = lmbd, addKN = True):
+    def __init__(self, KN, E0=10**52.96, thetaCore=0.066, n0=10**-2.7, p=2.17,
+                 epsilon_e=10**-1.4, epsilon_B=10**-4, 
+                 theta_v = None, coord = None, av = 0., rv = 3.1,  # only needed if no KN
+                 time = phases, wav = lmbd, addKN = True, xray = False):
         
         # initialize with either KN object or sed file
         if isinstance(KN, SEDDerviedLC):
@@ -50,20 +59,18 @@ class AfterglowAddition():
             self.mw_ebv = KN.mw_ebv
 
         # TODO: allow initialization without KN
-
-
-        elif isinstance(KN, str):
-            # get the viewing angle from the file name
-            cos_theta = float(KN.split("_")[3])
-            theta_v = np.arccos(cos_theta)
-        
-            # get the KNsed
-            table = pd.read_csv(KN, delimiter=' ', names = ['Phase', 'Wavelength', 'Flux'])
-            self.KNsed = np.array(table['Flux']).reshape(len(phases), len(lmbd))
-
-        elif isinstance(KN, float):
-            theta_v = KN
+        if KN is None:
+            self.coord = coord
+            self.KNsed = np.zeros((len(wav), len(time)))
             addKN = False
+            self.host_ebv = av/rv
+            # For mw extinction
+            self.dust_map = sfdmap.SFDMap('./sfddata-master')
+            self.mw_ebv = self.dust_map.ebv(self.coord.ra, self.coord.dec)
+
+        # check if we've gone beyond the KN sed range
+        if np.any(wav < np.min(lmbd)) or xray:
+            self.xray = True
 
         # to get the initial sed, d_L must = 10pc
         self.grb_params = { # use the same params I used for nsf fig
@@ -72,7 +79,7 @@ class AfterglowAddition():
             'thetaObs':    theta_v,            # Viewing angle in radians
             'E0':          E0,                 # Isotropic-equivalent energy in erg
             'thetaCore':   thetaCore,               # Half-opening angle in radians
-            'thetaWing':  0.47,               # Wing angle in radians,  min(10*thetaCore, np.pi/2)
+            'thetaWing':   min(10*thetaCore, np.pi/2),               # Wing angle in radians,  min(10*thetaCore, np.pi/2)
             'n0':          n0,                 # circumburst density in cm^{-3}
             'p':           p,               # electron energy distribution index
             'epsilon_e':   epsilon_e,           # epsilon_e
@@ -115,17 +122,18 @@ class AfterglowAddition():
             source = sncosmo.TimeSeriesSource(phase=self.phases, wave=self.lmbd, flux = self.sed, name=source_name, zero_before=True)
 
             model = sncosmo.Model(source)
-
+            print(apply_extinction, flush=True)
+            print(model, flush=True)
             if apply_extinction:
 
                 # add host galaxy extinction E(B-V)
                 model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
                 model.set(hostebv = self.host_ebv)
-
+                print(model, flush=True)
                 # add MW extinction to observing frame
                 model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
                 model.set(mwebv=self.mw_ebv)
-
+                print(model, flush=True)
             if apply_redshift:
 
                 # Adding redshift based on distance: https://docs.astropy.org/en/stable/api/astropy.coordinates.Distance.html#astropy.coordinates.Distance.z
@@ -172,8 +180,9 @@ if __name__ == "__main__":
         fig = plt.figure(figsize=(8,6))
 
         for i, obj in enumerate(to_plot):
+            lcs = obj.getAbsMagsInPassbands(passbands, apply_extinction=False)
             for j, band in enumerate(passbands):
-                plt.plot(phases, obj.getAbsMagsInPassbands(passbands)[band], label=labels[i]+" "+band, color=f'C{j}')
+                plt.plot(phases, lcs[band], label=labels[i]+" "+band, color=f'C{j}')
 
         plt.title(f"{band}")
         plt.xlabel("time (days)")
@@ -288,27 +297,11 @@ if __name__ == "__main__":
             plt.legend()
             plt.show()
 
-
-def make_Ryan2020_F2():
-    grb_params = { # use the same params I used for nsf fig
-            'jetType':     grb.jet.Gaussian,   # Gaussian jet!! - not flat
-            'specType':    0,                  # Basic Synchrotron Spectrum
-            'thetaObs':    0,            # Viewing angle in radians
-            'E0':          1e52,                 # Isotropic-equivalent energy in erg
-            'thetaCore':   0.1,               # Half-opening angle in radians
-            'thetaWing':   1,               # Wing angle in radians
-            'n0':          1e-3,                 # circumburst density in cm^{-3}
-            'p':           2.2,               # electron energy distribution index
-            'epsilon_e':   1e-1,           # epsilon_e
-            'epsilon_B':   1e-2,             # epsilon_B
-            'xi_N':        1.0,                # Fraction of electrons accelerated
-            'd_L':         3.09e26,   # Luminosity distance in cm
-        }
-
-    grb_params2 = { # use the same params I used for nsf fig
-                'jetType':     grb.jet.TopHat,   # 
+    def make_Ryan2020_F2():
+        grb_params = { # use the same params I used for nsf fig
+                'jetType':     grb.jet.Gaussian,   # Gaussian jet!! - not flat
                 'specType':    0,                  # Basic Synchrotron Spectrum
-                'thetaObs':    0.16,            # Viewing angle in radians
+                'thetaObs':    0,            # Viewing angle in radians
                 'E0':          1e52,                 # Isotropic-equivalent energy in erg
                 'thetaCore':   0.1,               # Half-opening angle in radians
                 'thetaWing':   1,               # Wing angle in radians
@@ -320,106 +313,122 @@ def make_Ryan2020_F2():
                 'd_L':         3.09e26,   # Luminosity distance in cm
             }
 
-    fig, ax = plt.subplots(1,1)
-    t = np.logspace(4, 8)
-    for n in [1e9, 1e18]:
-        Fnu = grb.fluxDensity(t, n, **grb_params)
-        Fnu2 = grb.fluxDensity(t, n, **grb_params2)
-        ax.plot(t, Fnu)
-        ax.plot(t, Fnu2)
-        ax.set_xscale('log')
-        ax.set_yscale('log')
+        grb_params2 = { # use the same params I used for nsf fig
+                    'jetType':     grb.jet.TopHat,   # 
+                    'specType':    0,                  # Basic Synchrotron Spectrum
+                    'thetaObs':    0.16,            # Viewing angle in radians
+                    'E0':          1e52,                 # Isotropic-equivalent energy in erg
+                    'thetaCore':   0.1,               # Half-opening angle in radians
+                    'thetaWing':   1,               # Wing angle in radians
+                    'n0':          1e-3,                 # circumburst density in cm^{-3}
+                    'p':           2.2,               # electron energy distribution index
+                    'epsilon_e':   1e-1,           # epsilon_e
+                    'epsilon_B':   1e-2,             # epsilon_B
+                    'xi_N':        1.0,                # Fraction of electrons accelerated
+                    'd_L':         3.09e26,   # Luminosity distance in cm
+                }
 
-    fig.savefig("test_aftpy.png")
+        fig, ax = plt.subplots(1,1)
+        t = np.logspace(4, 8)
+        for n in [1e9, 1e18]:
+            Fnu = grb.fluxDensity(t, n, **grb_params)
+            Fnu2 = grb.fluxDensity(t, n, **grb_params2)
+            ax.plot(t, Fnu)
+            ax.plot(t, Fnu2)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
 
-    
-def makeTest():
-    t_day = np.arange(0.0001, 20, 0.01)
+        fig.savefig("test_aftpy.png")
+        
+    def makeTest():
+        t_day = np.arange(0.0001, 20, 0.01)
 
-    params_grb = { # from Troja 2020
-    'E0': 10**52.9,
-    'thetaCore': 0.07,
-    'n0':10**-2.7,
-    'p':2.17,
-    'epsilon_e':10**-1.4, 
-    'epsilon_B':10**-4.,
-    }
+        params_grb = { # from Troja 2020
+        'E0': 10**52.9,
+        'thetaCore': 0.07,
+        'n0':10**-2.7,
+        'p':2.17,
+        'epsilon_e':10**-1.4, 
+        'epsilon_B':10**-4.,
+        }
 
-    mej_wind = 1e-3
-    mej_dyn = 1e-3
-    phi = 60
+        mej_wind = 1e-3
+        mej_dyn = 1e-3
+        phi = 60
 
-    
-    #theta = 7
-    #cos_theta = np.cos(theta*u.deg.to(u.rad))
+        
+        #theta = 7
+        #cos_theta = np.cos(theta*u.deg.to(u.rad))
+        c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+        d = 40*u.Mpc
+
+        fig = plt.figure()
+        for i, angle in enumerate(np.linspace(0, 8, 5)):
+            ct = np.cos(angle*u.deg.to(u.rad))
+            KN = SEDDerviedLC(mej_dyn, mej_wind, phi, ct, dist=d, coord=c, av=0.0)      
+            afterglow = AfterglowAddition(KN, **params_grb) # use typical values
+        
+            band = 'ztfi'
+            mag = KN.getAbsMagsInPassbands([band,], lc_phases=t_day, apply_extinction=False)
+            plt.plot(t_day, mag[band], label=f'{int(angle)} deg', color=f'C{i}')
+
+            mag_grb = afterglow.getAbsMagsInPassbands([band,], lc_phases=t_day, apply_extinction=False)
+            plt.plot(t_day, mag_grb[band], color=f'C{i}', linestyle='--')
+
+        plt.legend()
+        plt.gca().invert_yaxis()
+        plt.ylim(-5, -20)
+        plt.xlim(0.1, 20)
+        plt.xlabel('Time t [days]', fontsize=18)
+        plt.ylabel('$m$ [mag]', fontsize=18)
+        plt.xscale('log')
+        fig.savefig('img/compare.png')
+        plt.show()
+    # call stuff here
+    #compareWithFile()
+
+    #GW170817 object
+    # mej_wind = 0.05
+    # mej_dyn = 0.005
+    # phi = 30
+    theta = 4*u.deg.to(u.rad)
+    # cos_theta = np.cos(theta) #1
+
     c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
     d = 40*u.Mpc
+    # KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
 
-    fig = plt.figure()
-    for i, angle in enumerate(np.linspace(0, 8, 5)):
-        ct = np.cos(angle*u.deg.to(u.rad))
-        KN = SEDDerviedLC(mej_dyn, mej_wind, phi, ct, dist=d, coord=c, av=0.0)      
-        afterglow = AfterglowAddition(KN, **params_grb) # use typical values
-    
-        band = 'ztfi'
-        mag = KN.getAbsMagsInPassbands([band,], lc_phases=t_day, apply_extinction=False)
-        plt.plot(t_day, mag[band], label=f'{int(angle)} deg', color=f'C{i}')
+    # # afterglow
+    E0 = 10**52.9 #erg
+    n0 = 1e-3#cm**-3
+    aft = AfterglowAddition(KN=None, E0=E0, n0=n0, theta_v=theta, coord=c, wav=AXIS_THRU_TABLE['wavelength'])
+    print(aft.lmbd[0], aft.lmbd[-1], flush=True)
+    # afterglow = AfterglowAddition(KN, E0, n0, False)
 
-        mag_grb = afterglow.getAbsMagsInPassbands([band,], lc_phases=t_day, apply_extinction=False)
-        plt.plot(t_day, mag_grb[band], color=f'C{i}', linestyle='--')
+    # sed_dir = './SEDs/SIMSED.BULLA-BNS-M3-3COMP/'
 
-    plt.legend()
-    plt.gca().invert_yaxis()
-    plt.ylim(-5, -20)
-    plt.xlim(0.1, 20)
-    plt.xlabel('Time t [days]', fontsize=18)
-    plt.ylabel('$m$ [mag]', fontsize=18)
-    plt.xscale('log')
-    fig.savefig('img/compare.png')
-    plt.show()
-# call stuff here
-#compareWithFile()
+    # cos_theta = 0.0
+    # mej_dyn = 0.001
+    # mej_wind = 0.010
+    # phi = 0
+    # file = f'sed_cos_theta_{cos_theta}_mejdyn_{mej_dyn}_mejwind_{mej_wind}0_phi_{phi}.txt'
 
-#GW170817 object
-# mej_wind = 0.05
-# mej_dyn = 0.005
-# phi = 30
-# theta = 4*u.deg.to(u.rad)
-# cos_theta = np.cos(theta) #1
+    #KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
+    # aftKN = AfterglowAddition(KN, E0, n0)
+    #afterglow = AfterglowAddition(KN, addKN=False)
 
-# c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
-# d = 40*u.Mpc
-# KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
+    # afterglow_f = AfterglowAddition(sed_dir + file, E0, n0, False)
+    # aftKN_f = AfterglowAddition(sed_dir + file, E0, n0)
 
-# # afterglow
-# E0 = 10**52.9 #erg
-# n0 = # #cm**-3    
-# #aftKN = AfterglowAddition(KN, E0, n0)
-# afterglow = AfterglowAddition(KN, E0, n0, False)
+    # KN_f = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
+    # KN_f.sed = afterglow_f.KNsed # replace calc'd sed with file sed so i can be plotted
 
-# sed_dir = './SEDs/SIMSED.BULLA-BNS-M3-3COMP/'
-
-# cos_theta = 0.0
-# mej_dyn = 0.001
-# mej_wind = 0.010
-# phi = 0
-# file = f'sed_cos_theta_{cos_theta}_mejdyn_{mej_dyn}_mejwind_{mej_wind}0_phi_{phi}.txt'
-
-#KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
-# aftKN = AfterglowAddition(KN, E0, n0)
-#afterglow = AfterglowAddition(KN, addKN=False)
-
-# afterglow_f = AfterglowAddition(sed_dir + file, E0, n0, False)
-# aftKN_f = AfterglowAddition(sed_dir + file, E0, n0)
-
-# KN_f = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
-# KN_f.sed = afterglow_f.KNsed # replace calc'd sed with file sed so i can be plotted
-
-#print(KN.sed == KN_f)
-#checkLCs([afterglow, KN], ["afterglow", "KN"], passbands=['f125w', 'f160w', 'f200w', 'uvot::uvw2', 'uvot::uvw1'])
-#checkSEDs([afterglow_f.sed, aftKN_f.KNsed, afterglow.sed, KN.sed], ["afterglow f", "KN f", "afterglow", "KN"])
-#plotDistributions() 
-#makeTest()   
+    #print(KN.sed == KN_f)
+    #checkLCs([afterglow, KN], ["afterglow", "KN"], passbands=['f125w', 'f160w', 'f200w', 'uvot::uvw2', 'uvot::uvw1'])
+    checkLCs([aft, ], ["afterglow", ], passbands=['axis::total','axis::soft', 'axis::medium' , 'axis::hard'])
+    #checkSEDs([afterglow_f.sed, aftKN_f.KNsed, afterglow.sed, KN.sed], ["afterglow f", "KN f", "afterglow", "KN"])
+    #plotDistributions() 
+    #makeTest()   
 
 
 

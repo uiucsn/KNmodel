@@ -110,8 +110,10 @@ def calc_detections_lsst(n, filename):
         discovery_windowband[i] = sncosmo_bands[idx_lsst[np.argmax(discovery_windows)]]
 
         # if the discovery window is extended by a day, save
-        if discovery_mag[i] - discovery_mag_KN[i] < -0.5:
+        if discovery_window[i] - discovery_window_KN[i] > 3:
             afterglow_enhance[i] = 1
+        # if discovery_mag[i] - discovery_mag_KN[i] < -0.5:
+        #     afterglow_enhance[i] = 1
 
 
     # save it   
@@ -270,7 +272,7 @@ def plotting(n, filename):
 
 if __name__ == '__main__':
 
-    params = {'n': 5000, 'filename': "EK_aft2"}
+    params = {'n': 5000, 'filename': "EK_aft"}
     calc_detections_lsst(**params)
     hist_detections(**params)
     plotting(**params)

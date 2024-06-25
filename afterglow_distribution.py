@@ -250,7 +250,7 @@ def plot_avglc(n, save, filename='', log=False):
     distr_KN = np.percentile(values[:,2], [16, 50, 84], axis=0)
 
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(18, 18))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(18, 8))
     plt.subplots_adjust(wspace=0.15, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
@@ -269,8 +269,8 @@ def plot_avglc(n, save, filename='', log=False):
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
-        ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
-        ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
+        # ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
+        # ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
 
         print(labels[idx], phases[idx5], flush=True)
         print(distr[1][idx, idx5] - distr_KN[1][idx, idx5], flush=True)
@@ -291,7 +291,7 @@ def plot_avglc(n, save, filename='', log=False):
     if log:
         filename += 'log'
 
-    fig.savefig(f'img/caps/{n}_events_{filename}_lc.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}_lc_ug.png')
     #fig.savefig(f'img/{n}_events_{filename}_lc_lsst_noaft.png')
     #fig.savefig(f'img/caps/lsst.png')
     plt.show()
@@ -537,11 +537,11 @@ if __name__ == '__main__':
 
     n = args.n_events
     n_files = 10
-    fname = 'EK_aft2' #EK_aft_0tc'
+    fname = 'EK_aft' #EK_aft_0tc'
     if not args.plot:
         i = args.iter
         print(i, flush=True)
-        np.random.seed(1647 % i)
+        np.random.seed(2667 % i)
         fname += str(i)
         gen_events(n, save=True, filename=fname)
 
@@ -557,14 +557,14 @@ if __name__ == '__main__':
 
         # select bands for plotting
         labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
-        #labels_idx = np.array([0,1])
+        labels_idx = np.array([4,5])
         font = {'family' : 'normal',
-                'size'   : 20}
+                 'size'   : 20}
         matplotlib.rc('font', **font)
 
-        #compare_GW170817()
-        #plot(n, save=False, filename=fname)
-        #afterglows(n*n_files, save=False, filename=fname)
+        # #compare_GW170817()
+        # #plot(n, save=False, filename=fname)
+        # #afterglows(n*n_files, save=False, filename=fname)
         plot_avglc(n*n_files, save=False, filename=fname)
         #plot_color(n, save=False, filename=fname)
         #plot_distance(n*n_files, save=False, filename=fname, limiting_mags=UV_limiting_mags)

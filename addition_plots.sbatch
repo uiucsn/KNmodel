@@ -11,3 +11,4 @@
 ###srun python finesstplot.py
 srun python afterglow_detection.py
 ###srun python afterglow_params.py
+###srun python afterglow_addition.py
