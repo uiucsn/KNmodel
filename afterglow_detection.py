@@ -10,11 +10,13 @@ import afterglowpy as grb
 import sncosmo
 from tqdm import tqdm
 import pickle
+import corner
 
 from interpolate_bulla_sed import BullaSEDInterpolator
 from interpolate_bulla_sed import phases
 from sed_to_lc import SEDDerviedLC, lsst_bands
 from afterglow_distribution import gen_events, get_params, sncosmo_bands, labels, labels_idx
+from waveforms import get_snr
 
 UV_bands = ['UVEX::FUV', 'UVEX::NUV']
 UV_labels = ['UVEX FUV', 'UVEX NUV']
@@ -25,10 +27,15 @@ labels = UV_labels + labels
 labels_idx = np.arange(len(labels))
 
 
-def calc_detections_lsst(n, filename):
+def calc_detections_lsst(n, filename, plotname=''):
     
     # params = get_params(n_events, filename=filename)
     values = gen_events(n, filename=filename) # 10 for now
+    params = get_params(n, filename=filename)
+
+    # get masses
+    with open(f'data/sims/{n}_masses_{filename}.pkl', 'rb') as f:
+        masses = pickle.load(f)
 
     idx_lsst = [4,5,6,7,8,9] # not UVEX/uvot
         # https://www.lsst.org/scientists/keynumbers
@@ -38,6 +45,7 @@ def calc_detections_lsst(n, filename):
     # params from KN only
     discovery_mag_KN = np.empty(n)
     discovery_band_KN = np.empty(n, dtype='<U11')
+    discovery_discwindow_KN = np.empty(n)
     discovery_phase_KN = np.empty(n)
     discovery_window_KN = np.empty(n)
     discovery_windowband_KN = np.empty(n, dtype='<U11')
@@ -45,21 +53,32 @@ def calc_detections_lsst(n, filename):
     # now with the afterglow
     discovery_mag = np.empty(n)
     discovery_band = np.empty(n, dtype='<U11')
+    discovery_discwindow = np.empty(n)
     discovery_phase = np.empty(n) 
     discovery_window = np.empty(n)   
     discovery_windowband = np.empty(n, dtype='<U11')
 
     afterglow_enhance = np.zeros(n)
 
+    # TODO: calc the SNR here
+    snr = np.empty(n)
+
     # may need to adjust per object
-    dist = 160*u.Mpc
-    distmod = Distance(dist).distmod.value
+    # dist = 160*u.Mpc
+    # distmod = Distance(dist).distmod.value
 
     for i, event in enumerate(values):
+
+        kn_p, _ = params[i]
+        dist = kn_p['dist']#160*u.Mpc#
+        distmod = Distance(dist).distmod.value
 
         # convert to app mag
         total = event[1] + distmod
         KN = event[2] + distmod
+
+        m1, m2 = masses[i]
+        snr[i] = get_snr([m1, m2, dist])
 
         # check to see which band surpassed the det limit 1st
         discovery_mags_KN = np.zeros(len(lsst_bands))
@@ -98,7 +117,7 @@ def calc_detections_lsst(n, filename):
         discovery_mag_KN[i] = discovery_mags_KN[np.argmax(-1*discovery_phases_KN)]
         discovery_band_KN[i] = sncosmo_bands[idx_lsst[np.argmax(-1*discovery_phases_KN)]]
         discovery_phase_KN[i] = np.min(discovery_phases_KN)
-        # get the band with the longest time over limit
+        discovery_discwindow_KN[i] = discovery_windows_KN[np.argmax(-1*discovery_phases_KN)]
         discovery_window_KN[i] = np.max(discovery_windows_KN)
         discovery_windowband_KN[i] = sncosmo_bands[idx_lsst[np.argmax(discovery_windows_KN)]]
 
@@ -106,6 +125,7 @@ def calc_detections_lsst(n, filename):
         discovery_mag[i] = discovery_mags[np.argmax(-1*discovery_phases)]
         discovery_band[i] = sncosmo_bands[idx_lsst[np.argmax(-1*discovery_phases)]]
         discovery_phase[i] = np.min(discovery_phases)
+        discovery_discwindow_KN[i] = discovery_windows[np.argmax(-1*discovery_phases)]
         discovery_window[i] = np.max(discovery_windows)
         discovery_windowband[i] = sncosmo_bands[idx_lsst[np.argmax(discovery_windows)]]
 
@@ -121,6 +141,7 @@ def calc_detections_lsst(n, filename):
     det_df['discovery_mag_KN'] = discovery_mag_KN
     det_df['discovery_band_KN'] = discovery_band_KN
     det_df['discovery_phase_KN'] = discovery_phase_KN
+    det_df['discovery_discwindow_KN'] = discovery_discwindow_KN
     det_df['discovery_window_KN'] = discovery_window_KN
     det_df['discovery_windowband_KN'] = discovery_windowband_KN
 
@@ -128,23 +149,22 @@ def calc_detections_lsst(n, filename):
     det_df['discovery_mag'] = discovery_mag
     det_df['discovery_band'] = discovery_band
     det_df['discovery_phase'] = discovery_phase
+    det_df['discovery_discwindow'] = discovery_discwindow
     det_df['discovery_window'] = discovery_window
     det_df['discovery_windowband'] = discovery_windowband
     det_df['afterglow_enhance'] = afterglow_enhance
 
-    print(det_df, flush=True)
-
-    with open(f'data/sims/{n}_{filename}_detectionStats.pkl', 'wb') as f:
-        print(f'done detection calc {filename}', flush=True)
+    with open(f'data/sims/{n}_{filename}_detectionStats{plotname}.pkl', 'wb') as f:
+        print(f'done detection calc {filename} {plotname}', flush=True)
         pickle.dump(det_df, f)
 
 
-def hist_detections(n, filename):
+def hist_detections(n, filename, plotname=''):
     # load in the values
-    with open(f'data/sims/{n}_{filename}_detectionStats.pkl', 'rb') as f:
+    with open(f'data/sims/{n}_{filename}_detectionStats{plotname}.pkl', 'rb') as f:
         data = pickle.load(f)
 
-    fig, axs = plt.subplots(2, 5, figsize=(16,12))
+    fig, axs = plt.subplots(2, 5, figsize=(20,12))
     axs = axs.flatten()
     for i, (name, vals) in enumerate(data.items()):
         
@@ -155,16 +175,67 @@ def hist_detections(n, filename):
 
     aft_enh = len(np.where(data['afterglow_enhance']!= 0)[0])
     fig.suptitle(f'Afterglow improve detection of {aft_enh} / 5000 events', y = 0.93, fontsize='xx-large')
-    fig.savefig(f'img/caps/{n}_events_{filename}_detectionStats.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}_detectionStats{plotname}.png')
     plt.show()
 
+# like above, but split up by bands
+def hist_detections_bands(n, filename, plotname=''):
+    # load in the values
+    with open(f'data/sims/{n}_{filename}_detectionStats{plotname}.pkl', 'rb') as f:
+        data = pickle.load(f)
 
-def plotting(n, filename):
+    c = {}
+    for i, b in enumerate('ugrizy'):
+        c[f'lsst{b}'] = f'C{i}'
+
+    fig, axs = plt.subplots(2, 3, figsize=(13,12))
+    axs = axs.flatten().T
+    for i, b in enumerate('ugrizy'):
+        band = f'lsst{b}'
+        color = c[band]
+
+        ax = axs[0]
+        mask = data['discovery_band_KN'] == band
+        ax.hist(data['discovery_mag_KN'][mask], color=color, bins=50, label=band)
+        ax.set_title('discovery_mag_KN')
+
+        ax = axs[1]
+        mask = data['discovery_band_KN'] == band
+        ax.hist(data['discovery_phase_KN'][mask], color=color, bins=5)
+        ax.set_title('discovery_phase_KN')
+
+        ax = axs[2]
+        mask = data['discovery_windowband_KN'] == band
+        ax.hist(data['discovery_window_KN'][mask], color=color, bins=50)
+        ax.set_title('discovery_window_KN')
+
+        ax = axs[3]
+        mask = data['discovery_band'] == band
+        ax.hist(data['discovery_mag'][mask], color=color, bins=50)
+        ax.set_title('discovery_mag')
+
+        ax = axs[4]
+        mask = data['discovery_band_KN'] == band
+        ax.hist(data['discovery_phase'][mask], color=color, bins=5)
+        ax.set_title('discovery_phase')
+
+        ax = axs[5]
+        mask = data['discovery_windowband'] == band
+        ax.hist(data['discovery_window'][mask], color=color, bins=50)
+        ax.set_title('discovery_window')
+
+    axs[0].legend()
+    aft_enh = len(np.where(data['afterglow_enhance']!= 0)[0])
+    fig.suptitle(f'Afterglow improve detection of {aft_enh} / 5000 events', y = 0.93, fontsize='xx-large')
+    fig.savefig(f'img/caps/{n}_events_{filename}_detectionBands{plotname}.png')
+    plt.show()
+
+def plotting(n, filename, plotname=''):
     # load in the lcs and detections stats
     params = get_params(n, filename=filename)
     values = gen_events(n, filename=filename) 
 
-    with open(f'data/sims/{n}_{filename}_detectionStats.pkl', 'rb') as f:
+    with open(f'data/sims/{n}_{filename}_detectionStats{plotname}.pkl', 'rb') as f:
         data = pickle.load(f)
 
     # select events of interest
@@ -176,6 +247,7 @@ def plotting(n, filename):
     print(c, flush=True)
     print(bands, flush=True)
     
+    # TODO: change per event?
     dist = 160*u.Mpc
     distmod = Distance(dist).distmod.value
     kn = values[idx_det,2] + distmod
@@ -206,27 +278,29 @@ def plotting(n, filename):
     axs[0].legend()
 
     fig.tight_layout()
-    fig.savefig(f'img/caps/{n}_events_{filename}_det.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}_det{plotname}.png')
     plt.show()
 
 
     # TODO: get hist of the parameters for these events
     with open(f'data/sims/{n}_params_{filename}.pkl', 'rb') as f:
-            params = pickle.load(f)
+        params = pickle.load(f)
 
     fig, axs = plt.subplots(5, 2, figsize=(16,16))
     axs = axs.ravel()
     plt.subplots_adjust(hspace=0.4)
     idx_det_20 = np.where(np.array(data['discovery_window']) >= 19)[0]
 
-    for parms in [params.T, params[idx_det].T, params[idx_det_20].T]:
+
+    legends = ['all events', 'observable for 1 week', 'observable for 3 week']
+    for j, parms in enumerate([params.T, params[idx_det].T, params[idx_det_20].T]):
         kn_p, aft_p = parms # [ [kn, aft], [kn, aft]] -> [[kn, kn], [aft, aft]]
 
         kn_params = {"mej_dyn": [], 
                     "mej_wind": [], 
                     "phi": [], 
                     "cos_theta": [], 
-                    #  "dist": [], 
+                    "dist": [], 
                     #  "coord": [], 
                     "av": [], 
                     # "rv": []
@@ -255,24 +329,67 @@ def plotting(n, filename):
 
         
         for i, (param, value) in enumerate(kn_params.items()):
-            axs[i].hist(value, bins=100, density=True, alpha=0.6)
+            axs[i].hist(value, bins=100, density=True, alpha=0.6, label=legends[j])
             axs[i].set_title(param)
-
+        axs[0].legend()
         for i, (param, value) in enumerate(aft_params.items()):
             
             if param == 'E0' or param == 'n0':
                 value = np.log10(value)
             
-            axs[i+5].hist(value, bins=100, density=True, alpha=0.6)
-            axs[i+5].set_title(param)
-        
-    fig.savefig(f'img/caps/{n}_events_{filename}_detParam.png')
-    plt.show()
-    
+            axs[i+6].hist(value, bins=100, density=True, alpha=0.6)
+            axs[i+6].set_title(param)
 
+        
+        
+    fig.savefig(f'img/caps/{n}_events_{filename}_detParam{plotname}.png')
+    plt.show()
+
+    params_dict = {"mej_dyn": [], 
+                    "mej_wind": [], 
+                    "phi": [], 
+                    "cos_theta": [], 
+                    #"dist": [], 
+                    #  "coord": [], 
+                    "av": [], 
+                    # "rv": [],
+                    "E0": [], 
+                    "thetaCore": [], 
+                    "n0": [], 
+                    "p": [], 
+                    #  "epsilon_e": [],
+                    #  "epsilon_B": []
+                    }
+    
+    # make param data frame
+    kn_p, aft_p = params.T
+    for d in kn_p:
+        for key, value in d.items():
+            if key in params_dict.keys():
+                params_dict[key].append(value)
+    for d in aft_p:
+        for key, value in d.items():
+            if key in params_dict.keys():
+                params_dict[key].append(value)
+
+    params_dict['E0'] = np.log10(params_dict['E0'])
+    params_dict['n0'] = np.log10(params_dict['n0'])
+    params_dict['thetav/c'] = np.arccos(params_dict['cos_theta']) / params_dict['thetaCore']
+
+    data_df = pd.DataFrame(params_dict)
+    print(data_df, flush=True)
+    
+    cols = ['E0', 'n0', 'thetaCore', 'thetav/c']
+    data_df = data_df[cols]
+    fig2 = corner.corner(data_df, plot_countours=True, show_titles=True, smooth=2, )
+    corner.corner(data_df[np.array(data['discovery_window']) >= 7], plot_countours=True, show_titles=True, smooth=2, color='C1', fig=fig2)
+    corner.corner(data_df[np.array(data['discovery_window']) >= 19], plot_countours=True, show_titles=True, smooth=2, color='C2', fig=fig2)
+    fig2.savefig(f'img/caps/corner_{filename}{plotname}_subset.png')
+    
 if __name__ == '__main__':
 
-    params = {'n': 5000, 'filename': "EK_aft"}
+    params = {'n': 5000, 'filename': "EK_aft", 'plotname': ""}
     calc_detections_lsst(**params)
     hist_detections(**params)
-    plotting(**params)
+    hist_detections_bands(**params)
+    #plotting(**params)

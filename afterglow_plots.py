@@ -6,6 +6,7 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
 import seaborn as sns
+from labellines import labelLine
 
 import astropy.units as u
 import astropy.constants as const
@@ -40,7 +41,7 @@ def plot_appmag(n, save, filename, dist, limiting_mags):
 
     # lsst bands
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 16))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(17, 8))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.ravel()
 
@@ -54,18 +55,21 @@ def plot_appmag(n, save, filename, dist, limiting_mags):
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
-        ax.axhline(y=lim_mag, color='gray')
+        line = ax.axhline(y=lim_mag, color='gray', label='limiting mag')
 
-        ax.set_title(labels[idx] + ' Limiting Magnitude: '+str(lim_mag))
+        labelLine(line, x = 17, label=lim_mag)
 
-        ax.set_ylabel(r'App Mag')
+        ax.set_title(labels[idx])
+
+        ax.set_ylabel(r'Apparent Magnitude')
         #ax.set_yscale('log')
         ax.set_xlabel(r'phase [day]')
         ax.invert_yaxis()
-    
+        ax.set_xlim(0,20)
+    axs[0].legend()
     fig.tight_layout()
     
-    fig.savefig(f'img/{n}_events_{filename}_appmag_{dist}.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}_appmag_{dist}_ug_desc.png')
     plt.show() 
 
 def plot_openingAngle(n, save, filename):
@@ -316,14 +320,14 @@ if __name__ == '__main__':
         print('now plotting', flush=True)
 
         # select bands for plotting
-        #labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
-        #labels_idx = np.array([4,5])
-        # font = {'family' : 'normal',
-        #         'size'   : 20}
-        # matplotlib.rc('font', **font)
+        labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
+        labels_idx = np.array([4,5])
+        font = {'family' : 'normal',
+                 'size'   : 20}
+        mpl.rc('font', **font)
 
         #compare_GW170817()
-        #plot_appmag(n*n_files, save=False, filename=fname, dist=120, limiting_mags=UV_limiting_mags) # use the data gen'd in the previous plotting
+        plot_appmag(n*n_files, save=False, filename=fname, dist=160, limiting_mags=UV_limiting_mags) # use the data gen'd in the previous plotting
         #plot_openingAngle(n*n_files, save=False, filename=fname)
-        makeTrialsEjectaHistogram()
+        #makeTrialsEjectaHistogram()
 
