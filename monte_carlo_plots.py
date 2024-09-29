@@ -72,6 +72,9 @@ if __name__=='__main__':
     n_detect4 = np.array(n_detect4)
     n_all = n_detect1 + n_detect2 + n_detect3 + n_detect4
 
+
+    print("Percent of trials with 1 or more discoverable KNe ", len(np.where(n_all >= 1)[0])/1000 * 100, "%")
+
     #print(f"2 det: {n_detect2};\n3 det: {n_detect3};\n4 det: {n_detect4}")
     #print(f"2 det mean: {np.mean(n_detect2)};\n3 det mean: {np.mean(n_detect3)};\n4 det mean: {np.mean(n_detect4)}")
     fig_kw = {'figsize':(9.5/0.7, 4)}
