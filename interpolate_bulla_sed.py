@@ -178,7 +178,8 @@ class BullaSEDInterpolator():
                         ax[2*i][j].set_xscale('log')
 
                         ax[2*i][j].set_xlabel('mej', fontsize=0)
-                        ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize=12)
+                        if j == 0:
+                            ax[2*i][j].set_ylabel('Total bolometric flux \n(over 20 days)', fontsize='20')
 
 
                         ax[2*i][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
@@ -193,8 +194,9 @@ class BullaSEDInterpolator():
                         ax[2*i + 1][j].set_xlim(left=np.min(fit_mej), right=np.max(fit_mej))
 
 
-                        ax[2*i + 1][j].set_xlabel('mej', fontsize=12)
-                        ax[2*i + 1][j].set_ylabel(r"$\Delta F/F$", fontsize=12)
+                        ax[2*i + 1][j].set_xlabel('mej', fontsize='20')
+                        if j == 0:
+                            ax[2*i + 1][j].set_ylabel(r"$\Delta F/F$", fontsize='20')
 
                         ax[2*i + 1][j].legend()
                         ax[2*i][j].legend()
