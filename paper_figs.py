@@ -51,19 +51,18 @@ def makeDnsMassHistograms():
     bins = np.arange(MIN_MASS, MAX_MASS, 0.01)
 
     np.random.normal()
+    
+    plt.hist(m2_Golomb21, histtype=u'step', label=r'$m_{slow}$ - Farrow et al.', linewidth=2,  density=True, bins=bins)
+    plt.hist(m2_Galaudage21, histtype=u'step', label=r'$m_{slow}$ - Galaudage et al.', linewidth=2,  density=True, bins=bins)
 
     plt.hist(m1_Galaudage21, histtype=u'step', label=r'$m_{recycled}$', linewidth=2, density=True, bins=bins)
-    
-    plt.hist(m2_Galaudage21, histtype=u'step', label=r'$m_{slow}$ - Galaudage et al.', linewidth=2,  density=True, bins=bins)
-    plt.hist(m2_Golomb21, histtype=u'step', label=r'$m_{slow}$ - Farrow et al.', linewidth=2,  density=True, bins=bins)
-
 
     plt.legend()
     plt.xlabel(r"$\mathrm{M_{\odot}}$", fontsize='x-large')
     plt.ylabel("Relative count", fontsize='x-large')
 
     plt.tight_layout()
-    #plt.savefig(f'paper_figures/dns_mass_dist.pdf')
+    plt.savefig(f'paper_figures/dns_mass_dist.pdf')
     plt.show()
 
 def makeEjectaDistribution():
@@ -483,28 +482,70 @@ def makeComparisonPlot():
     labels = [item.get_text() for item in ax.get_xticklabels()]
     labels = ['','Frostig et al.\n(over LVK O4)', 'Colombo et al.\n(per year)', 'Weizmann \nKiendrebeogo \net al. (per year)', 'Colombo et al.\n(per year)', 'This work - MM 1\n(over LVK O4)',  'This work - MM2\n(over LVK O4)']
 
-    ax.set_xticklabels(labels, rotation=50)
+    ax.set_xticklabels(labels, rotation=50, fontsize='large')
 
     plt.legend()
     plt.tight_layout()
     plt.savefig('paper_figures/result_comparison.pdf')
     plt.show()
 
+def makeEjectaGradients():
+
+    masses = np.arange(1, 2.06, 0.01)
+
+    mej_wind = np.zeros((len(masses), len(masses)))
+    mej_dyn = np.zeros((len(masses), len(masses)))
+
+
+    for i, m1 in enumerate(masses):
+        for j, m2 in enumerate(masses):
+            mej_dyn[i][j], mej_wind[i][j] = get_ejecta_mass(np.array([m1]), np.array([m2]))
+
+
+    im = plt.imshow(mej_dyn, origin="lower")
+
+    plt.xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    plt.ylabel(r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    cb = plt.colorbar(im)
+
+    # Set the colorbar label
+    cb.set_label('$m_{ej}^{dyn} (M_{\odot})$')
+
+    plt.show()
+
+    im = plt.imshow(mej_wind, origin="lower")
+
+    plt.xlabel(r"$m_{1} (M_{\odot})$", fontsize='x-large')
+    plt.ylabel(r"$m_{2} (M_{\odot})$", fontsize='x-large')
+    cb = plt.colorbar(im)
+
+    # Set the colorbar label
+    cb.set_label('$m_{ej}^{wind} (M_{\odot})$')
+
+
+
+    plt.show()
+
+
+
+
+
 if __name__ == '__main__':
 
-    #makeScalingLawsPlot()
+    makeScalingLawsPlot()
     #makeDnsMassHistograms()
     #makeTrialsEjectaScatter()
     #makeTrialsEjectaHistogram()
     #makeTrialsAvPlot()
-    makeInterceptSurface()
-    makeSlopeSurface()
-    makeExponentSurface()
+    #makeInterceptSurface()
+    #makeSlopeSurface()
+    #makeExponentSurface()
     #makeGW170817PhotometryPlotVillar()
     #makeBNSRangePlot()
     #makeBNSMergerRateHist()
     #flatMassDistEjecta()
     #makeComparisonPlot()
+    #makeEjectaGradients()
 
 
 
