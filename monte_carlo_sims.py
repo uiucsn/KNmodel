@@ -72,6 +72,13 @@ detector_asd_links_O5 = dict(
     kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_128Mpc.txt'
 )
 
+# Custom set of PSD for HST Cycle 32
+detector_asd_links_hst32 = dict(
+    ligo=detector_asd_links_O4['ligo'],
+    virgo=detector_asd_links_O3['virgo'],
+    kagra='https://dcc.ligo.org/public/0180/T2200043/003/kagra_10Mpc.txt' # This is ignored due to 0 duty cycle
+)
+
 def compute_dyn_ej(m1, c1, m2, c2):
 
     a = -0.0719
@@ -166,6 +173,8 @@ def get_range(detector, ligo_run):
         psd_url = detector_asd_links_O2[detector]
     elif ligo_run == 'O3':
         psd_url = detector_asd_links_O3[detector]
+    elif ligo_run == 'hst32':
+        psd_url = detector_asd_links_hst32[detector]
     print(psd_url)
     try:
         # if downloaded locally
@@ -235,7 +244,7 @@ def get_options(argv=None):
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument('--trials_dir', default='trial-exg-100', help='Directory to store simulation results')
-    parser.add_argument('--ligo_run', choices=['O2','O3','O4','O5'], default='O4', help='Pick LIGO observing run')
+    parser.add_argument('--ligo_run', choices=['O2','O3','O4','O5','hst32'], default='O4', help='Pick LIGO observing run')
     parser.add_argument('--mass_distrib', choices=['Galaudage21','Farrow19','flat'], default='Galaudage21', help='Pick BNS mass distribution')
     parser.add_argument('--rate_model', choices=['LVK_UG_O4'], default='LVK_UG_O4', help='Pick BNS merger rate model')
     parser.add_argument('--ntry', default=500, type=int, action=MinZeroAction, help='Set the number of MC samples')
@@ -274,6 +283,24 @@ def main(argv=None):
         l_duty = 0.7
         v_duty = 0.47
         k_duty = 0.27
+
+        box_size = 510
+    
+    elif ligo_observing_run == 'hst32':
+        print("Configuring parameters for O4...")
+        # setup time-ranges
+        Range = namedtuple('Range', ['start', 'end'])
+        ligo_run_start = Time('2024-04-03T00:00:00.0')
+        ligo_run_end   = Time('2025-02-28T00:00:00.0')
+        survey_cyc_start = Time('2024-10-01T00:00:00.0')
+        survey_cyc_end = Time('2025-09-30T00:00:00.0')
+        eng_time       = 2.*u.week
+
+        # setup duty cycles
+        h_duty = 0.7
+        l_duty = 0.7
+        v_duty = 0.7
+        k_duty = 0.0
 
         box_size = 510
 
@@ -386,6 +413,7 @@ def main(argv=None):
         if rate_model == "LVK_UG_O4":
             rate = LVK_UG(1)[0][0]
 
+        print(fractional_duration)
 
         n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
         n_events = max(n_events,1)
