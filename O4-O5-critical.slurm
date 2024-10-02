@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time=6-15:30:00
 #SBATCH --job-name="o4vso5"
-#SBATCH --mail-type=FAIL
+#SBATCH --mail-type=ALL
 #SBATCH --mail-user=vedgs2@illinois.edu
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=9
