@@ -442,8 +442,19 @@ def run_trial(ligo_observing_run,
     # Return the time to the first detection
     print(gw_indices, kn_indices)
 
-    first_gw_day = gw_indices[0] / n_events * (365 * n_years)
-    first_kn_day = kn_indices[0] / n_events * (365 * n_years)
+
+    if len(gw_indices) == 0:
+        # Flag for no GW events
+        first_gw_day = -1
+    else:
+        first_gw_day = gw_indices[0] / n_events * (365 * n_years)
+
+
+    if len(kn_indices) == 0:
+        # Flag for no KN events
+        first_kn_day = -1
+    else:
+        first_kn_day = kn_indices[0] / n_events * (365 * n_years)
 
     return first_gw_day, first_kn_day
 
@@ -489,7 +500,7 @@ def get_earliest_detection_time(rate, args):
 
     n_events = np.around(rate*volume*fractional_duration*(10**-9)).astype('int')
     n_events = max(n_events,1)
-    print("N events:", n_events)
+    print("N events:", n_events, flush=True)
     cos_thetas = np.random.uniform(0, 1, size=n_events)
     phis = np.random.uniform(15, 75, size=n_events)
 
@@ -556,7 +567,7 @@ def main(argv=None):
     rates_array = [LVK_UG(1)[0][0] for _ in range(n_trials)]
 
 
-    with Pool(10) as pool:
+    with Pool(30) as pool:
         values = list(pool.starmap(get_earliest_detection_time, zip(rates_array, repeat(args))))
 
 
