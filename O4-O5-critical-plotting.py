@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+day_interval = 50
+
 def plot_days_to_KN_discovery_distribution(df, run, color):
 
     data = df[f"O{run} Days to KN"]
@@ -12,8 +14,11 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
 
     run_label = f"O{run}"
 
-    plt.hist(data, density=True, histtype='step', fill=False, bins=25, alpha=1, color=color)
-    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=25, alpha=0.5, color=color)
+
+    bins = np.arange(0, max(data) + day_interval, day_interval)
+
+    plt.hist(data, density=True, bins=bins, histtype='step', fill=False, alpha=1, color=color)
+    plt.hist(data, density=True, bins=bins, histtype='stepfilled', fill=True, alpha=0.5, color=color)
 
     plt.axvline(data_5, label=r"$P_{5\%} $=" + f"{data_5}", linestyle='dotted', ymin=0, ymax=1, color='black')
     plt.axvline(data_med, label=r"$P_{50\%} $=" + f"{data_med}", linestyle='dashed', ymin=0, ymax=1, color='black')
@@ -38,8 +43,9 @@ def plot_days_to_KN_discovery_cumulative(df, run, color):
 
     run_label = f"O{run}"
 
-    plt.hist(data, density=True, histtype='step', fill=False, bins=25, alpha=1, color=color, cumulative=True)
-    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=25, alpha=0.5, color=color, cumulative=True)
+    bins = np.arange(0, max(data) + day_interval, day_interval)
+    plt.hist(data, density=True, bins=bins, histtype='step', fill=False, alpha=1, color=color, cumulative=True)
+    plt.hist(data, density=True, bins=bins, histtype='stepfilled', fill=True, alpha=0.5, color=color, cumulative=True)
 
     plt.tight_layout()
     plt.grid()
@@ -63,8 +69,10 @@ def plot_delta_days_distribution(df, color):
     data_5 = int(np.percentile(data, 5))
     data_95 = int(np.percentile(data, 95))
 
-    plt.hist(data, density=True, histtype='step', fill=False, bins=25, alpha=1, color=color)
-    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=25, alpha=0.5, color=color)
+    bins = np.arange(-500,  2000, day_interval)
+
+    plt.hist(data, density=True, histtype='step', fill=False, bins=bins, alpha=1, color=color)
+    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color=color)
 
     plt.axvline(data_5, label=r"$P_{5\%}=$" + f"{data_5}", linestyle='dotted', ymin=0, ymax=1, color='black')
     plt.axvline(data_med, label=r"$P_{50\%}=$" + f"{data_med}", linestyle='dashed', ymin=0, ymax=1, color='black')
@@ -92,8 +100,10 @@ def plot_delta_days_cumulative(df, color):
     data_5 = int(np.percentile(data, 5))
     data_95 = int(np.percentile(data, 95))
 
-    plt.hist(data, density=True, histtype='step', fill=False, bins=25, alpha=1, color=color, cumulative=True)
-    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=25, alpha=0.5, color=color, cumulative=True)
+    bins = np.arange(-500,  2000, day_interval)
+
+    plt.hist(data, density=True, histtype='step', fill=False, bins=bins, alpha=1, color=color, cumulative=True)
+    plt.hist(data, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color=color, cumulative=True)
 
     plt.axvline(730, label=r"2 year shutdown", linestyle='dashed', ymin=0, ymax=1, color='red')
 
