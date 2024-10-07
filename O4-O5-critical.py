@@ -453,6 +453,7 @@ def run_trial(ligo_observing_run,
         first_kn_phi = -1
         first_kn_mej_dyn = -1
         first_kn_mej_wind = -1
+        first_kn_peak_mag = -1
 
     else:
         first_kn_idx = kn_indices[0] 
@@ -465,8 +466,9 @@ def run_trial(ligo_observing_run,
         first_kn_phi = phis[first_kn_idx]
         first_kn_mej_dyn = mej_dyn_arr[first_kn_idx]
         first_kn_mej_wind = mej_wind_arr[first_kn_idx]
+        first_kn_peak_mag = peak_mags[first_kn_idx]
         
-    return first_kn_day, first_kn_m1, first_kn_m2, first_kn_omega, first_kn_dist, first_kn_cos_theta, first_kn_phi, first_kn_mej_dyn, first_kn_mej_wind
+    return first_kn_day, first_kn_m1, first_kn_m2, first_kn_omega, first_kn_dist, first_kn_cos_theta, first_kn_phi, first_kn_mej_dyn, first_kn_mej_wind, first_kn_peak_mag
 
 
 def get_earliest_detection_time(rate, args):
@@ -542,7 +544,7 @@ def get_earliest_detection_time(rate, args):
     ##############################
 
     # Simulate for O4
-    O4_first_kn_day, O4_first_kn_m1, O4_first_kn_m2, O4_first_kn_omega, O4_first_kn_dist, O4_first_kn_cos_theta, O4_first_kn_phi, O4_first_kn_mej_dyn, O4_first_kn_mej_wind = run_trial("O4", 
+    O4_first_kn_day, O4_first_kn_m1, O4_first_kn_m2, O4_first_kn_omega, O4_first_kn_dist, O4_first_kn_cos_theta, O4_first_kn_phi, O4_first_kn_mej_dyn, O4_first_kn_mej_wind, O4_first_kn_peak_mag = run_trial("O4", 
               x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
@@ -553,7 +555,7 @@ def get_earliest_detection_time(rate, args):
               args)
     
     # Simulate for O5
-    O5_first_kn_day, O5_first_kn_m1, O5_first_kn_m2, O5_first_kn_omega, O5_first_kn_dist, O5_first_kn_cos_theta, O5_first_kn_phi, O5_first_kn_mej_dyn, O5_first_kn_mej_wind = run_trial("O5", 
+    O5_first_kn_day, O5_first_kn_m1, O5_first_kn_m2, O5_first_kn_omega, O5_first_kn_dist, O5_first_kn_cos_theta, O5_first_kn_phi, O5_first_kn_mej_dyn, O5_first_kn_mej_wind, O5_first_kn_peak_mag = run_trial("O5", 
               x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
@@ -574,6 +576,7 @@ def get_earliest_detection_time(rate, args):
         "O4 phi": O4_first_kn_phi,
         "O4 mej_dyn": O4_first_kn_mej_dyn,
         "O4 mej_wind": O4_first_kn_mej_wind,
+        "O4 peak mag": O4_first_kn_peak_mag,
         "O5 Days to KN": O5_first_kn_day,
         "O5 m1": O5_first_kn_m1,
         "O5 m2": O5_first_kn_m2,
@@ -583,6 +586,7 @@ def get_earliest_detection_time(rate, args):
         "O5 phi": O5_first_kn_phi,
         "O5 mej_dyn": O5_first_kn_mej_dyn,
         "O5 mej_wind": O5_first_kn_mej_wind,
+        "O5 peak mag": O5_first_kn_peak_mag,
     }
     
     return data
