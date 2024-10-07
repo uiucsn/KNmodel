@@ -149,6 +149,77 @@ def rates_vs_delta_days_to_kn(df):
     plt.savefig("bns_rate_vs_delta_days_to_KN.pdf", bbox_inches = "tight")
     plt.close()
 
+def plot_chirp_mass_dist(df):
+
+    o4_days = df[f"O4 Days to KN"]
+    o4_kn_indices = np.where(o4_days.to_numpy()!=5 * 365)[0]
+    o4_no_kn_indices = np.where(o4_days.to_numpy()==5 * 365)[0]
+
+    O4_m1, O4_m2 =  df[f"O4 m1"][o4_kn_indices], df[f"O4 m2"][o4_kn_indices]
+    O5_m1, O5_m2 =  df[f"O5 m1"], df[f"O5 m2"]
+
+    O4_chirp = (O4_m1 * O4_m2)**0.6/(O4_m1 + O4_m2)**0.2
+    O5_chirp = (O5_m1 * O5_m2)**0.6/(O5_m1 + O5_m2)**0.2
+
+    plt.hist(O4_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
+    plt.hist(O4_chirp, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+
+    plt.hist(O5_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
+    plt.hist(O5_chirp, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+
+    plt.legend()
+
+    plt.xlabel(r"$M_{chirp}$", fontsize='x-large')
+    plt.ylabel(r"Density", fontsize='x-large')
+
+    plt.savefig("m_chirp_dist.pdf", bbox_inches = "tight")
+    plt.close()
+
+def plot_peak_mag_dist(df):
+
+    o4_days = df[f"O4 Days to KN"]
+    o4_kn_indices = np.where(o4_days.to_numpy()!=5 * 365)[0]
+    o4_no_kn_indices = np.where(o4_days.to_numpy()==5 * 365)[0]
+
+    O4_peak_mag =  df[f"O4 peak mag"][o4_kn_indices]
+    O5_peak_mag =  df[f"O5 peak mag"]
+
+    plt.hist(O4_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
+    plt.hist(O4_peak_mag, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+
+    plt.hist(O5_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
+    plt.hist(O5_peak_mag, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+
+    plt.legend()
+
+    plt.xlabel(r"Peak Mag (DECam r-band)", fontsize='x-large')
+    plt.ylabel(r"Density", fontsize='x-large')
+
+    plt.savefig("peak_mag_dist.pdf", bbox_inches = "tight")
+    plt.close()
+
+def plot_distance_dist(df):
+
+    o4_days = df[f"O4 Days to KN"]
+    o4_kn_indices = np.where(o4_days.to_numpy()!=5 * 365)[0]
+    o4_no_kn_indices = np.where(o4_days.to_numpy()==5 * 365)[0]
+
+    O4_dist =  df[f"O4 dist"][o4_kn_indices]
+    O5_dist =  df[f"O5 dist"]
+
+    plt.hist(O4_dist, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
+    plt.hist(O4_dist, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+
+    plt.hist(O5_dist, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
+    plt.hist(O5_dist, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+
+    plt.legend()
+
+    plt.xlabel(r"Luminosity Distance", fontsize='x-large')
+    plt.ylabel(r"Density", fontsize='x-large')
+
+    plt.savefig("distance_dist.pdf", bbox_inches = "tight")
+    plt.close()
 
 def bns_rates_distribution(df):
 
@@ -177,6 +248,7 @@ def bns_rates_distribution(df):
     plt.legend()
 
     plt.savefig("bns_rate_dist.pdf", bbox_inches = "tight")
+    plt.close()
 
 
     
@@ -202,3 +274,7 @@ if __name__=="__main__":
     rates_vs_days_to_kn(df)
     rates_vs_delta_days_to_kn(df)
     bns_rates_distribution(df)
+
+    plot_chirp_mass_dist(df)
+    plot_peak_mag_dist(df)
+    plot_distance_dist(df)
