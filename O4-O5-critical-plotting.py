@@ -106,7 +106,7 @@ def plot_delta_days_distribution(df, color):
 
 def rates_vs_days_to_kn(df):
 
-    rates = df["Rates"]
+    rates = df["Rate"]
     o4_days = df[f"O4 Days to KN"]
     o5_days = df[f"O5 Days to KN"]
 
@@ -130,7 +130,7 @@ def rates_vs_days_to_kn(df):
 
 def rates_vs_delta_days_to_kn(df):
 
-    rates = df["Rates"]
+    rates = df["Rate"]
     O4_kn_days, O5_kn_days = df["O4 Days to KN"], df["O5 Days to KN"]
     data = O4_kn_days - O5_kn_days
 

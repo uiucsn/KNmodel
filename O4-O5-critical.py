@@ -442,21 +442,31 @@ def run_trial(ligo_observing_run,
     # Return the time to the first detection
     print(gw_indices, kn_indices)
 
-
-    if len(gw_indices) == 0:
-        # Flag for no GW events
-        first_gw_day = -1
-    else:
-        first_gw_day = gw_indices[0] / n_events * (365 * n_years)
-
-
     if len(kn_indices) == 0:
         # Flag for no KN events
         first_kn_day = -1
-    else:
-        first_kn_day = kn_indices[0] / n_events * (365 * n_years)
+        first_kn_m1 = -1
+        first_kn_m2 = -1
+        first_kn_omega = -1
+        first_kn_dist = -1
+        first_kn_cos_theta = -1
+        first_kn_phi = -1
+        first_kn_mej_dyn = -1
+        first_kn_mej_wind = -1
 
-    return first_gw_day, first_kn_day
+    else:
+        first_kn_idx = kn_indices[0] 
+        first_kn_day = first_kn_idx / n_events * (365 * n_years)
+        first_kn_m1 = mass1[first_kn_idx]
+        first_kn_m2 = mass2[first_kn_idx]
+        first_kn_omega = omegas[first_kn_idx]
+        first_kn_dist = dist[first_kn_idx]
+        first_kn_cos_theta = cos_thetas[first_kn_idx]
+        first_kn_phi = phis[first_kn_idx]
+        first_kn_mej_dyn = mej_dyn_arr[first_kn_idx]
+        first_kn_mej_wind = mej_wind_arr[first_kn_idx]
+        
+    return first_kn_day, first_kn_m1, first_kn_m2, first_kn_omega, first_kn_dist, first_kn_cos_theta, first_kn_phi, first_kn_mej_dyn, first_kn_mej_wind
 
 
 def get_earliest_detection_time(rate, args):
@@ -532,7 +542,7 @@ def get_earliest_detection_time(rate, args):
     ##############################
 
     # Simulate for O4
-    O4_first_gw_day, O4_first_kn_day = run_trial("O4", 
+    O4_first_kn_day, O4_first_kn_m1, O4_first_kn_m2, O4_first_kn_omega, O4_first_kn_dist, O4_first_kn_cos_theta, O4_first_kn_phi, O4_first_kn_mej_dyn, O4_first_kn_mej_wind = run_trial("O4", 
               x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
@@ -543,7 +553,7 @@ def get_earliest_detection_time(rate, args):
               args)
     
     # Simulate for O5
-    O5_first_gw_day, O5_first_kn_day = run_trial("O5", 
+    O5_first_kn_day, O5_first_kn_m1, O5_first_kn_m2, O5_first_kn_omega, O5_first_kn_dist, O5_first_kn_cos_theta, O5_first_kn_phi, O5_first_kn_mej_dyn, O5_first_kn_mej_wind = run_trial("O5", 
               x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
@@ -553,7 +563,29 @@ def get_earliest_detection_time(rate, args):
               n_events, n_years,
               args)
     
-    return rate, O4_first_gw_day, O4_first_kn_day, O5_first_gw_day, O5_first_kn_day
+    data = {
+        "Rate": rate,
+        "O4 Days to KN": O4_first_kn_day,
+        "O4 m1": O4_first_kn_m1,
+        "O4 m2": O4_first_kn_m2,
+        "O4 omega": O4_first_kn_omega,
+        "O4 dist": O4_first_kn_dist,
+        "O4 cos_theta": O4_first_kn_cos_theta,
+        "O4 phi": O4_first_kn_phi,
+        "O4 mej_dyn": O4_first_kn_mej_dyn,
+        "O4 mej_wind": O4_first_kn_mej_wind,
+        "O5 Days to KN": O5_first_kn_day,
+        "O5 m1": O5_first_kn_m1,
+        "O5 m2": O5_first_kn_m2,
+        "O5 omega": O5_first_kn_omega,
+        "O5 dist": O5_first_kn_dist,
+        "O5 cos_theta": O5_first_kn_cos_theta,
+        "O5 phi": O5_first_kn_phi,
+        "O5 mej_dyn": O5_first_kn_mej_dyn,
+        "O5 mej_wind": O5_first_kn_mej_wind,
+    }
+    
+    return data
 
 
 
@@ -571,7 +603,7 @@ def main(argv=None):
         values = list(pool.starmap(get_earliest_detection_time, zip(rates_array, repeat(args))))
 
 
-    df = pd.DataFrame(values, columns=['Rates','O4 Days to GW', 'O4 Days to KN', 'O5 Days to GW', 'O5 Days to KN'])
+    df = pd.DataFrame(values)
     df.to_csv(args.output_csv)
     print(df)
 
