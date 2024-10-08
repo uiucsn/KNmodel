@@ -58,7 +58,7 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
 
     #plt.show()
     plt.tight_layout()
-    plt.savefig(f'O{run}_KN_dist.pdf', bbox_inches = "tight")
+    plt.savefig(f'O4_O5_critical_plots/O{run}_KN_dist.pdf', bbox_inches = "tight")
     plt.close()
 
 
@@ -100,7 +100,7 @@ def plot_delta_days_distribution(df, color):
     axs[1].set_ylabel(r"Density", fontsize='x-large')
 
     plt.tight_layout()
-    plt.savefig("delta_t_distribution.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/delta_t_distribution.pdf", bbox_inches = "tight")
     plt.close()
 
 
@@ -125,7 +125,7 @@ def rates_vs_days_to_kn(df):
     plt.xlabel(r"BNS Merger Rate ($Gpc^{-3} \cdot yr^{-1}$)", fontsize='x-large')
     plt.ylabel(r"$D_{KN}$", fontsize='x-large')
     
-    plt.savefig("bns_rate_vs_days.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/bns_rate_vs_days.pdf", bbox_inches = "tight")
     plt.close()
 
 def rates_vs_delta_days_to_kn(df):
@@ -146,7 +146,7 @@ def rates_vs_delta_days_to_kn(df):
     plt.xlabel(r"BNS Merger Rate ($Gpc^{-3} \cdot yr^{-1}$)", fontsize='x-large')
     plt.ylabel(r"$\Delta D_{KN}$", fontsize='x-large')
     
-    plt.savefig("bns_rate_vs_delta_days_to_KN.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/bns_rate_vs_delta_days_to_KN.pdf", bbox_inches = "tight")
     plt.close()
 
 def plot_chirp_mass_dist(df):
@@ -172,7 +172,7 @@ def plot_chirp_mass_dist(df):
     plt.xlabel(r"$M_{chirp}$", fontsize='x-large')
     plt.ylabel(r"Density", fontsize='x-large')
 
-    plt.savefig("m_chirp_dist.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/m_chirp_dist.pdf", bbox_inches = "tight")
     plt.close()
 
 def plot_peak_mag_dist(df):
@@ -195,7 +195,7 @@ def plot_peak_mag_dist(df):
     plt.xlabel(r"Peak Mag (DECam r-band)", fontsize='x-large')
     plt.ylabel(r"Density", fontsize='x-large')
 
-    plt.savefig("peak_mag_dist.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/peak_mag_dist.pdf", bbox_inches = "tight")
     plt.close()
 
 def plot_distance_dist(df):
@@ -218,7 +218,7 @@ def plot_distance_dist(df):
     plt.xlabel(r"Luminosity Distance", fontsize='x-large')
     plt.ylabel(r"Density", fontsize='x-large')
 
-    plt.savefig("distance_dist.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/distance_dist.pdf", bbox_inches = "tight")
     plt.close()
 
 def bns_rates_distribution(df):
@@ -247,9 +247,30 @@ def bns_rates_distribution(df):
     plt.xlim(left = 10**1.5, right = 10**3.3)
     plt.legend()
 
-    plt.savefig("bns_rate_dist.pdf", bbox_inches = "tight")
+    plt.savefig("O4_O5_critical_plots/bns_rate_dist.pdf", bbox_inches = "tight")
     plt.close()
 
+def plot_lvc_correlation_matrix():
+
+    lvc_cor_matrix = np.array([[1., 0.56, 0.56, 0.56],
+                            [0.56, 1., 0.58, 0.58],
+                            [0.56, 0.58, 1., 0.56],
+                            [0.56, 0.58, 0.56, 1.]])
+
+    plt.imshow(lvc_cor_matrix)
+    for i in range(lvc_cor_matrix.shape[0]):
+        for j in range(lvc_cor_matrix.shape[1]):
+            if i == j:
+                text = plt.text(j, i, lvc_cor_matrix[i, j], ha="center", va="center", color="black")
+            else:
+                text = plt.text(j, i, lvc_cor_matrix[i, j], ha="center", va="center", color="w")
+            
+    plt.xticks(range(4),['LIGO H', 'LIGO L', 'Virgo', 'KAGRA'])
+    plt.yticks(range(4),['LIGO H', 'LIGO L', 'Virgo', 'KAGRA'])
+    plt.tight_layout()
+
+    plt.savefig("O4_O5_critical_plots/correlations.pdf", bbox_inches = "tight")
+    plt.close()
 
     
 if __name__=="__main__":
@@ -278,3 +299,4 @@ if __name__=="__main__":
     plot_chirp_mass_dist(df)
     plot_peak_mag_dist(df)
     plot_distance_dist(df)
+    plot_lvc_correlation_matrix()
