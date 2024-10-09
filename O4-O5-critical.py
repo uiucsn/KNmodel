@@ -565,29 +565,28 @@ def get_earliest_detection_time(rate, args):
               n_events, n_years,
               args)
     
-    data = {
-        "Rate": rate,
-        "O4 Days to KN": O4_first_kn_day,
-        "O4 m1": O4_first_kn_m1,
-        "O4 m2": O4_first_kn_m2,
-        "O4 omega": O4_first_kn_omega,
-        "O4 dist": O4_first_kn_dist,
-        "O4 cos_theta": O4_first_kn_cos_theta,
-        "O4 phi": O4_first_kn_phi,
-        "O4 mej_dyn": O4_first_kn_mej_dyn,
-        "O4 mej_wind": O4_first_kn_mej_wind,
-        "O4 peak mag": O4_first_kn_peak_mag,
-        "O5 Days to KN": O5_first_kn_day,
-        "O5 m1": O5_first_kn_m1,
-        "O5 m2": O5_first_kn_m2,
-        "O5 omega": O5_first_kn_omega,
-        "O5 dist": O5_first_kn_dist,
-        "O5 cos_theta": O5_first_kn_cos_theta,
-        "O5 phi": O5_first_kn_phi,
-        "O5 mej_dyn": O5_first_kn_mej_dyn,
-        "O5 mej_wind": O5_first_kn_mej_wind,
-        "O5 peak mag": O5_first_kn_peak_mag,
-    }
+    data = [rate,
+            O4_first_kn_day,
+            O4_first_kn_m1,
+            O4_first_kn_m2,
+            O4_first_kn_omega,
+            O4_first_kn_dist,
+            O4_first_kn_cos_theta,
+            O4_first_kn_phi,
+            O4_first_kn_mej_dyn,
+            O4_first_kn_mej_wind,
+            O4_first_kn_peak_mag,
+            O5_first_kn_day,
+            O5_first_kn_m1,
+            O5_first_kn_m2,
+            O5_first_kn_omega,
+            O5_first_kn_dist,
+            O5_first_kn_cos_theta,
+            O5_first_kn_phi,
+            O5_first_kn_mej_dyn,
+            O5_first_kn_mej_wind,
+            O5_first_kn_peak_mag,
+        ]
     
     return data
 
@@ -606,8 +605,31 @@ def main(argv=None):
     with Pool(30) as pool:
         values = list(pool.starmap(get_earliest_detection_time, zip(rates_array, repeat(args))))
 
+    data = [
+        "Rate",
+        "O4 Days to KN",
+        "O4 m1",
+        "O4 m2",
+        "O4 omega",
+        "O4 dist",
+        "O4 cos_theta",
+        "O4 phi",
+        "O4 mej_dyn",
+        "O4 mej_wind",
+        "O4 peak mag",
+        "O5 Days to KN",
+        "O5 m1",
+        "O5 m2",
+        "O5 omega",
+        "O5 dist",
+        "O5 cos_theta",
+        "O5 phi",
+        "O5 mej_dyn",
+        "O5 mej_wind",
+        "O5 peak mag"
+    ]
 
-    df = pd.DataFrame(values)
+    df = pd.DataFrame(values, columns=data)
     df.to_csv(args.output_csv)
     print(df)
 
