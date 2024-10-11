@@ -252,11 +252,11 @@ def bns_rates_distribution(df):
 
 def plot_lvc_correlation_matrix():
 
-    lvc_cor_matrix = np.array([[1., 0.56, 0.56, 0.56],
-                            [0.56, 1., 0.58, 0.58],
-                            [0.56, 0.58, 1., 0.56],
-                            [0.56, 0.58, 0.56, 1.]])
-
+    lvc_cor_matrix = np.array([[1., 0.59, 0.58, 0.56],
+                               [0.59, 1., 0.70, 0.56],
+                               [0.58, 0.70, 1., 0.56],
+                               [0.56, 0.56, 0.56, 1.]])
+    
     plt.imshow(lvc_cor_matrix)
     for i in range(lvc_cor_matrix.shape[0]):
         for j in range(lvc_cor_matrix.shape[1]):

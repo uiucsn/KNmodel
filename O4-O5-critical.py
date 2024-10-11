@@ -497,10 +497,10 @@ def get_earliest_detection_time(rate, args):
 
     # the two ligo detectors ahve strongly correlated duty cycles
     # they are both not very correlated with Virgo
-    lvc_cor_matrix = np.array([[1., 0.56, 0.56, 0.56],
-                               [0.56, 1., 0.58, 0.58],
-                               [0.56, 0.58, 1., 0.56],
-                               [0.56, 0.58, 0.56, 1.]])
+    lvc_cor_matrix = np.array([[1., 0.59, 0.58, 0.56],
+                               [0.59, 1., 0.70, 0.56],
+                               [0.58, 0.70, 1., 0.56],
+                               [0.56, 0.56, 0.56, 1.]])
     upper_chol = cholesky(lvc_cor_matrix)
 
     # create the mass distribution of the merging neutron star
