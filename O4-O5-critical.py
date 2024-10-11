@@ -236,11 +236,9 @@ def get_options(argv=None):
     return args
 
 def run_trial(ligo_observing_run, 
-              x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
-              detection_band, detection_threshold, av,         # EM counterpart threshold
-              tot_ejecta_masses, 
+              em_bool, has_ejecta_bool, peak_mags,
               upper_chol, 
               n_events, n_years,
               args):
@@ -318,79 +316,6 @@ def run_trial(ligo_observing_run,
     two_det_obs = n_detectors_on_and_obs == 2
     three_det_obs = n_detectors_on_and_obs == 3
     four_det_obs = n_detectors_on_and_obs == 4
-
-    # decide whether there is a kilonova based on remnant matter
-    has_ejecta_bool = tot_ejecta_masses > 0
-
-    # arrays to store peaks mags in different pbs
-    peak_u = []
-    peak_g = []
-    peak_r = []
-    peak_i = []
-    peak_z = []
-    peak_y = []
-
-    em_bool = np.array([], dtype=bool)
-    discovery_mags = np.array([])
-    discovery_phases = np.array([])
-    peak_mags = np.array([])
-    discovery_windows = np.array([])
-
-    ra_arr = np.array([])
-    dec_arr = np.array([])
-    d_Mpc = np.array([])
-
-    scaling_factors = np.array([])
-            
-
-    for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events, disable=disable_tqdm):
-
-        #print(f"Sample parameters: mass1 = {mass1[i]}, mass2 = {mass2[i]}, cos_theta = {cos_theta}, phi = {phi}, ejecta_mass_dyn = {mej_dyn}, ejecta_mass_wind = {mej_wind}, dist = {d}")
-
-        r, dec, ra = coord.cartesian_to_spherical(x[i], y[i], z[i])
-
-        ra_arr = np.append(ra_arr, [ra.value])
-        dec_arr = np.append(dec_arr, [dec.value])
-        d_Mpc = np.append(d_Mpc, [d.value])
-
-        coordinates = coord.SkyCoord(ra=ra, dec=dec)
-
-        p = np.arange(0.3, 20.1, 0.2) 
-
-        obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
-        lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
-
-        # Add peaks to data
-        peaks = obj.getPeakAppMagsInPassbands(['lsstu','lsstg','lsstr','lssti','lsstz','lssty'],lc_phases=p)
-        peak_u.append(peaks['lsstu'])
-        peak_g.append(peaks['lsstg'])
-        peak_r.append(peaks['lsstr'])
-        peak_i.append(peaks['lssti'])
-        peak_z.append(peaks['lsstz'])
-        peak_y.append(peaks['lssty'])
-
-        scaling_factors = np.append(scaling_factors, [obj.scaling_factor])
-
-        min_mag = min(lcs[detection_band])
-
-        # Minimum magnitude is the peak value
-        peak_mags = np.append(peak_mags, [min_mag])
-        
-        idx = lcs[detection_band] < detection_threshold
-        
-        if min_mag < detection_threshold:
-            em_bool = np.append(em_bool, [True])
-            discovery_mag = (lcs[detection_band][idx])[0]
-            discovery_phase = (p[idx])[0]
-            discovery_mags = np.append(discovery_mags, [discovery_mag])
-            discovery_phases = np.append(discovery_phases, [discovery_phase])
-            discovery_window = (p[idx])[-1] - (p[idx])[0] + 0.2
-            discovery_windows = np.append(discovery_windows, [discovery_window])
-        else:
-            em_bool = np.append(em_bool, [False])
-            discovery_mags = np.append(discovery_mags, [np.nan])
-            discovery_phases = np.append(discovery_phases, [np.nan])
-            discovery_windows = np.append(discovery_windows, [np.nan])
 
     # whether this event was not affected by then sun
     detected_events = np.where(em_bool)
@@ -543,24 +468,78 @@ def get_earliest_detection_time(rate, args):
 
     ##############################
 
+
+    # decide whether there is a kilonova based on remnant matter
+    has_ejecta_bool = tot_ejecta_masses > 0
+
+    em_bool = np.array([], dtype=bool)
+    discovery_mags = np.array([])
+    discovery_phases = np.array([])
+    peak_mags = np.array([])
+    discovery_windows = np.array([])
+
+    ra_arr = np.array([])
+    dec_arr = np.array([])
+    d_Mpc = np.array([])
+
+    scaling_factors = np.array([])
+            
+
+    for i, (cos_theta, phi, mej_dyn, mej_wind, d) in tqdm(enumerate(zip(cos_thetas, phis, mej_dyn_arr, mej_wind_arr, dist)), total=n_events, disable=disable_tqdm):
+
+        #print(f"Sample parameters: mass1 = {mass1[i]}, mass2 = {mass2[i]}, cos_theta = {cos_theta}, phi = {phi}, ejecta_mass_dyn = {mej_dyn}, ejecta_mass_wind = {mej_wind}, dist = {d}")
+
+        r, dec, ra = coord.cartesian_to_spherical(x[i], y[i], z[i])
+
+        ra_arr = np.append(ra_arr, [ra.value])
+        dec_arr = np.append(dec_arr, [dec.value])
+        d_Mpc = np.append(d_Mpc, [d.value])
+
+        coordinates = coord.SkyCoord(ra=ra, dec=dec)
+
+        p = np.arange(0.3, 20.1, 0.2) 
+
+        obj = SEDDerviedLC(mej_dyn = mej_dyn, mej_wind = mej_wind, phi = phi, cos_theta = cos_theta, dist=d, coord=coordinates, av =av[i])
+        lcs = obj.getAppMagsInPassbands([detection_band], lc_phases=p)
+
+        scaling_factors = np.append(scaling_factors, [obj.scaling_factor])
+
+        min_mag = min(lcs[detection_band])
+
+        # Minimum magnitude is the peak value
+        peak_mags = np.append(peak_mags, [min_mag])
+        
+        idx = lcs[detection_band] < detection_threshold
+        
+        if min_mag < detection_threshold:
+            em_bool = np.append(em_bool, [True])
+            discovery_mag = (lcs[detection_band][idx])[0]
+            discovery_phase = (p[idx])[0]
+            discovery_mags = np.append(discovery_mags, [discovery_mag])
+            discovery_phases = np.append(discovery_phases, [discovery_phase])
+            discovery_window = (p[idx])[-1] - (p[idx])[0] + 0.2
+            discovery_windows = np.append(discovery_windows, [discovery_window])
+        else:
+            em_bool = np.append(em_bool, [False])
+            discovery_mags = np.append(discovery_mags, [np.nan])
+            discovery_phases = np.append(discovery_phases, [np.nan])
+            discovery_windows = np.append(discovery_windows, [np.nan])
+
+
     # Simulate for O4
     O4_first_kn_day, O4_first_kn_m1, O4_first_kn_m2, O4_first_kn_omega, O4_first_kn_dist, O4_first_kn_cos_theta, O4_first_kn_phi, O4_first_kn_mej_dyn, O4_first_kn_mej_wind, O4_first_kn_peak_mag = run_trial("O4", 
-              x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
-              detection_band, detection_threshold, av,         # EM counterpart threshold
-              tot_ejecta_masses, 
+              em_bool, has_ejecta_bool, peak_mags,         # EM counterpart threshold
               upper_chol, 
               n_events, n_years,
               args)
     
     # Simulate for O5
     O5_first_kn_day, O5_first_kn_m1, O5_first_kn_m2, O5_first_kn_omega, O5_first_kn_dist, O5_first_kn_cos_theta, O5_first_kn_phi, O5_first_kn_mej_dyn, O5_first_kn_mej_wind, O5_first_kn_peak_mag = run_trial("O5", 
-              x, y, z,                                      # Coordinates
               mass1, mass2, omegas, dist,                   # Inputs for GW
               cos_thetas, phis, mej_dyn_arr, mej_wind_arr,  # Inputs for SED model
-              detection_band, detection_threshold, av,      # EM counterpart threshold
-              tot_ejecta_masses, 
+              em_bool, has_ejecta_bool, peak_mags,      # EM counterpart threshold
               upper_chol, 
               n_events, n_years,
               args)
