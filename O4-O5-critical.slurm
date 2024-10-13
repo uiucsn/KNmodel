@@ -4,6 +4,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=vedgs2@illinois.edu
 #SBATCH --nodes=1
+#SBATCH --cpus-per-task=12
 #SBATCH --mem-per-cpu=45G
 #SBATCH --output=o4vso5.out
 #SBATCH --error=o4vso5.err
