@@ -94,6 +94,8 @@ print("H1 L1 Uptime correlation:", np.sum(observing_bool["H1"]*observing_bool["L
 print("H1 V1 Uptime correlation:", np.sum(observing_bool["H1"]*observing_bool["V1"])/len(observing_bool['V1']))
 print("V1 L1 Uptime correlation:", np.sum(observing_bool["V1"]*observing_bool["L1"])/len(observing_bool['L1']))
 
+print("V1 L1 K1 Uptime correlation:", np.sum(observing_bool["V1"]*observing_bool["L1"]*observing_bool["H1"])/len(observing_bool['L1']))
+
 for key in times:
     
     up_bool = observing_bool[key]

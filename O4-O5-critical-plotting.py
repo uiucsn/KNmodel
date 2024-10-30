@@ -13,8 +13,8 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
 
     data = df[f"O{run} Days to KN"]
     data_med = int(np.median(data))
-    data_5 = int(np.percentile(data, 5))
-    data_95 = int(np.percentile(data, 95))
+    data_25 = int(np.percentile(data, 25))
+    data_75 = int(np.percentile(data, 75))
 
     run_label = f"O{run}"
 
@@ -29,9 +29,9 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
     axs[0].hist(data, density=True, bins=bins, histtype='step', linewidth=2, fill=False, alpha=1, color=color)
     axs[0].hist(data, density=True, bins=bins, histtype='stepfilled', fill=True, alpha=0.5, color=color)
 
-    axs[0].axvline(data_5, label=r"$P_{5\%} $=" + f"{data_5}", linestyle='dotted', ymin=0, ymax=1, color='black')
+    axs[0].axvline(data_25, label=r"$P_{25\%} $=" + f"{data_25}", linestyle='dotted', ymin=0, ymax=1, color='black')
     axs[0].axvline(data_med, label=r"$P_{50\%} $=" + f"{data_med}", linestyle='dashed', ymin=0, ymax=1, color='black')
-    axs[0].axvline(data_95, label=r"$P_{95\%} $=" + f"{data_95}", linestyle='dotted', ymin=0, ymax=1, color='black')
+    axs[0].axvline(data_75, label=r"$P_{75\%} $=" + f"{data_75}", linestyle='dotted', ymin=0, ymax=1, color='black')
 
     axs[0].legend()
 
@@ -68,10 +68,10 @@ def plot_delta_days_distribution(df, color):
     data = O4_kn_days - O5_kn_days
 
     data_med = int(np.median(data))
-    data_5 = int(np.percentile(data, 5))
-    data_95 = int(np.percentile(data, 95))
+    data_25 = int(np.percentile(data, 25))
+    data_75 = int(np.percentile(data, 75))
 
-    bins = np.arange(-500,  2000, day_interval)
+    bins = np.arange(min(data),  max(data), day_interval)
 
     fig, axs = plt.subplots(ncols=1, nrows=2, figsize=(6, 10))
 
@@ -79,9 +79,9 @@ def plot_delta_days_distribution(df, color):
     axs[0].hist(data, density=True, histtype='step', linewidth=2, fill=False, bins=bins, alpha=1, color=color)
     axs[0].hist(data, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color=color)
 
-    axs[0].axvline(data_5, label=r"$P_{5\%}=$" + f"{data_5}", linestyle='dotted', ymin=0, ymax=1, color='black')
+    axs[0].axvline(data_25, label=r"$P_{25\%}=$" + f"{data_25}", linestyle='dotted', ymin=0, ymax=1, color='black')
     axs[0].axvline(data_med, label=r"$P_{50\%}=$" + f"{data_med}", linestyle='dashed', ymin=0, ymax=1, color='black')
-    axs[0].axvline(data_95, label=r"$P_{95\%}=$" + f"{data_95}", linestyle='dotted', ymin=0, ymax=1, color='black')
+    axs[0].axvline(data_75, label=r"$P_{75\%}=$" + f"{data_75}", linestyle='dotted', ymin=0, ymax=1, color='black')
     axs[0].axvline(730, label=r"2 year shutdown", linestyle='dashed', ymin=0, ymax=1, color='red')
 
     axs[0].legend()
@@ -89,9 +89,10 @@ def plot_delta_days_distribution(df, color):
     #axs[0].set_xlabel(r"Difference in days to first discoverable KN ($\Delta D_{KN}$)", fontsize='x-large')
     axs[0].set_ylabel(r"Density", fontsize='x-large')
 
-    axs[1].hist(data, density=True, histtype='step', linewidth=2, fill=False, bins=len(data), alpha=1, color=color, cumulative=True)
+    # Get the percentiles and days
+    perc, days, _ = axs[1].hist(data, density=True, histtype='step', linewidth=2, fill=False, bins=len(data), alpha=1, color=color, cumulative=True)
     axs[1].hist(data, density=True, histtype='stepfilled', fill=True, bins=len(data), alpha=0.5, color=color, cumulative=True)
-    
+
     axs[1].axvline(730, label=r"2 year shutdown", linestyle='dashed', ymin=0, ymax=1, color='red')
 
     axs[1].grid()
@@ -103,6 +104,8 @@ def plot_delta_days_distribution(df, color):
     plt.savefig("O4_O5_critical_plots/delta_t_distribution.pdf", bbox_inches = "tight")
     plt.close()
 
+    interpolator = np.interp(np.array([1,2,3,4])*365, days[:-1], perc)
+    print(interpolator)
 
 def rates_vs_days_to_kn(df):
 
@@ -161,11 +164,11 @@ def plot_chirp_mass_dist(df):
     O4_chirp = (O4_m1 * O4_m2)**0.6/(O4_m1 + O4_m2)**0.2
     O5_chirp = (O5_m1 * O5_m2)**0.6/(O5_m1 + O5_m2)**0.2
 
-    plt.hist(O4_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
-    plt.hist(O4_chirp, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+    plt.hist(O4_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=20, alpha=1, color="C4")
+    plt.hist(O4_chirp, density=True, histtype='stepfilled', fill=True, bins=20, alpha=0.5, color="C4", label="O4")
 
-    plt.hist(O5_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
-    plt.hist(O5_chirp, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+    plt.hist(O5_chirp, density=True, histtype='step', linewidth=2, fill=False, bins=20, alpha=1, color="C2")
+    plt.hist(O5_chirp, density=True, histtype='stepfilled', fill=True, bins=20, alpha=0.5, color="C2", label="O5")
 
     plt.legend()
 
@@ -184,11 +187,19 @@ def plot_peak_mag_dist(df):
     O4_peak_mag =  df[f"O4 peak mag"][o4_kn_indices]
     O5_peak_mag =  df[f"O5 peak mag"]
 
-    plt.hist(O4_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
-    plt.hist(O4_peak_mag, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+    O4_median = np.median(O4_peak_mag)
+    O5_median = np.median(O5_peak_mag)
 
-    plt.hist(O5_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
-    plt.hist(O5_peak_mag, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+    bins = np.linspace(min(min(O4_peak_mag), min(O5_peak_mag)), 23, 20)
+
+    plt.hist(O4_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=bins, alpha=1, color="C4")
+    plt.hist(O4_peak_mag, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color="C4", label="O4")
+    plt.axvline(O4_median, 0, 1, label=f"O4 Median = {O4_median:.2f}", color='C4', linestyle='dashed')
+
+
+    plt.hist(O5_peak_mag, density=True, histtype='step', linewidth=2, fill=False, bins=bins, alpha=1, color="C2")
+    plt.hist(O5_peak_mag, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color="C2", label="O5")
+    plt.axvline(O5_median, 0, 1, label=f"O5 Median = {O5_median:.2f}", color='C2', linestyle='dashed')
 
     plt.legend()
 
@@ -204,14 +215,23 @@ def plot_distance_dist(df):
     o4_kn_indices = np.where(o4_days.to_numpy()!=5 * 365)[0]
     o4_no_kn_indices = np.where(o4_days.to_numpy()==5 * 365)[0]
 
-    O4_dist =  df[f"O4 dist"][o4_kn_indices]
-    O5_dist =  df[f"O5 dist"]
+    O4_dist =  [float(d.split(" ")[0]) for d in df[f"O4 dist"][o4_kn_indices]]
+    O5_dist =  [float(d.split(" ")[0]) for d in df[f"O5 dist"]]
 
-    plt.hist(O4_dist, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C4")
-    plt.hist(O4_dist, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C4", label="O4")
+    O4_median = np.median(O4_dist)
+    O5_median = np.median(O5_dist)
 
-    plt.hist(O5_dist, density=True, histtype='step', linewidth=2, fill=False, bins=50, alpha=1, color="C2")
-    plt.hist(O5_dist, density=True, histtype='stepfilled', fill=True, bins=50, alpha=0.5, color="C2", label="O5")
+    bins = np.arange(min(min(O4_dist), min(O5_dist)), max(max(O4_dist), max(O5_dist)), 10)
+
+    plt.hist(O4_dist, density=True, histtype='step', linewidth=2, fill=False, bins=bins, alpha=1, color="C4")
+    plt.hist(O4_dist, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color="C4", label="O4")
+    plt.axvline(O4_median, 0, 1, label=f"O4 Median = {int(O4_median)} Mpc", color='C4', linestyle='dashed')
+
+
+    plt.hist(O5_dist, density=True, histtype='step', linewidth=2, fill=False, bins=bins, alpha=1, color="C2")
+    plt.hist(O5_dist, density=True, histtype='stepfilled', fill=True, bins=bins, alpha=0.5, color="C2", label="O5")
+    plt.axvline(O5_median, 0, 1, label=f"O5 Median = {int(O5_median)} Mpc", color='C2', linestyle='dashed')
+
 
     plt.legend()
 
@@ -296,7 +316,7 @@ if __name__=="__main__":
     rates_vs_delta_days_to_kn(df)
     bns_rates_distribution(df)
 
-    plot_chirp_mass_dist(df)
+    #plot_chirp_mass_dist(df)
     plot_peak_mag_dist(df)
     plot_distance_dist(df)
     plot_lvc_correlation_matrix()

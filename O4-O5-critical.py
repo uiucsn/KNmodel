@@ -312,6 +312,17 @@ def run_trial(ligo_observing_run,
         axis=1
     )
 
+    print("h1 dc: ", sum(h_on)/len(h_on))
+    print("l1 dc: ", sum(l_on)/len(l_on))
+    print("k1 dc: ", sum(v_on)/len(v_on))
+    print("v1 dc: ", sum(k_on)/len(k_on))
+
+    print("H1 L1 Uptime correlation:", np.sum(h_on*l_on)/len(l_on))
+    print("H1 V1 Uptime correlation:", np.sum(h_on*v_on)/len(v_on))
+    print("V1 L1 Uptime correlation:", np.sum(v_on*l_on)/len(v_on))
+    print("H1 V1 L1 Uptime correlation:", np.sum(h_on*v_on*l_on)/len(v_on))
+
+
     one_det_obs = n_detectors_on_and_obs == 1 
     two_det_obs = n_detectors_on_and_obs == 2
     three_det_obs = n_detectors_on_and_obs == 3
@@ -581,7 +592,7 @@ def main(argv=None):
     rates_array = [LVK_UG(1)[0][0] for _ in range(n_trials)]
 
 
-    with Pool(30) as pool:
+    with Pool(10) as pool:
         values = list(pool.starmap(get_earliest_detection_time, zip(rates_array, repeat(args))))
 
     data = [
