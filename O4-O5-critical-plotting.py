@@ -9,6 +9,37 @@ from rates_models import LVK_UG
 
 day_interval = 50
 
+def plot_duty_cycles():
+    # set width of bar 
+    barWidth = 0.25
+    fig = plt.subplots(figsize =(12, 8)) 
+
+    # set height of bar 
+    instruments = ["LIGO L", "LIGO H", "VIRGO", "KAGRA"]
+    O4 = [0.7, 0.7, 0.47, 0.27] 
+    O5 = [0.7, 0.7, 0.7, 0.7]
+
+
+    # Set position of bar on X axis 
+    br1 = np.arange(len(O4)) 
+    br2 = [x + barWidth for x in br1] 
+
+    # Make the plot
+    plt.bar(br1, O4, color ='C2', width = barWidth, alpha=0.5,
+            edgecolor ='grey', label ='O4') 
+    plt.bar(br2, O5, color ='C4', width = barWidth, alpha=0.5,
+            edgecolor ='grey', label ='O5') 
+
+    # Adding Xticks 
+    plt.xlabel('Observing Run', fontsize = 'x-large') 
+    plt.ylabel('Students passed', fontsize = 'x-large') 
+    plt.xticks([r + barWidth/2 for r in range(len(O4))], 
+           instruments)
+
+    plt.legend()
+    plt.show() 
+
+
 def plot_days_to_KN_discovery_distribution(df, run, color):
 
     data = df[f"O{run} Days to KN"]
@@ -41,12 +72,15 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
 
     #plt.xlim(0, max(df["O5 Days to KN"]))
 
-    axs[1].hist(data, density=True, bins=len(data), histtype='step', linewidth=2, fill=False, alpha=1, color=color, cumulative=True)
+    perc, days, _ = axs[1].hist(data, density=True, bins=len(data), histtype='step', linewidth=2, fill=False, alpha=1, color=color, cumulative=True)
     axs[1].hist(data, density=True, bins=len(data), histtype='stepfilled', fill=True, alpha=0.5, color=color, cumulative=True)
 
     if run=='4':
-
-        axs[1].axvline(744, 0, 1, label="Current O4 Duration", color='black', linestyle='dashed')
+        print(f"Run O{run}")
+        interpolator = np.interp(np.array([440]), days[:-1], perc)
+        print("440 days", interpolator)
+        axs[1].axvline(744, 0, 1, label="O4 Duration", color='red', linestyle='dashed')
+        axs[1].axvline(440, 0, 1, label="October 30, 2024", color='blue', linestyle='dashed')
         axs[0].arrow(x=1790, y=0.00008, dx=50, dy=0, head_length=20, width=0.00002, fc ='black')
         axs[1].legend() 
 
@@ -60,6 +94,7 @@ def plot_days_to_KN_discovery_distribution(df, run, color):
     plt.tight_layout()
     plt.savefig(f'O4_O5_critical_plots/O{run}_KN_dist.pdf', bbox_inches = "tight")
     plt.close()
+
 
 
 def plot_delta_days_distribution(df, color):
@@ -121,12 +156,10 @@ def rates_vs_days_to_kn(df):
 
     plt.scatter(rates, o5_days, marker='.', alpha=0.5, label='O5 - KN detection', color='C2')
 
-    plt.axhline(744, 0, 1, label="Current O4 Duration", color='black', linestyle='dashed')
-
     plt.legend()
 
     plt.xlabel(r"BNS Merger Rate ($Gpc^{-3} \cdot yr^{-1}$)", fontsize='x-large')
-    plt.ylabel(r"$D_{KN}$", fontsize='x-large')
+    plt.ylabel(r"$D_{KN}$ (Days)", fontsize='x-large')
     
     plt.savefig("O4_O5_critical_plots/bns_rate_vs_days.pdf", bbox_inches = "tight")
     plt.close()
@@ -144,10 +177,13 @@ def rates_vs_delta_days_to_kn(df):
     plt.scatter(rates[o4_kn_indices], data[o4_kn_indices], marker='.', alpha=0.5, color='gray', label='O4 - KN detection')
     plt.scatter(rates[o4_no_kn_indices], data[o4_no_kn_indices], marker=r'$\uparrow$', alpha=0.5, color='gray', s=18, label='O4 - No  KN detection')
 
+    plt.axhline(730, 0, 1, label="2 year Shutdown", color='red', linestyle='dashed')
+
+
     plt.legend()
 
     plt.xlabel(r"BNS Merger Rate ($Gpc^{-3} \cdot yr^{-1}$)", fontsize='x-large')
-    plt.ylabel(r"$\Delta D_{KN}$", fontsize='x-large')
+    plt.ylabel(r"$\Delta D_{KN}$ (Days)", fontsize='x-large')
     
     plt.savefig("O4_O5_critical_plots/bns_rate_vs_delta_days_to_KN.pdf", bbox_inches = "tight")
     plt.close()
@@ -292,6 +328,20 @@ def plot_lvc_correlation_matrix():
     plt.savefig("O4_O5_critical_plots/correlations.pdf", bbox_inches = "tight")
     plt.close()
 
+def do_final_analysis(df):
+
+    idx = np.where(df['O4 Days to KN'] > 440)[0]
+    data = (df["O4 Days to KN"] - df["O5 Days to KN"]).to_numpy()[idx]
+
+    perc, days, _ = plt.hist(data, cumulative=True, density=True, bins=len(data))
+    interpolator = np.interp(np.array([2*365]), days[:-1], perc)
+    print(interpolator)
+    
+    plt.show()
+    plt.close()
+
+
+
     
 if __name__=="__main__":
 
@@ -306,6 +356,9 @@ if __name__=="__main__":
     print("O5 no detection", o5_no_detections/n * 100, " %")
 
     df.replace(-1, 5 * 365, inplace=True)
+    
+    plot_duty_cycles()
+    do_final_analysis(df)
 
     plot_days_to_KN_discovery_distribution(df, "4", "C4")
     plot_days_to_KN_discovery_distribution(df, "5", "C2")
