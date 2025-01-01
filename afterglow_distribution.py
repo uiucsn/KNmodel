@@ -32,8 +32,8 @@ idx_10 = np.where(np.isclose(phases, 10.1))[0][0]
 phases_10 = phases[:idx_10]
 
 # common band from uv to ir in sncosmo
-sncosmo_bands = ['uvot::uvw2', 'uvot::uvw1', 'lsstu', 'lsstg', 'lsstr', 'lssti', 'lsstz', 'lssty', 'f125w', 'f160w', 'f200w']
-labels = ["uv2", "uv1", r"$u$-band", r"$g$-band", "r", "i", "z", "y", "J", "H", "K"]
+sncosmo_bands = ['uvot::uvw2', 'uvot::uvw1', 'lsstu', 'lsstg', 'lsstr', 'lssti', 'lsstz', 'lssty'] # , 'f125w', 'f160w', 'f200w'
+labels = ["uv2", "uv1", r"$u$-band", r"$g$-band", "r", "i", "z", "y"]#, "J", "H", "K"
 labels_idx = np.arange(len(labels))
 
 
@@ -170,7 +170,7 @@ def smooth_out_Nans(lc):
 def gen_events(n, save=False, filename=''):
 
     if save: 
-
+        # edit to use same params as past version
         params = get_params(n, save, filename)
 
         with schwimmbad.JoblibPool(5) as pool:
@@ -250,7 +250,7 @@ def plot_avglc(n, save, filename='', log=False):
     distr_KN = np.percentile(values[:,2], [16, 50, 84], axis=0)
 
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(18, 8))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 4*n_plots))
     plt.subplots_adjust(wspace=0.15, hspace=0.6)
     axs = axs.flatten().T
     #axs[-1].set_axis_off() # dont need the last one
@@ -269,8 +269,8 @@ def plot_avglc(n, save, filename='', log=False):
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
-        # ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
-        # ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
+        ax.fill_between(phases, smooth_out_Nans(distr_aft[0][idx, :]), smooth_out_Nans(distr_aft[2][idx, :]), alpha=0.1, color='g')
+        ax.plot(phases, smooth_out_Nans(distr_aft[1][idx, :]), color='g', label='aft only', linewidth=0.5)
 
         print(labels[idx], phases[idx5], flush=True)
         print(distr[1][idx, idx5] - distr_KN[1][idx, idx5], flush=True)
@@ -291,7 +291,7 @@ def plot_avglc(n, save, filename='', log=False):
     if log:
         filename += 'log'
 
-    fig.savefig(f'img/caps/{n}_events_{filename}_lc_ug.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}_lc_all.png')
     #fig.savefig(f'img/{n}_events_{filename}_lc_lsst_noaft.png')
     #fig.savefig(f'img/caps/lsst.png')
     plt.show()
@@ -366,8 +366,8 @@ def plot_distance(n, save, filename, limiting_mags):
         ax.set_xlabel(r'phase [day]')
     
     fig.tight_layout()
-    fig.savefig(f'img/{n}_events_{filename}_distlsst.png')
-    plt.show() 
+    fig.savefig(f'img/caps/{n}_events_{filename}_distlsst.png')
+    plt.show()
 
 def merge(n, n_files, fname):
 
@@ -382,7 +382,7 @@ def merge(n, n_files, fname):
     params = np.vstack(params_arr)
     print(params.shape, flush=True)
     with open(f'data/sims/{n*n_files}_params_{fname}.pkl', 'wb') as f:
-            pickle.dump(params, f)
+        pickle.dump(params, f)
 
     # join the value arrays
     values_arr = []
@@ -393,9 +393,9 @@ def merge(n, n_files, fname):
             values_arr.append(values)
 
     values = np.vstack(values_arr)
-    print(values.shape, flush=True)
+    # print(values.shape, flush=True)
     with open(f'data/sims/{n*n_files}_events_{fname}.pkl', 'wb') as f:
-            pickle.dump(values, f)
+        pickle.dump(values, f)
 
     # join the mass arrays
     mass_arr = []
@@ -406,12 +406,12 @@ def merge(n, n_files, fname):
             mass_arr.append(params)
             
     masses = np.vstack(mass_arr)
-    print(masses.shape, flush=True)
+    # print(masses.shape, flush=True)
     with open(f'data/sims/{n*n_files}_masses_{fname}.pkl', 'wb') as f:
             pickle.dump(masses, f)
 
     # clean up
-    for f in param_files+val_files+mass_files:
+    for f in mass_files + param_files + val_files:
         os.remove(f)
 
 def compare_GW170817():
@@ -525,19 +525,31 @@ if __name__ == '__main__':
 
     sncosmo_bands = UV_bands + sncosmo_bands
     labels = UV_labels + labels
-    labels_idx = np.arange(len(labels))
+    # labels_idx = np.arange(len(labels))
 
-    # STAR-X: http://star-x.xraydeep.org/observatory/
-    # UVEX: https://www.uvex.caltech.edu/page/about
-    # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
-    # LSST: https://www.lsst.org/scientists/keynumbers
+    # # STAR-X: http://star-x.xraydeep.org/observatory/
+    # # UVEX: https://www.uvex.caltech.edu/page/about
+    # # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
+    # # LSST: Bianco+ 2022
+        #https://www.lsst.org/scientists/keynumbers : 23.8, 24.5, 24.03, 23.41, 22.74, 22.96
     UV_limiting_mags = [24.5, 24.5]
-    sncosmo_lim_mags = [22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
-    UV_limiting_mags += sncosmo_lim_mags
+    sncosmo_lim_mags = [22.3, 22.3, 23.9, 25.0, 24.7, 24.0, 23.3, 22.1] # , 26, 26, 26
+    sncosmo_lim_mags = UV_limiting_mags + sncosmo_lim_mags
+
+    # NIR 
+    # JWST (10k s exposures): https://jwst-docs.stsci.edu/jwst-near-infrared-camera/nircam-performance/nircam-sensitivity#NIRCamSensitivity-Imaging
+        # as of Aug 1, 2024
+    # Roman: https://roman.gsfc.nasa.gov/science/WFI_technical.html, 
+        #as of June 3, 2024
+    sncosmo_bands += ['f070w', 'f277w', 'f444w', 'f062', 'f146', 'f213']
+    labels += ['JWST 70w', 'JWST 200w', 'JWST 444w', 'Roman 62', 'Roman 146wide', 'Roman 213']
+    sncosmo_lim_mags += [28.5, 28.7, 28.3, 24.77, 25.37, 23.14]
+
+    labels_idx = np.arange(len(labels))
 
     n = args.n_events
     n_files = 10
-    fname = 'EK_aft' #EK_aft_0tc'
+    fname = 'All' #EK_aft'
     if not args.plot:
         i = args.iter
         print(i, flush=True)
@@ -552,14 +564,15 @@ if __name__ == '__main__':
         # done - now check that these are the correct ones, then save the masses
 
     if args.plot:
-        #merge(n, n_files=n_files, fname=fname)
+        merge(n, n_files=n_files, fname=fname)
         #print('now plotting', flush=True)
 
         # select bands for plotting
-        labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
-        labels_idx = np.array([4,5])
+        # labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
+        # labels_idx = np.array([0,1])
+        labels_idx = np.arange(len(labels))
         font = {'family' : 'normal',
-                 'size'   : 20}
+                 'size'   : 15}
         matplotlib.rc('font', **font)
 
         # #compare_GW170817()
@@ -567,7 +580,7 @@ if __name__ == '__main__':
         # #afterglows(n*n_files, save=False, filename=fname)
         plot_avglc(n*n_files, save=False, filename=fname)
         #plot_color(n, save=False, filename=fname)
-        #plot_distance(n*n_files, save=False, filename=fname, limiting_mags=UV_limiting_mags)
+        plot_distance(n*n_files, save=False, filename=fname, limiting_mags=sncosmo_lim_mags)
     # params = get_params(500, False, filename=fname)
     # values = gen_events(500, False, filename=fname)
 

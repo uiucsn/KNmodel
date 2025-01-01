@@ -5,8 +5,11 @@ from matplotlib import colors
 from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import seaborn as sns
 from labellines import labelLine
+import corner
 
 import astropy.units as u
 import astropy.constants as const
@@ -28,10 +31,12 @@ from sed_to_lc import SEDDerviedLC, lsst_bands, mej_dyn_grid_high, mej_dyn_grid_
 
 from afterglow_addition import AfterglowAddition
 from afterglow_distribution import sncosmo_bands, labels, labels_idx, gen_events, get_params, smooth_out_Nans
+from scipy.interpolate import interp1d
+from scipy.optimize import fsolve
 
 # for a given saved data, plot the apparent mag the event were at distance dist
     # also for the bands of interest give the limitiing mags
-def plot_appmag(n, save, filename, dist, limiting_mags):
+def plot_appmag(n, save, filename, plotname, dist, limiting_mags):
 
     distmod = Distance(dist*u.Mpc).distmod.value
 
@@ -41,7 +46,7 @@ def plot_appmag(n, save, filename, dist, limiting_mags):
 
     # lsst bands
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(17, 8))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 5*n_plots))
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.ravel()
 
@@ -55,9 +60,100 @@ def plot_appmag(n, save, filename, dist, limiting_mags):
         ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[2][idx, :]), alpha=0.3, color='orange')
         ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
 
+        line = ax.axhline(y=lim_mag, color='gray', label=r'5-$\sigma$ Depth')
+
+        if plotname.startswith('jwstroman'): # also .T axs
+            if i == 3:
+                line = ax.axhline(y=lim_mag, color='gray', label=r'10-$\sigma$ Depth')    
+            else:
+                line = ax.axhline(y=lim_mag, color='gray', label=r'5-$\sigma$ Depth')
+            if i < 3:
+                ax.set_ylabel(r'Apparent Magnitude')
+                
+            ax[2].set_xlabel(r'phase [day]')
+            ax[5].set_xlabel(r'phase [day]')
+
+            axs[3].legend()
+            axs[3].scatter(1, 28.4, color='white')
+    
+        
+        labelLine(line, x=2.5, label=lim_mag)
+
+        if plotname == 'lsstToO':
+            
+            # find when the lc is = lim_mag
+            interp_band = interp1d(phases, smooth_out_Nans(distr[1][idx, :]))
+            def equ_to_solve(t):
+                return interp_band(t) - lim_mag            
+
+            e120 = [24.7, 25.8]
+            e180 = [24.9, 26.0]
+            
+            sol1 = fsolve(equ_to_solve, 5)[0]
+
+            lim_mag = e120[i]
+            ax.axhline(y=lim_mag, color='gray', linestyle = '--',label=r'5-$\sigma$ 120s exp')
+            sol2 = fsolve(equ_to_solve, 5)[0]
+
+            lim_mag = e180[i]
+            ax.axhline(y=lim_mag, color='gray', linestyle = 'dotted', label=r'5-$\sigma$ 180s exp')
+            sol3 = fsolve(equ_to_solve, 5)[0]
+
+            print(f"regular: {sol1}, 120s: {sol2}, 180s: {sol3}", flush=True)
+            print(f"120 diff: {sol2-sol1}, 180 diff: {sol3-sol1}", flush=True)
+            
+
+        ax.set_title(labels[idx])
+        ax.set_xlabel('phase [day]')
+        ax.invert_yaxis()
+        #ax.set_xlim(0,8)
+        #ax.set_ylim(30, 20)
+    axs[0].legend()
+    axs[0].set_ylabel(r'Apparent Magnitude')
+    fig.tight_layout()
+    
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_appmag_{dist}_all.png')
+    plt.show() 
+
+    
+def plot_appmag_outlier(n, save, filename, plotname, dist, limiting_mags):
+
+    distmod = Distance(dist*u.Mpc).distmod.value
+
+    values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
+    distr = np.percentile(values[:,1]+ distmod, [0, 16], axis=0) # get magAftKN
+    distr_KN = np.percentile(values[:,2]+ distmod, [0, 16], axis=0) 
+
+    #bright_mask = values[:,1] < distr[1]
+    bright_idx = np.where(np.all(values[:,1]+distmod < distr[1], axis=1))[0]
+
+    # get the individal lcs
+    # lcs = values[bright_idx,1] + distmod
+    # lcs_KN = values[bright_idx,2] + distmod
+    
+    # lsst bands
+    n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
+    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 4*n_plots))
+    plt.subplots_adjust(wspace=0.2, hspace=0.6)
+    axs = axs.ravel()
+
+    for i, idx in enumerate(labels_idx):
+        lim_mag = limiting_mags[idx]
+        ax = axs[i]
+
+        ax.fill_between(phases, smooth_out_Nans(distr[0][idx, :]), smooth_out_Nans(distr[1][idx, :]), alpha=0.3, color='b')
+        #ax.plot(phases, smooth_out_Nans(distr[1][idx, :]), color='b', label='Afterglow + KN')
+
+        ax.fill_between(phases, smooth_out_Nans(distr_KN[0][idx, :]), smooth_out_Nans(distr_KN[1][idx, :]), alpha=0.3, color='orange')
+        #ax.plot(phases, smooth_out_Nans(distr_KN[1][idx, :]), color='orange', label='KN only')
+
         line = ax.axhline(y=lim_mag, color='gray', label='limiting mag')
 
-        labelLine(line, x = 17, label=lim_mag)
+        labelLine(line, x = 6, label=lim_mag)
+
+        for b_idx in bright_idx[::10]:
+            ax.plot(phases, smooth_out_Nans(values[b_idx, 2, idx, :]+distmod), color='gray', alpha=0.5)
+            ax.plot(phases, smooth_out_Nans(values[b_idx, 1, idx, :]+distmod), color='black', alpha=0.5)
 
         ax.set_title(labels[idx])
 
@@ -65,12 +161,196 @@ def plot_appmag(n, save, filename, dist, limiting_mags):
         #ax.set_yscale('log')
         ax.set_xlabel(r'phase [day]')
         ax.invert_yaxis()
-        ax.set_xlim(0,20)
+        #ax.set_xlim(0,8)
+        #ax.set_ylim(30, 20)
     axs[0].legend()
     fig.tight_layout()
     
-    fig.savefig(f'img/caps/{n}_events_{filename}_appmag_{dist}_ug_desc.png')
-    plt.show() 
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_appmag_{dist}_all_bright.png')
+    plt.show()
+
+    # corner 
+    param_filename = filename
+    with open(f'data/sims/{n}_params_{param_filename}.pkl', 'rb') as f:
+        params = pickle.load(f)
+
+    fig, axs = plt.subplots(5, 2, figsize=(16,16))
+    axs = axs.ravel()
+    plt.subplots_adjust(hspace=0.4)
+    #idx_det_20 = np.where(np.array(data['discovery_window']) >= 19)[0]
+
+
+    legends = ['all events', 'bright']
+    for j, parms in enumerate([params.T, params[bright_idx].T]):
+        kn_p, aft_p = parms # [ [kn, aft], [kn, aft]] -> [[kn, kn], [aft, aft]]
+
+        kn_params = {"mej_dyn": [], 
+                    "mej_wind": [], 
+                    "phi": [], 
+                    "cos_theta": [], 
+                    "dist": [], 
+                    #  "coord": [], 
+                    "av": [], 
+                    # "rv": []
+                    }
+
+        for d in kn_p:
+            for key, value in d.items():
+                if key in kn_params.keys():
+                    kn_params[key].append(value)
+
+        #kn_params['mej_dyn'] = np.log10(kn_params['mej_dyn']) 
+        #kn_params['mej_wind'] = np.log10(kn_params['mej_wind']) 
+        
+        aft_params = {"E0": [], 
+                    "thetaCore": [], 
+                    "n0": [], 
+                    "p": [], 
+                    #  "epsilon_e": [],
+                    #  "epsilon_B": []
+                    }
+
+        for d in aft_p:
+            for key, value in d.items():
+                if key in aft_params.keys():
+                    aft_params[key].append(value)
+
+        
+        for i, (param, value) in enumerate(kn_params.items()):
+            axs[i].hist(value, bins=100, density=True, alpha=0.6, label=legends[j])
+            axs[i].set_title(param)
+        axs[0].legend()
+        for i, (param, value) in enumerate(aft_params.items()):
+            
+            if param == 'E0' or param == 'n0':
+                value = np.log10(value)
+            
+            axs[i+6].hist(value, bins=100, density=True, alpha=0.6)
+            axs[i+6].set_title(param)
+
+        
+        
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_detParam.png')
+    plt.show()
+
+    # corners
+    corner_dicts = []
+    for parms in [params.T, params[bright_idx].T]:
+
+        params_dict = {"mej_dyn": [], 
+                    "mej_wind": [], 
+                    "phi": [], 
+                    "cos_theta": [], 
+                    #"dist": [], 
+                    #  "coord": [], 
+                    "av": [], 
+                    # "rv": [],
+                    "E0": [], 
+                    "thetaCore": [], 
+                    "n0": [], 
+                    "p": [], 
+                    #  "epsilon_e": [],
+                    #  "epsilon_B": []
+                    }
+
+        kn_p, aft_p = parms
+        for d in kn_p:
+            for key, value in d.items():
+                if key in params_dict.keys():
+                    params_dict[key].append(value)
+        for d in aft_p:
+            for key, value in d.items():
+                if key in params_dict.keys():
+                    print(params_dict[key])
+                    params_dict[key].append(value)
+
+        params_dict['E0'] = np.log10(params_dict['E0'])
+        params_dict['n0'] = np.log10(params_dict['n0'])
+        params_dict['thetav/c'] = np.arccos(params_dict['cos_theta']) / params_dict['thetaCore']
+
+        data_df = pd.DataFrame(params_dict)
+        print(data_df, flush=True)
+        corner_dicts.append(data_df)  
+
+    cols = ['E0', 'n0', 'thetaCore', 'thetav/c']
+    fig2 = corner.corner(corner_dicts[0][cols], plot_countours=True, show_titles=True, smooth=2, )
+    corner.corner(corner_dicts[1][cols], plot_countours=True, show_titles=True, smooth=2, color='C1', fig=fig2)
+    fig2.savefig(f'img/caps/{n}_events_{filename}{plotname}_subset.png')
+    
+
+def plot_stratify(n, save, filename, plotname=''):
+
+    # two possible version 
+        # events from entire sample or events that live in the middle area
+
+    values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
+    params = get_params(n, save, filename)
+
+    events = np.arange(5, n, 50)# every 50th event
+    values = values[events]
+    params = params[events]
+
+    fig, axs = plt.subplots(4, 2, figsize=(12, 16))
+    axs = axs.ravel()
+    labels = ['E0', 'thetaCore', 'n0', 'cos_theta']
+
+    param_dict = pd.DataFrame([{**d2, **d1} for d1, d2 in params])[labels].to_dict(orient='list')
+    p_dict2 = {'logE0': np.log10(param_dict['E0']),
+               'thetaCore': np.array(param_dict['thetaCore']),
+               'logn0': np.log10(param_dict['n0']),
+               'thetaView': np.arccos(param_dict['cos_theta']),
+               }
+    p_dict2['tV/tC'] = p_dict2['thetaView'] / p_dict2['thetaCore']
+    p_dict2['E0/n0'] = np.log10(np.array(param_dict['E0']) / np.array(param_dict['n0']))
+    p_dict2['tbin'] = 2.95*(((10**p_dict2['E0/n0'])/1e53)**(1/3))*(p_dict2['thetaCore']/0.1)**(8/3)
+
+
+    for i, name in enumerate(p_dict2.keys()):
+        ax = axs[i]
+
+        # set up colorbar
+        cmap = cm['jet']
+        param = p_dict2[name]
+
+        if name == 'tbin':
+            ax.hist(p_dict2[name], bins=100)
+            ax.set_xlim(0, 25)
+            ax.set_title('distr of break times')
+            continue
+        
+        if name == 'tV/tC':
+            norm = colors.Normalize(vmin=min(param), vmax=10)
+        else:
+            norm = colors.Normalize(vmin=min(param), vmax=max(param))
+        print(min(param), max(param), flush=True)
+        
+        for j, _ in enumerate(values):
+            distmod = 0
+            band = 5 # g band
+
+            # get g-band afterglow only light curve
+            val = p_dict2[name][j]
+            ax.plot(phases, values[j, 0, band, :]+distmod, c=cmap(norm(val)))
+            
+
+        ax.set_title(name)
+        ax.set_ylabel(r'Absolute Magnitude')
+        ax.set_xlabel(r'phase [day]')
+        ax.invert_yaxis()
+        #ax.set_xlim(0,8)
+        #ax.set_ylim(30, 20)
+        fig.colorbar(ScalarMappable(norm=norm, cmap=cm['jet']), ax=ax, orientation='vertical', pad=0.05)
+
+    fig.tight_layout()
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_stratifyaft_new.png')
+    plt.show()
+
+    
+    # loop thru events, select a sample (every 50/100)
+
+        # per event, add it to a plot colored by param value
+    
+    return None
 
 def plot_openingAngle(n, save, filename):
     values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
@@ -118,7 +398,63 @@ def plot_openingAngle(n, save, filename):
     fig.savefig(f'img/{n}_events_{filename}_opening.png')
     plt.show() 
 
-# stolen from paper_figs
+
+def plot_aft_varied(i):
+
+    params = ['E0', 'n0', 'thetaCore', 'theta_v']
+
+    # set up afterglow
+    aft_params = {'KN': None,  
+                'E0': 10**52.96, 
+                'thetaCore': 0.066,
+                'n0': 10**-2.7, 
+                'p': 2.17,
+                'epsilon_e': 10**-1.4,
+                'epsilon_B': 10**-4, 
+                'theta_v':  0.0, 
+                'coord':  SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec"),
+                'dist': 40*u.Mpc}
+    
+    param_name = params[i]
+
+    cmap = cm['jet']
+
+    if param_name =='E0':
+        param = np.linspace(50, 56, 7)
+        vals = 10**param
+    if param_name == 'n0':
+        param = np.linspace(-5, 5, 11)
+        vals = 10**param
+    if param_name == 'thetaCore':
+        param = np.arange(0.3, 13.3)
+        vals = (param*u.deg).to(u.rad).value
+    if param_name == 'theta_v':
+        param = np.arange(0,11)
+        vals = param*aft_params['thetaCore']
+
+    cmap = cm['jet']
+    norm = colors.Normalize(vmin=min(param), vmax=max(param))
+    cs = [cmap(norm(p)) for p in param]
+    
+    fig, ax = plt.subplots(1,1,figsize=(8,6))
+    for j, val in tqdm(enumerate(vals)):
+        aft_params[param_name] = val 
+        print(param_name, j, flush=True)
+        afterglow = AfterglowAddition(**aft_params) # use typical values
+        
+        #t = np.arccos(ct)*u.rad.to(u.deg)
+        ax.plot(phases, afterglow.getAbsMagsInPassbands(lsst_bands, apply_extinction=False)['lsstg'], color=cs[j])
+        
+    ax.set_title(param_name)
+    fig.colorbar(ScalarMappable(norm=norm, cmap=cm['jet']), ax=ax, orientation='vertical', pad=0.05)
+    
+    ax.set_xlabel("time (days)")
+    ax.set_ylabel("M")
+    ax.invert_yaxis()
+    plt.savefig(f"img/caps/aft_{param_name}_varied.png")
+    plt.show()
+
+# stolen from paper_figs (Shah et al.)
 def makeTrialsEjectaHistogram():
 
     # 170817 params
@@ -291,23 +627,30 @@ if __name__ == '__main__':
 
     UV_bands = ['UVEX::FUV', 'UVEX::NUV']
     UV_labels = ['UVEX FUV', 'UVEX NUV']
-    #labels_idx = np.arange(len(labels))
+    limiting_mags = [24.5, 24.5]
+    # #labels_idx = np.arange(len(labels))
 
     sncosmo_bands = UV_bands + sncosmo_bands
     labels = UV_labels + labels
-    labels_idx = np.arange(len(labels))
+    # labels_idx = np.arange(len(labels))
 
-    # STAR-X: http://star-x.xraydeep.org/observatory/
-    # UVEX: https://www.uvex.caltech.edu/page/about
-    # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
-    # LSST: https://www.lsst.org/scientists/keynumbers
-    UV_limiting_mags = [24.5, 24.5]
-    sncosmo_lim_mags = [22.3, 22.3, 23.8, 24.5, 24.03, 23.41, 22.74, 22.96, 26, 26, 26]
-    UV_limiting_mags += sncosmo_lim_mags
+    # # STAR-X: http://star-x.xraydeep.org/observatory/
+    # # UVEX: https://www.uvex.caltech.edu/page/about
+    # # UVOT: https://swift.gsfc.nasa.gov/about_swift/uvot_desc.html
+    # # LSST: Bianco+ 2022
+        #https://www.lsst.org/scientists/keynumbers : 23.8, 24.5, 24.03, 23.41, 22.74, 22.96
+    sncosmo_lim_mags = [22.3, 22.3, 23.9, 25.0, 24.7, 24.0, 23.3, 22.1] # , 26, 26, 26
+    limiting_mags += sncosmo_lim_mags
+
+    sncosmo_bands += ['f070w', 'f277w', 'f444w', 'f062', 'f146', 'f213']
+    labels += ['JWST 70w', 'JWST 200w', 'JWST 444w', 'Roman 62', 'Roman 146wide', 'Roman 213']
+    limiting_mags += [28.5, 28.7, 28.3, 24.77, 25.37, 23.14]
+    labels_idx = np.arange(len(labels))
 
     n = args.n_events
     n_files = 10
-    fname = 'EK_aft' #EK_aft_0tc'
+    fname = 'All' #'EK_nir' #'EK_red' #
+    plotname='strat'
     # if not args.plot:
     #     i = args.iter
     #     print(i, flush=True)
@@ -315,19 +658,35 @@ if __name__ == '__main__':
     #     fname += str(i)
     #     gen_events(n, save=True, filename=fname)
 
+    # plot_aft_varied(args.iter)
+
     if args.plot:
         #merge(n, n_files=n_files, fname=fname)
         print('now plotting', flush=True)
 
         # select bands for plotting
-        labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
-        labels_idx = np.array([4,5])
-        font = {'family' : 'normal',
-                 'size'   : 20}
+        #labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
+        # labels_idx = np.array([4,5])
+        # labels_idx = np.arange(len(labels))
+        font = { 'size'   : 15}
         mpl.rc('font', **font)
 
-        #compare_GW170817()
-        plot_appmag(n*n_files, save=False, filename=fname, dist=160, limiting_mags=UV_limiting_mags) # use the data gen'd in the previous plotting
-        #plot_openingAngle(n*n_files, save=False, filename=fname)
-        #makeTrialsEjectaHistogram()
+        plt_params = {'n': n*n_files, 'save':False, 'filename': fname, 'plotname':plotname}
+        plot_stratify(**plt_params)
 
+        #compare_GW170817()
+        # plot_appmag(n*n_files, save=False, filename=fname, plotname='lsstBianco', 
+        #                     dist=160, limiting_mags=limiting_mags)
+        # # plot_appmag_outlier(n*n_files, save=False, filename=fname, plotname=plotname, 
+        # #                     dist=160, limiting_mags=limiting_mags) # use the data gen'd in the previous plotting
+        # #plot_openingAngle(n*n_files, save=False, filename=fname)
+        # #makeTrialsEjectaHistogram()
+
+        # labels_idx = np.array([0,1])
+        # plot_appmag(n*n_files, save=False, filename=fname, plotname='uvexBianco', 
+        #                     dist=160, limiting_mags=limiting_mags)
+        
+        # labels_idx = np.array([len(labels)-1-i for i in range(6)])# last 6 is roman/jwst
+        # plot_appmag(n*n_files, save=False, filename=fname, plotname='jwstromanBianco', 
+        #                     dist=160, limiting_mags=limiting_mags)
+        

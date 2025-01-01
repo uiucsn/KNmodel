@@ -235,7 +235,8 @@ class SEDDerviedLC():
             if apply_extinction:
 
                 # add host galaxy extinction E(B-V)
-                model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+                    # changed to F99
+                model.add_effect(sncosmo.F99Dust(), 'host', 'rest')
                 model.set(hostebv = self.host_ebv)
 
                 # add MW extinction to observing frame

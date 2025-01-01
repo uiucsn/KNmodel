@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+np.int = np.int_ # why is this needed all of the sudden
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
@@ -45,9 +46,10 @@ sncosmo.register(sncosmo.Bandpass(energy[high], thru[high], name='axis::hard', w
 # goal: take in a KN object + afterglow params and get the new combined SED
 class AfterglowAddition():
 
+    # defaults to afterglowpy papers fit for Gaussian jet for GRB170817
     def __init__(self, KN, E0=10**52.96, thetaCore=0.066, n0=10**-2.7, p=2.17,
                  epsilon_e=10**-1.4, epsilon_B=10**-4, 
-                 theta_v = None, coord = None, av = 0., rv = 3.1,  # only needed if no KN
+                 theta_v = 0.0, coord = None, dist = None, av = 0., rv = 3.1,  # only needed if no KN
                  time = phases, wav = lmbd, addKN = True, xray = False):
         
         # initialize with either KN object or sed file
@@ -57,10 +59,12 @@ class AfterglowAddition():
             theta_v = np.arccos(KN.cos_theta)
             self.host_ebv = KN.host_ebv
             self.mw_ebv = KN.mw_ebv
+            self.distance = KN.distance
 
         # TODO: allow initialization without KN
         if KN is None:
             self.coord = coord
+            self.distance = Distance(dist)
             self.KNsed = np.zeros((len(wav), len(time)))
             addKN = False
             self.host_ebv = av/rv
@@ -111,7 +115,7 @@ class AfterglowAddition():
 
     # from ved, adapted to use the afterglow SED
         # remove False extinction part
-    def getAbsMagsInPassbands(self, passbands, apply_extinction = True, apply_redshift = False):
+    def getAbsMagsInPassbands(self, passbands, apply_extinction = True, apply_redshift = True):
 
         lcs = {}
         
@@ -122,18 +126,19 @@ class AfterglowAddition():
             source = sncosmo.TimeSeriesSource(phase=self.phases, wave=self.lmbd, flux = self.sed, name=source_name, zero_before=True)
 
             model = sncosmo.Model(source)
-            print(apply_extinction, flush=True)
-            print(model, flush=True)
+            # print(apply_extinction, flush=True)
+            # print(model, flush=True)
             if apply_extinction:
 
                 # add host galaxy extinction E(B-V)
-                model.add_effect(sncosmo.CCM89Dust(), 'host', 'rest')
+                model.add_effect(sncosmo.F99Dust(), 'host', 'rest')
                 model.set(hostebv = self.host_ebv)
-                print(model, flush=True)
+                # print(model, flush=True)
+
                 # add MW extinction to observing frame
                 model.add_effect(sncosmo.F99Dust(), 'mw', 'obs')
                 model.set(mwebv=self.mw_ebv)
-                print(model, flush=True)
+                # print(model, flush=True)
             if apply_redshift:
 
                 # Adding redshift based on distance: https://docs.astropy.org/en/stable/api/astropy.coordinates.Distance.html#astropy.coordinates.Distance.z
@@ -153,7 +158,7 @@ class AfterglowAddition():
 
         # Add the distance modulus using the KN dist
         for passband in passbands:
-            lcs[passband] += self.KN.distance.distmod.value
+            lcs[passband] += self.distance.distmod.value
 
         return lcs
 
@@ -174,7 +179,7 @@ if __name__ == "__main__":
             plt.legend()
             plt.show()
 
-    def checkLCs(to_plot, labels, passbands = lsst_bands):
+    def checkLCs(to_plot, labels, filename, passbands = lsst_bands):
        
         #band = 'lssti'
         fig = plt.figure(figsize=(8,6))
@@ -189,7 +194,7 @@ if __name__ == "__main__":
         plt.ylabel("Absolute magnitude")
         plt.gca().invert_yaxis()
         plt.legend()
-        fig.savefig(f'img/UV_IR.png')
+        fig.savefig(f'img/caps/{filename}.png')
         plt.show()
 
     def plotDistributions():
@@ -391,19 +396,19 @@ if __name__ == "__main__":
     # mej_wind = 0.05
     # mej_dyn = 0.005
     # phi = 30
-    theta = 4*u.deg.to(u.rad)
+    # theta = 4*u.deg.to(u.rad)
     # cos_theta = np.cos(theta) #1
 
-    c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
-    d = 40*u.Mpc
-    # KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
+    # c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
+    # d = 40*u.Mpc
+    # # KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
 
-    # # afterglow
-    E0 = 10**52.9 #erg
-    n0 = 1e-3#cm**-3
-    aft = AfterglowAddition(KN=None, E0=E0, n0=n0, theta_v=theta, coord=c, wav=AXIS_THRU_TABLE['wavelength'])
-    print(aft.lmbd[0], aft.lmbd[-1], flush=True)
-    # afterglow = AfterglowAddition(KN, E0, n0, False)
+    # # # afterglow
+    # E0 = 10**52.9 #erg
+    # n0 = 1e-3 #cm**-3
+    # aft = AfterglowAddition(KN=None, E0=E0, n0=n0, theta_v=theta, coord=c, wav=AXIS_THRU_TABLE['wavelength'])
+    #print(aft.lmbd[0], aft.lmbd[-1], flush=True)
+    # # afterglow = AfterglowAddition(KN, E0, n0, False)
 
     # sed_dir = './SEDs/SIMSED.BULLA-BNS-M3-3COMP/'
 
@@ -413,7 +418,7 @@ if __name__ == "__main__":
     # phi = 0
     # file = f'sed_cos_theta_{cos_theta}_mejdyn_{mej_dyn}_mejwind_{mej_wind}0_phi_{phi}.txt'
 
-    #KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
+    # KN = SEDDerviedLC(mej_dyn, mej_wind, phi, cos_theta, dist=d, coord=c, av=0.0)
     # aftKN = AfterglowAddition(KN, E0, n0)
     #afterglow = AfterglowAddition(KN, addKN=False)
 
@@ -424,8 +429,8 @@ if __name__ == "__main__":
     # KN_f.sed = afterglow_f.KNsed # replace calc'd sed with file sed so i can be plotted
 
     #print(KN.sed == KN_f)
-    #checkLCs([afterglow, KN], ["afterglow", "KN"], passbands=['f125w', 'f160w', 'f200w', 'uvot::uvw2', 'uvot::uvw1'])
-    checkLCs([aft, ], ["afterglow", ], passbands=['axis::total','axis::soft', 'axis::medium' , 'axis::hard'])
+    #checkLCs([aftKN, KN], ["afterglow", "KN"], filename='new_dust', passbands=['f125w', 'f160w', 'f200w', 'f444w'])
+    #checkLCs([aft, ], ["afterglow", ], passbands=['axis::total','axis::soft', 'axis::medium' , 'axis::hard'])
     #checkSEDs([afterglow_f.sed, aftKN_f.KNsed, afterglow.sed, KN.sed], ["afterglow f", "KN f", "afterglow", "KN"])
     #plotDistributions() 
     #makeTest()   
