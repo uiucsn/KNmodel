@@ -101,6 +101,32 @@ def get_p(n, distr='Fong15'):
         pmin, pmax = 2, np.inf
         return sts.truncnorm.rvs(a=(pmin - mean)/std, b=(pmax - mean)/std, loc=mean, scale = std, size=n)
          
+def get_distances(n, length, shape='sphere'):
+
+    if shape == 'sphere':
+        x1 = np.random.normal(0, 1, n)
+        x2 = np.random.normal(0, 1, n)
+        x3 = np.random.normal(0, 1, n)
+        u = np.random.uniform(0, 1, n)
+
+        coef = length*u**(1/3)/np.sqrt(x1**2 + x2**2 + x3**2)
+        x = coef*x1
+        y = coef*x2
+        z = coef*x3
+
+    elif shape == 'cube':
+        x = np.random.uniform(-length/2, length/2, n)
+        y = np.random.uniform(-length/2, length/2, n)
+        z = np.random.uniform(-length/2, length/2, n)
+
+    coords = np.zeros(n, dtype=object)
+    dists = np.zeros(n)
+    for i in range(n):
+        r, dec, ra = coord.cartesian_to_spherical(x[i], y[i], z[i])
+        coords[i] = coord.SkyCoord(ra=ra, dec=dec)
+        dists[i] = r
+
+    return coords, dists
 
 
 # get sample of opening angles based on  Rouco Escorial et al. 2023 (ER23)

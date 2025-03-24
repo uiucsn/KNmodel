@@ -115,7 +115,7 @@ class AfterglowAddition():
 
     # from ved, adapted to use the afterglow SED
         # remove False extinction part
-    def getAbsMagsInPassbands(self, passbands, apply_extinction = True, apply_redshift = True):
+    def getAbsMagsInPassbands(self, passbands, apply_extinction = False, apply_redshift = True): 
 
         lcs = {}
         

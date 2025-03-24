@@ -19,7 +19,7 @@ from afterglow_addition import AfterglowAddition#, t_s, nu
 
 # make the same plot made for NSF
 t_day = np.arange(start=0.1, stop=22, step=0.2) # note finesst_iuv2 used 0.01 seperatation
-
+t_day = phases
 # lc_model = SVDLightCurveModel(model='Bu2019lm', sample_times = t_day, interpolation_type='tensorflow', svd_path = 'svdmodels', mag_ncoeff=None,  lbol_ncoeff=None)
 # grb_model = GRBLightCurveModel(t_day, resolution=12, jetType=0)
 
@@ -64,34 +64,34 @@ if save == True:
     c = SkyCoord(ra = "13h09m48.08s", dec = "−23deg22min53.3sec")
     d = 40*u.Mpc
 
-    #t_day = phases
+    
     KN = SEDDerviedLC(mej_dyn, mej_wind, phi, ct, dist=d, coord=c, av=0.0)
-    KN.sed = KN.getSed(t_day, lmbd)  # interpolate to 2 days out past bulla grid  
-    print(KN.sed.shape, flush=True)
-    print(t_day.shape, lmbd.shape, flush=True)   
-    afterglow = AfterglowAddition(KN, **params_grb, time = t_day, addKN=False) # use typical values
-    #tot = AfterglowAddition(KN, **params_grb, time = t_day, addKN=True)
+    # KN.sed = KN.getSed(t_day, lmbd)  # interpolate to 2 days out past bulla grid  
+    # print(KN.sed.shape, flush=True)
+    # print(t_day.shape, lmbd.shape, flush=True)   
+    # afterglow = AfterglowAddition(KN, **params_grb, addKN=False) # use typical values
+    afterglow = AfterglowAddition(KN, **params_grb, addKN=True)
 
 
     with open(f'data/sims/caps_4ztfsw.pkl', 'wb') as f:
         pickle.dump((KN, afterglow), f)
-else:
-    with open(f'data/sims/caps_4ztfsw.pkl', 'rb') as f:
-        KN, afterglow = pickle.load(f)
 
-bands = ['ztfi', 'uvot::uvw2']
-#bands = ['lssti', 'lsstu']
-labels = [r'$i$-band', 'UV']
-#labels = [r'$i$-band', r'$u$-band']
+with open(f'data/sims/caps_4ztfsw.pkl', 'rb') as f:
+    KN, afterglow = pickle.load(f)
+
+#bands = ['ztfi', 'uvot::uvw2']
+bands = ['lssti', 'lsstu']
+#labels = [r'$i$-band', 'UV']
+labels = [r'$i$-band', r'$u$-band']
 color = ['red', 'purple']
 
 # note: default figsize is (6.4, 4.8)
-fig, axs = plt.subplots(1, 2, figsize=(14, 6))
+fig, ax = plt.subplots(1, 1, figsize=(7, 6))
 
-ax = axs[0]
-mag = KN.getAbsMagsInPassbands(bands, lc_phases=t_day, apply_extinction=False) # needs the phases specified
-mag_grb = afterglow.getAbsMagsInPassbands(bands, apply_extinction=False) # should use the ones given in the object gen
-afterglow.sed += KN.sed
+# ax = axs[0]
+mag = KN.getAbsMagsInPassbands(bands, apply_extinction=False) # needs the phases specified
+# mag_grb = afterglow.getAbsMagsInPassbands(bands, apply_extinction=False) # should use the ones given in the object gen
+# afterglow.sed += KN.sed
 mag_tot = afterglow.getAbsMagsInPassbands(bands, apply_extinction=False)
 
 for i, b in enumerate(bands):
@@ -101,48 +101,48 @@ for i, b in enumerate(bands):
 
 ax.invert_yaxis()
 #ax.set_ylim(-10, -18)
-ax.set_xlim(0.1, 20)
+ax.set_xlim(0.3, 15)
 ax.set_xlabel('t [days]', fontsize=16)
 ax.tick_params(labelsize=14)
 ax.set_ylabel('$M$ [mag]', fontsize=16)
-ax.set_xscale('log')
-ax.set_title(r'GW170817-like KNe+Afterglow viewed at $\theta=4^{\circ}$', fontsize=17)
+# ax.set_xscale('log')
+ax.set_title(r'GW170817-like KNe+Afterglow viewed at $\theta = 4^{\circ}$', fontsize=17)
 ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
 ax.yaxis.set_major_locator(MultipleLocator(base=4))
 
 ax.legend(loc="lower left", fontsize=16)
 
 # spectra plot
-ax = axs[1]
+# ax = axs[1]
 
-# get the days of interest +1.5, +14, +21
-idx_1d = np.where(np.isclose(t_day, 1.5))[0][0]
-idx_14d = np.where(np.isclose(t_day, 14.1))[0][0]
-idx_21d = np.where(np.isclose(t_day, 21.1))[0][0]
+# # get the days of interest +1.5, +14, +21
+# idx_1d = np.where(np.isclose(t_day, 1.5))[0][0]
+# idx_14d = np.where(np.isclose(t_day, 14.1))[0][0]
+# idx_21d = np.where(np.isclose(t_day, 21.1))[0][0]
 
-labels = ['+1.5 days', '+14 days', '+21 days']
-colors = ['blue', 'red', 'green']
-tot = afterglow
-scale = 1/max(tot.sed[idx_1d][25:100])
-print(np.argmax(tot.sed[idx_1d]), flush=True)
-for i, idx in enumerate([idx_1d, idx_14d, idx_21d]):
+# labels = ['+1.5 days', '+14 days', '+21 days']
+# colors = ['blue', 'red', 'green']
+# tot = afterglow
+# scale = 1/max(tot.sed[idx_1d][25:100])
+# print(np.argmax(tot.sed[idx_1d]), flush=True)
+# for i, idx in enumerate([idx_1d, idx_14d, idx_21d]):
 
-    ax.plot(lmbd/1e4, scale*KN.sed[idx], color=colors[i], alpha=0.45)
-    ax.plot(lmbd/1e4, scale*tot.sed[idx], color=colors[i], label=labels[i])
-# plot specta at +1.5, +14, + 20
+#     ax.plot(lmbd/1e4, scale*KN.sed[idx], color=colors[i], alpha=0.45)
+#     ax.plot(lmbd/1e4, scale*tot.sed[idx], color=colors[i], label=labels[i])
+# # plot specta at +1.5, +14, + 20
 
-ax.set_xlim(0.3, 10) # 0.3 to 10 micron
-ax.set_ylim(1e-4, 1.1)
-ax.set_yscale('log')
-ax.set_xlabel(r'Wavelength [$\mu m$]', fontsize=16)
-ax.tick_params(labelsize=14)
-ax.set_ylabel('Relative $F_{\lambda}$', fontsize=16)
-ax.set_title(r'GW170817-like Spectra at 3 unique phases', fontsize=17)
-#ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
-#ax.yaxis.set_major_locator(MultipleLocator(base=4))
+# ax.set_xlim(0.3, 10) # 0.3 to 10 micron
+# ax.set_ylim(1e-4, 1.1)
+# ax.set_yscale('log')
+# ax.set_xlabel(r'Wavelength [$\mu m$]', fontsize=16)
+# ax.tick_params(labelsize=14)
+# ax.set_ylabel('Relative $F_{\lambda}$', fontsize=16)
+# ax.set_title(r'GW170817-like Spectra at 3 unique phases', fontsize=17)
+# #ax.xaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+# #ax.yaxis.set_major_locator(MultipleLocator(base=4))
 
-ax.legend(loc="upper right", fontsize=16)
+# ax.legend(loc="upper right", fontsize=16)
 
 
-plt.subplots_adjust(wspace=0.3)
-fig.savefig('img/caps/gw170817_4ztfswift.png')
+# plt.subplots_adjust(wspace=0.5)
+fig.savefig('img/caps/gw170817_lsst_prelim.png')

@@ -33,7 +33,7 @@ phases_10 = phases[:idx_10]
 
 # common band from uv to ir in sncosmo
 sncosmo_bands = ['uvot::uvw2', 'uvot::uvw1', 'lsstu', 'lsstg', 'lsstr', 'lssti', 'lsstz', 'lssty'] # , 'f125w', 'f160w', 'f200w'
-labels = ["uv2", "uv1", r"$u$-band", r"$g$-band", "r", "i", "z", "y"]#, "J", "H", "K"
+labels = ["uv2", "uv1", r"$u$-band", r"$g$-band", r"$r$-band", r"$i$-band", r"$z$-band", r"$y$-band"]#, "J", "H", "K"
 labels_idx = np.arange(len(labels))
 
 
@@ -411,7 +411,7 @@ def merge(n, n_files, fname):
             pickle.dump(masses, f)
 
     # clean up
-    for f in mass_files + param_files + val_files:
+    for f in val_files: # TODO: put back mass_files + param_files + 
         os.remove(f)
 
 def compare_GW170817():
@@ -549,7 +549,7 @@ if __name__ == '__main__':
 
     n = args.n_events
     n_files = 10
-    fname = 'All' #EK_aft'
+    fname = 'All_noExt' #EK_aft'
     if not args.plot:
         i = args.iter
         print(i, flush=True)

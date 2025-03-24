@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 import astropy.units as u
 import astropy.constants as const
+import matplotlib.ticker as ticker
 from astropy.coordinates import SkyCoord, Distance
 import afterglowpy as grb
 import sncosmo
@@ -18,6 +19,7 @@ from interpolate_bulla_sed import phases
 from sed_to_lc import SEDDerviedLC, lsst_bands
 from afterglow_distribution import gen_events, get_params, sncosmo_bands, labels, labels_idx
 from waveforms import get_snr
+from afterglow_params import get_distances
 
 import healpy as hp
 import scipy.stats as sts
@@ -207,6 +209,201 @@ def calc_detections_lsst(n, filename, plotname='',
         print(f'done detection calc {filename} {plotname}', flush=True)
         pickle.dump(det_df, f)
 
+def enhancement_with_volume(n, filename, plotname='', 
+                         bands=[4, 5, 6, 7, 8, 9], detection_threshold=[23.8, 24.5, 24.03, 23.41, 22.74, 22.96]):
+    
+    # params = get_params(n_events, filename=filename)
+    values = gen_events(n, filename=filename) # 10 for now
+    params = get_params(n, filename=filename) #EK_aft
+    idx_lsst = bands 
+
+    # hold list of discovery windows (time above det)
+
+    n_ehn = {}
+
+    for length in range(300, 1300, 25): # [300, 600]
+
+        discovery_window_KN = np.empty(n)
+        discovery_window = np.empty(n)  
+        afterglow_enhance = np.zeros(n)
+
+        _, dists = get_distances(n, length, shape='sphere')
+
+        # to do: loop over increasing Volume to see how num enhanced changes
+
+        for i, event in enumerate(values):
+
+            kn_p, _ = params[i]
+            dist =  dists[i]*u.Mpc
+            distmod = Distance(dist).distmod.value
+
+            # convert to app mag
+            total = event[1] + distmod
+            KN = event[2] + distmod
+
+            # check to see which band surpassed the det limit 1st
+            discovery_windows_KN = np.zeros(len(idx_lsst))
+            discovery_windows = np.zeros(len(idx_lsst))
+            for j, band in enumerate(idx_lsst):
+
+                # if want to get a depth from distribtuion of rubin sim obs at the location
+                # detection_threshold = get_depth(kn_p['coord'], sncosmo_bands[band][-1])
+
+                peak = np.min(KN[band])
+                idx_det = KN[band] < detection_threshold[j]
+                if peak < detection_threshold[j]:
+                    # discovery_mags_KN[j] = (KN[band][idx_det])[0]
+                    # discovery_phases_KN[j] = (phases[idx_det])[0]
+                    discovery_windows_KN[j] = (phases[idx_det])[-1] - (phases[idx_det])[0] + 0.2
+                #print(sncosmo_bands[band], discovery_mags_KN[j], discovery_phases_KN[j], discovery_windows_KN[j], flush=True)
+
+                # afterglow can cause a rise again
+                    # get the idx of where the idxs of points above the line are not sequential
+                    # take first region over the line
+                peak = np.min(total[band])
+                idx_det = np.where(total[band] < detection_threshold[j])[0]
+                if len(idx_det) > 0 and len(np.where(np.diff(idx_det) > 1)[0]) > 0:
+                    idx2 = np.where(np.diff(idx_det) > 1)[0][0]+1
+                #    print(len(idx_det))
+                    idx_det = idx_det[:idx2]
+                if peak < detection_threshold[j]:
+                    # discovery_mags[j] = (total[band][idx_det])[0]
+                    # discovery_phases[j] = (phases[idx_det])[0]
+                    discovery_windows[j] = (phases[idx_det])[-1] - (phases[idx_det])[0] + 0.2
+
+                #print(sncosmo_bands[band], sncosmo_bands[idx_lsst[j]], discovery_mags[j], discovery_phases[j], discovery_windows[j], flush=True)
+
+            # get KN disc windows
+            idx_maxwindow = np.nanargmax(discovery_windows_KN)
+            discovery_window_KN[i] = discovery_windows_KN[idx_maxwindow]
+            # discovery_windowband_KN[i] = sncosmo_bands[idx_lsst[idx_maxwindow]]
+
+            # repeat with afterglow included
+            idx_maxwindow = np.nanargmax(discovery_windows)
+            discovery_window[i] = discovery_windows[idx_maxwindow]
+            # discovery_windowband[i] = sncosmo_bands[idx_lsst[idx_maxwindow]]
+
+            # if the discovery window is extended by a day, save
+            if discovery_window[i] - discovery_window_KN[i] > 3:
+                afterglow_enhance[i] = 1
+                # discovery_distances[i] = dist.value
+
+        # save it   
+        n_ehn[length] = len(np.where(afterglow_enhance != 0)[0])
+
+
+
+    return n_ehn # to do run with just original to check N in the same
+
+def lum_func(n, filename, plotname='',
+        bands=[4, 5, 6, 7, 8, 9], detection_threshold=[23.8, 24.5, 24.03, 23.41, 22.74, 22.96]):
+    
+    values = gen_events(n, filename=filename)
+    # params = get_params(n, filename=filename)
+    idx_lsst = bands 
+
+    fig, axs = plt.subplots(len(bands),2, figsize=(10,2*len(bands)), sharex='col')
+    axs = axs.ravel().T
+
+    for i, b in enumerate(idx_lsst):
+        
+        M_KN = np.min(values[:, 2, b, :], axis=1)
+        M_KN = M_KN[np.isfinite(M_KN)]
+        M_aftonly = np.min(values[:, 0, b, :], axis=1)
+        M_aftonly = M_aftonly[np.isfinite(M_aftonly)]
+        M_net = np.min(values[:, 1, b, :], axis=1)
+        M_net = M_net[np.isfinite(M_net)]
+
+        ax = axs[2*i] # lum fun
+        binwidth = 0.4
+        data = np.concatenate((M_KN, M_aftonly, M_net))
+        bins=list(np.arange(min(data), max(data) + binwidth, binwidth))
+        
+        ax.hist(M_net, bins=bins, label='KN+afterglow')
+        ax.hist(M_aftonly, bins=bins, label='Afterglow')
+        ax.hist(M_KN, bins=bins, label='Kilonova', alpha=0.5)
+        ax.text(-22, 800, labels[b], va='center', ha='center')
+        ax.tick_params(axis="x", which="both", top=True, labeltop=False, bottom=True, direction="in")
+        ax.set_yscale('log')
+
+        ax = axs[2*i + 1] # cumulative distr
+        ax.hist(M_net, bins=bins, cumulative=True)
+        ax.hist(M_aftonly, bins=bins, cumulative=True)
+        ax.hist(M_KN, bins=bins, cumulative=True, alpha=0.5)
+        ax.invert_xaxis()
+        ax.tick_params(axis="x", which="both", top=True, labeltop=False, bottom=True, direction="in")
+        
+
+    axs[0].set_title('Magnitude Distribution')
+    axs[0].legend()
+    # axs[0].tick_params(axis="x", which="both", top=True, labeltop=True, direction="in")
+    xlim_min, xlim_max = axs[0].get_xlim()
+    xlim_min = -27
+    xlim_max = 15
+    axs[0].set_xlim(xlim_min, xlim_max)
+    axs[0].xaxis.set_inverted(True)
+    axs[0].set_xlabel('Absolute Magnitude')
+    
+    axs[1].set_title('Cumlative Distribution')
+    axs[1].set_xlim(xlim_min, xlim_max)
+    axs[1].xaxis.set_inverted(True)
+    axs[1].set_xlabel('Absolute Magnitude')
+
+    # add Lum to the top
+    ax0 = axs[0].twiny()
+    ax1 = axs[1].twiny()
+    loglum_ticks = np.arange(31., 51., 2)
+    # print(10**loglum_ticks / Lzp.value)
+    ab = sncosmo.get_magsystem('ab')
+    g_band = sncosmo.get_bandpass('lsstg')
+    d = (10*u.pc).to(u.cm)
+    E_g = sncosmo.constants.HC_ERG_AA * np.sum(g_band.trans/g_band.wave)*u.erg
+    Lzp = 4*np.pi*d**2*E_g*ab.zpbandflux('lsstg')/u.s/u.cm**2
+    mag_ticks = -2.5*np.log10(10**loglum_ticks / Lzp.value)
+
+    ax0.set_xticks(mag_ticks)
+    ax1.set_xticks(mag_ticks)
+    # ax0.tick_params(axis='x', labelrotation=60)
+    ax0.set_xticklabels([f'{r:.0f}' for r in loglum_ticks])
+    ax1.set_xticklabels([f'{r:.0f}' for r in loglum_ticks])
+    xlim_min, xlim_max = axs[0].get_xlim()
+    ax0.set_xlim(xlim_min, xlim_max)
+    ax1.set_xlim(xlim_min, xlim_max)
+    ax0.set_xlabel('g-band Luminosity (erg/s)')
+    ax1.set_xlabel('g-band Luminosity (erg/s)')
+
+    axs[0].xaxis.set_major_locator(ticker.MultipleLocator(5))
+
+    fig.tight_layout()
+    plt.subplots_adjust(hspace=0)
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_lumFlog.png')
+    plt.show()
+
+# verdict - sometimes the KN have no ejecta thus mag is inf (bc log(0))
+def plot_inf(n, filename, plotname='',
+        bands=[4, 5, 6, 7, 8, 9], detection_threshold=[23.8, 24.5, 24.03, 23.41, 22.74, 22.96]):
+    
+    values = gen_events(n, filename=filename)
+    params = get_params(n, filename=filename)
+    idx_lsst = bands[:1] 
+
+    fig, axs = plt.subplots(3,2,figsize=(10,10))
+    axs = axs.ravel()
+
+    for i, b in enumerate(idx_lsst):
+        
+        inf_idx = np.where(np.isinf(values[:, 2, b, :]))[0]
+        ax = axs[i]
+        for idx in inf_idx:
+            ax.plot(phases, values[idx, 2, b, :], alpha=0.5)
+            print(values[idx, 2, b, :], flush=True)
+            print(values[idx, 0, b, :], flush=True)
+            print(values[idx, 1, b, :], flush=True)
+            print(params[idx])
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_inf.png')
+    plt.show()
+    
+    
 
 def hist_detections(n, filename, plotname=''):
     # load in the values
@@ -471,7 +668,9 @@ if __name__ == '__main__':
     # default is lsst bands 
     params = {'n': 5000, 'filename': "All", 'plotname': "lsstdist"}
 
-    calc_detections_lsst(**params) #, bands=bands, detection_threshold=detection_threshold)
-    hist_detections(**params)
+    # print(enhancement_with_volume(**params), flush=True)
+    lum_func(**params)
+    # calc_detections_lsst(**params) #, bands=bands, detection_threshold=detection_threshold)
+    # hist_detections(**params)
     # hist_detections_bands(**params)
     # plotting(**params, band_idx=bands, detection_threshold=detection_threshold)

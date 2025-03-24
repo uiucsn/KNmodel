@@ -1,4 +1,5 @@
 import matplotlib as mpl
+# mpl.use('PDF')
 import matplotlib.pyplot as plt
 from matplotlib import colormaps as cm
 from matplotlib import colors
@@ -6,6 +7,8 @@ from matplotlib.cm import ScalarMappable
 import matplotlib.ticker as ticker
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+# plt.rcParams['text.usetex'] = True
+# plt.style.use('./redback.mplstyle')
 
 import seaborn as sns
 from labellines import labelLine
@@ -38,6 +41,8 @@ from scipy.optimize import fsolve
     # also for the bands of interest give the limitiing mags
 def plot_appmag(n, save, filename, plotname, dist, limiting_mags):
 
+    fs = 20
+
     distmod = Distance(dist*u.Mpc).distmod.value
 
     values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
@@ -46,7 +51,7 @@ def plot_appmag(n, save, filename, plotname, dist, limiting_mags):
 
     # lsst bands
     n_plots = int(len(labels_idx)/2) + (len(labels_idx)%2)
-    fig, axs = plt.subplots(n_plots, 2, figsize=(12, 5*n_plots))
+    fig, axs = plt.subplots(n_plots, 2, figsize=(2*7.4, 2*3.25)) # figsize=(12, 5*n_plots)
     plt.subplots_adjust(wspace=0.2, hspace=0.6)
     axs = axs.ravel()
 
@@ -68,16 +73,16 @@ def plot_appmag(n, save, filename, plotname, dist, limiting_mags):
             else:
                 line = ax.axhline(y=lim_mag, color='gray', label=r'5-$\sigma$ Depth')
             if i < 3:
-                ax.set_ylabel(r'Apparent Magnitude')
+                ax.set_ylabel(r'Apparent Magnitude', fontsize=fs)
                 
-            ax[2].set_xlabel(r'phase [day]')
-            ax[5].set_xlabel(r'phase [day]')
+            ax[2].set_xlabel(r'phase [day]', fontsize=fs)
+            ax[5].set_xlabel(r'phase [day]', fontsize=fs)
 
             axs[3].legend()
             axs[3].scatter(1, 28.4, color='white')
     
         
-        labelLine(line, x=2.5, label=lim_mag)
+        labelLine(line, x=7.5, label=lim_mag)
 
         if plotname == 'lsstToO':
             
@@ -103,15 +108,25 @@ def plot_appmag(n, save, filename, plotname, dist, limiting_mags):
             print(f"120 diff: {sol2-sol1}, 180 diff: {sol3-sol1}", flush=True)
             
 
-        ax.set_title(labels[idx])
-        ax.set_xlabel('phase [day]')
+        ax.set_title(labels[idx], fontsize=fs+3)
+        ax.set_xlabel('phase [day]', fontsize=fs)
         ax.invert_yaxis()
-        #ax.set_xlim(0,8)
-        #ax.set_ylim(30, 20)
-    axs[0].legend()
-    axs[0].set_ylabel(r'Apparent Magnitude')
+        ax.set_xlim(0,12)
+        for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+            label.set_fontsize(fs)
+        
+    axs[0].legend(fontsize=fs)
+
+    if plotname == 'poster_lsst':
+        axs[0].set_ylim(38, 19)
+        axs[1].set_ylim(32, 19)
+    if plotname == 'poster_uvex':
+        axs[0].set_ylim(42, 20)
+        axs[1].set_ylim(42, 20)
+
+    axs[0].set_ylabel(r'Apparent Magnitude ($d = 160 \ \rm Mpc$)', fontsize=fs)
     fig.tight_layout()
-    
+    plt.rcParams['font.size'] = str(fs)
     fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_appmag_{dist}_all.png')
     plt.show() 
 
@@ -292,7 +307,7 @@ def plot_stratify(n, save, filename, plotname=''):
 
     fig, axs = plt.subplots(4, 2, figsize=(12, 16))
     axs = axs.ravel()
-    labels = ['E0', 'thetaCore', 'n0', 'cos_theta']
+    labels = ['E0', 'thetaCore', 'n0', 'cos_theta', 'p']
 
     param_dict = pd.DataFrame([{**d2, **d1} for d1, d2 in params])[labels].to_dict(orient='list')
     p_dict2 = {'logE0': np.log10(param_dict['E0']),
@@ -303,7 +318,27 @@ def plot_stratify(n, save, filename, plotname=''):
     p_dict2['tV/tC'] = p_dict2['thetaView'] / p_dict2['thetaCore']
     p_dict2['E0/n0'] = np.log10(np.array(param_dict['E0']) / np.array(param_dict['n0']))
     p_dict2['tbin'] = 2.95*(((10**p_dict2['E0/n0'])/1e53)**(1/3))*(p_dict2['thetaCore']/0.1)**(8/3)
+    
+    p = np.array(param_dict['p'])
+    g = 0.25*(p_dict2['thetaView'] / p_dict2['thetaCore'])
+    ee_bar = 0.1*((p-2)/(p-1))
+    nu_gband = ((5000*u.AA).to(u.Hz, equivalencies=u.spectral()).value)/1e14 # in 1e14 Hz
+    t = 5.1 # days
 
+    p_dict2['E0/n0 - G'] = -np.log10( 0.461*(p-0.04)*np.exp(2.53*p)
+        * (ee_bar**(p-1))
+        * (0.01**((1+p/4)))
+        * ((np.array(param_dict['E0'])/1e52)**((3+p)/4)) 
+        * (np.array(param_dict['n0'])**(1/2)) 
+        * (t**(3-(6*p)-(3*g))/(8+g)) * (nu_gband**((1-p)/2)) ) # fixed at 5 days
+    # p_dict2['E0/n0 - H'] = -np.log10( 0.855*(p-0.98)*np.exp(1.95*p)
+    #     * (ee_bar**(p-1))
+    #     * (0.01**((p-2/4)))
+    #     * ((np.array(param_dict['E0'])/1e52)**((2+p)/4))
+    #     * (t**(1-(6*p)-(2*g))/(8+g)) * (nu_gband**(-p/2))) # fixed at 5 days
+
+    # p_dict2['E0/n0 - G'] = -np.log10(np.array(param_dict['E0'])**((3+p)/4) 
+    #     * np.array(param_dict['n0'])**(1/2)) * ((3-(6*p)-(3*g))/(8+g))
 
     for i, name in enumerate(p_dict2.keys()):
         ax = axs[i]
@@ -342,15 +377,92 @@ def plot_stratify(n, save, filename, plotname=''):
         fig.colorbar(ScalarMappable(norm=norm, cmap=cm['jet']), ax=ax, orientation='vertical', pad=0.05)
 
     fig.tight_layout()
-    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_stratifyaft_new.png')
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_stratifyaft_Ggband.png')
     plt.show()
-
     
     # loop thru events, select a sample (every 50/100)
 
         # per event, add it to a plot colored by param value
     
     return None
+
+def plot_mag_scatter(n, save, filename, plotname=''):
+    values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
+    params = get_params(n, save, filename)
+
+    # events = np.arange(5, n, 50)# every 50th event
+    values = values
+    params = params
+
+    # fig, axs = plt.subplots(4, 2, figsize=(12, 16))
+    # axs = axs.ravel()
+    ps_needed = ['E0', 'thetaCore', 'n0', 'cos_theta', 'p']
+
+    param_dict = pd.DataFrame([{**d2, **d1} for d1, d2 in params])[ps_needed].to_dict(orient='list')
+    p_dict2 = {'logE0': np.log10(param_dict['E0']),
+               'thetaCore': np.array(param_dict['thetaCore']),
+               'logn0': np.log10(param_dict['n0']),
+               'thetaView': np.arccos(param_dict['cos_theta']),
+               }
+    p_dict2['tV/tC'] = p_dict2['thetaView'] / p_dict2['thetaCore']
+    p_dict2['E0/n0'] = np.log10(np.array(param_dict['E0']) / np.array(param_dict['n0']))
+    p_dict2['tbin'] = 2.95*(((10**p_dict2['E0/n0'])/1e53)**(1/3))*(p_dict2['thetaCore']/0.1)**(8/3)
+    
+    p = np.array(param_dict['p'])
+    g = 0.25*(p_dict2['thetaView'] / p_dict2['thetaCore'])
+    ee_bar = 0.1*((p-2)/(p-1))
+    nu_gband = ((5000*u.AA).to(u.Hz, equivalencies=u.spectral()).value)/1e14 # in 1e14 Hz
+    t = 5.1 # days
+    p_dict2['G'] = -np.log10(0.461*(p-0.04)*np.exp(2.53*p)
+        * (ee_bar**(p-1))
+        * (0.01**((1+p/4)))
+        * ((np.array(param_dict['E0'])/1e52)**((3+p)/4)) 
+        * (np.array(param_dict['n0'])**(1/2)) 
+        * (t**(3-(6*p)-(3*g))/(8+g)) * (nu_gband**((1-p)/2))) # fixed at 5 days
+    p_dict2['H'] = -np.log10( 0.855*(p-0.98)*np.exp(1.95*p)
+        * (ee_bar**(p-1))
+        * (0.01**((p-2/4)))
+        * ((np.array(param_dict['E0'])/1e52)**((2+p)/4))
+        * (t**(1-(6*p)-(2*g))/(8+g)) * (nu_gband**(-p/2)))
+    p_dict2['D'] = -np.log10(27.9 * ((p-1)/((3*p)-1))
+        * (ee_bar**(-2/3))
+        * (0.01**((1/3)))
+        * (np.array(param_dict['n0'])**(1/2))
+        * ((np.array(param_dict['E0'])/1e52)**(5/6))
+        * (t**(1+(3*g))/(8+g)) * (nu_gband**(1/3)))
+    p_dict2['E'] = -np.log10(73.0
+        * (0.01)
+        * (np.array(param_dict['n0'])**(5/6))
+        * ((np.array(param_dict['E0'])/1e52)**(7/6))
+        * (t**((-5/3)+(11*g/3))/(8+g)) * (nu_gband**(1/3)))
+    p_dict2['F'] = -np.log10(6.87
+        * (0.01**((-1/4)))
+        * ((np.array(param_dict['E0'])/1e52)**(3/4))
+        * (t**(-5+(2*g))/(8+g)) * (nu_gband**(-1/2)))
+    
+
+    fig, axs = plt.subplots(3, 2, figsize=(10, 12))
+    axs = axs.ravel()
+    # values = gen_events(n, save, filename)
+    for i, metric in enumerate(['G', 'H', 'D', 'E', 'F']):
+        ax = axs[i]
+        
+        distmod = 0
+        band = 5 # g band
+        idx_5day = np.where(np.isclose(phases, t))[0][0]
+
+        # get g-band afterglow only magnitude at 5d
+        m = p_dict2[metric]
+        ax.scatter(m, values[:, 0, band, idx_5day]+distmod, color=f'C{i}', alpha=0.4)
+        ax.set_title(metric + '(scaled)')
+        ax.set_ylabel('Abs Mag')
+        ax.set_xlabel('metric')
+        ax.invert_yaxis()
+
+    fig.tight_layout()
+    fig.savefig(f'img/caps/{n}_events_{filename}{plotname}_stratifyaft_5dayPLSmin.png')
+    plt.suptitle('Abs g-band Magnitude at 5 days')
+    plt.show()
 
 def plot_openingAngle(n, save, filename):
     values = gen_events(n, save, filename) # shape n events, 3 LCs, 11, 50 (each row is an LC)
@@ -650,7 +762,7 @@ if __name__ == '__main__':
     n = args.n_events
     n_files = 10
     fname = 'All' #'EK_nir' #'EK_red' #
-    plotname='strat'
+    plotname='poster'
     # if not args.plot:
     #     i = args.iter
     #     print(i, flush=True)
@@ -668,25 +780,27 @@ if __name__ == '__main__':
         #labels_idx = np.array([0, 1, 4, 5, 6, 7, 8, 9]) # UV + LSST
         # labels_idx = np.array([4,5])
         # labels_idx = np.arange(len(labels))
-        font = { 'size'   : 15}
-        mpl.rc('font', **font)
+        # font = { 'size'   : 15}
+        # mpl.rc('font', **font)
 
-        plt_params = {'n': n*n_files, 'save':False, 'filename': fname, 'plotname':plotname}
-        plot_stratify(**plt_params)
+        # plt_params = {'n': n*n_files, 'save':False, 'filename': fname, 'plotname':plotname}
+        # plot_stratify(**plt_params)
+        # plot_mag_scatter(**plt_params)
 
         #compare_GW170817()
-        # plot_appmag(n*n_files, save=False, filename=fname, plotname='lsstBianco', 
-        #                     dist=160, limiting_mags=limiting_mags)
+        labels_idx = np.array([4,5])
+        plot_appmag(n*n_files, save=False, filename=fname, plotname=plotname+'_lsst', 
+                            dist=160, limiting_mags=limiting_mags)
         # # plot_appmag_outlier(n*n_files, save=False, filename=fname, plotname=plotname, 
         # #                     dist=160, limiting_mags=limiting_mags) # use the data gen'd in the previous plotting
         # #plot_openingAngle(n*n_files, save=False, filename=fname)
         # #makeTrialsEjectaHistogram()
 
         # labels_idx = np.array([0,1])
-        # plot_appmag(n*n_files, save=False, filename=fname, plotname='uvexBianco', 
+        # plot_appmag(n*n_files, save=False, filename=fname, plotname=plotname+'_uvex', 
         #                     dist=160, limiting_mags=limiting_mags)
         
         # labels_idx = np.array([len(labels)-1-i for i in range(6)])# last 6 is roman/jwst
-        # plot_appmag(n*n_files, save=False, filename=fname, plotname='jwstromanBianco', 
+        # plot_appmag(n*n_files, save=False, filename=fname, plotname='_clean_jwstromanBianco', 
         #                     dist=160, limiting_mags=limiting_mags)
         

@@ -113,7 +113,9 @@ add*.txt
 .DS_Store
 kn_params.py
 finesstplot.py
-addition*.sbatch
+*.sbatch
 afterglow_gw17.py
 bulla_fitter.py
 waveforms.py
+testingJunk/**
+temp/**
