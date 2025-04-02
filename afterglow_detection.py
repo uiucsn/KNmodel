@@ -320,7 +320,7 @@ def lum_func(n, filename, plotname='',
         bins=list(np.arange(min(data), max(data) + binwidth, binwidth))
         
         ax.hist(M_net, bins=bins, label='KN+afterglow')
-        ax.hist(M_aftonly, bins=bins, label='Afterglow')
+        ax.hist(M_aftonly, bins=bins, label='Afterglow', alpha=0.5)
         ax.hist(M_KN, bins=bins, label='Kilonova', alpha=0.5)
         ax.text(-22, 800, labels[b], va='center', ha='center')
         ax.tick_params(axis="x", which="both", top=True, labeltop=False, bottom=True, direction="in")
@@ -328,7 +328,7 @@ def lum_func(n, filename, plotname='',
 
         ax = axs[2*i + 1] # cumulative distr
         ax.hist(M_net, bins=bins, cumulative=True)
-        ax.hist(M_aftonly, bins=bins, cumulative=True)
+        ax.hist(M_aftonly, bins=bins, cumulative=True, alpha=0.5)
         ax.hist(M_KN, bins=bins, cumulative=True, alpha=0.5)
         ax.invert_xaxis()
         ax.tick_params(axis="x", which="both", top=True, labeltop=False, bottom=True, direction="in")
@@ -669,7 +669,18 @@ if __name__ == '__main__':
     params = {'n': 5000, 'filename': "All", 'plotname': "lsstdist"}
 
     # print(enhancement_with_volume(**params), flush=True)
+
+    # p_og = get_params(5000, False, 'All')
+    # p_new = get_params(5000, False, 'All_noExt')
+    # print(p_og[0], flush=True)
+    # for i in range(0, 11):
+    #     print(p_new[i*500], flush=True)
+    # print(p_new == p_og, flush=True)
+
     lum_func(**params)
+    params = {'n': 5000, 'filename': "All_noExt", 'plotname': "lsstdist"}
+    lum_func(**params)
+    
     # calc_detections_lsst(**params) #, bands=bands, detection_threshold=detection_threshold)
     # hist_detections(**params)
     # hist_detections_bands(**params)
